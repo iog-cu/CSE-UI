@@ -6,6 +6,7 @@
 
 import { configureStore } from '@reduxjs/toolkit';
 import { abilitiesSlice } from './abilitiesSlice';
+import { buildVersionSlice } from './buildVersionSlice';
 import { charactersSlice } from './charactersSlice';
 import { clockSlice } from './clockSlice';
 import { combatSlice } from './combatSlice';
@@ -34,10 +35,13 @@ import { zonesSlice } from './zonesSlice';
 import { questSlice } from './questSlice';
 import { tradeSlice } from './tradeSlice';
 import { notificationsSlice } from './notificationsSlice';
+import { socialSlice } from './socialSlice';
+import { tradeskillTrackerSlice } from './tradeskillTrackerSlice';
 
 export const store = configureStore({
   reducer: {
     abilities: abilitiesSlice.reducer,
+    buildVersion: buildVersionSlice.reducer,
     characters: charactersSlice.reducer,
     clock: clockSlice.reducer,
     combat: combatSlice.reducer,
@@ -61,9 +65,11 @@ export const store = configureStore({
     performanceWarnings: performanceWarningsSlice.reducer,
     popUpAnnouncements: popUpAnnouncementsSlice.reducer,
     quests: questSlice.reducer,
+    social: socialSlice.reducer,
     stringTable: stringTableSlice.reducer,
     toasters: toastersSlice.reducer,
     trade: tradeSlice.reducer,
+    tradeskillTracker: tradeskillTrackerSlice.reducer,
     warband: warbandSlice.reducer,
     zones: zonesSlice.reducer
   },

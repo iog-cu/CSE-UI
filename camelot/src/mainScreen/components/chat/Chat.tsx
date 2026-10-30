@@ -10,12 +10,7 @@ import { HUDLayer, HUDWidget, HUDWidgetRegistration } from '../../redux/hudSlice
 import { AddDispatch, RootState } from '../../redux/store';
 import { ListenerHandle } from '@csegames/library/dist/_baseGame/listenerHandle';
 import { HUDHorizontalAnchor, HUDVerticalAnchor } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
-import {
-  ChatScope,
-  ChatScopes,
-  ChatTab,
-  isChatScope
-} from '@csegames/library/dist/camelotunchained/game/types/ChatTypes';
+import { ChatScope, ChatScopes, ChatTab } from '@csegames/library/dist/camelotunchained/game/types/ChatTypes';
 import { getStringTableValue } from '../../helpers/stringTableHelpers';
 import { StringTable } from '../../dataSources/manifest/stringTableManifest';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
@@ -23,21 +18,13 @@ import { getFactionData } from '../../gameData/factionData';
 import { FactionBorder, BorderType, BorderBackground } from '../FactionBorder';
 import { FactionScrollArea } from '../FactionScrollArea';
 import { handleHUDWidgetResizeEvent } from '../BaseHUDWidget';
-import { ChatLine, incrementChatConnections } from './ChatLine';
+import { ChatLine } from './ChatLine';
+import { chatHistory } from './ChatHistory';
 import { allChatScopeDisplayData } from './ChatScopes';
-import { chatRenderer, chatService } from './ChatSetup';
+import { chatService } from './ChatSetup';
 import { ChatLineSimple } from './lines/ChatLineSimple';
-import { game } from '@csegames/library/dist/_baseGame';
-import { ChatLineCombat } from './lines/ChatLineCombat';
 import { ChatInput } from './ChatInput';
 import { ChatTabs } from './ChatTabs';
-import { ChatServiceListener } from '@csegames/library/dist/chat/ChatServiceListener';
-import { RoomRecord, ReceivedResponse, ErroredResponse } from '@csegames/library/dist/chat/generated/uce-chat-v3';
-import { ChatLineMessage } from './lines/ChatLineMessage';
-import { convertError, isServiceError } from '../../helpers/errorConversionHelpers';
-import { binarySearch } from '@csegames/library/dist/_baseGame/utils/arrayUtils';
-import { ChatLineNotice } from './lines/ChatLineNotice';
-import { AnnouncementType } from '@csegames/library/dist/_baseGame/types/localDefinitions';
 import Escapable from '../Escapable';
 
 // CSS classes
@@ -52,14 +39,11 @@ const Messages = 'HUD-Chat-Messages';
 // String IDs
 const StringIDChatRoomNotFound = 'ChatRoomNotFound';
 
-const MAX_LINES = 1000; // Shared across all scopes
-
 interface ReactProps {
   isDragCopy: boolean;
 }
 
 interface InjectedProps {
-  characterID: string;
   stringTable: StringTable;
   widgets: Record<string, HUDWidget>;
   vminPx: number;
@@ -74,7 +58,6 @@ interface State {
   currentTab: ChatTab;
   isActive: boolean;
   hasUnseenMessages: boolean;
-  responseTarget?: string; // Character name
   pendingWhisperTarget?: string; // Character name to start a whisper to; applied by ChatInput.
 }
 
@@ -82,72 +65,31 @@ interface Snapshot {
   shouldScroll: boolean;
 }
 
-class AChat extends React.Component<Props, State, Snapshot> implements ChatServiceListener {
+class AChat extends React.Component<Props, State, Snapshot> {
   private rootRef: HTMLDivElement | null = null;
   private messagesEndRef: HTMLDivElement | null = null;
-  private listeners: ListenerHandle[] = [];
+  private chatHistoryHandle: ListenerHandle | null = null;
   private isScrolledToBottom: boolean = true;
 
   constructor(props: Props) {
     super(props);
     this.state = {
-      chatLines: [],
+      chatLines: chatHistory.chatLines,
       currentTab: clientAPI.getChatTabs()[0],
       isActive: false,
       hasUnseenMessages: false
     };
 
     // We expose this as a static function so we can trigger whispers from unit frames and context menus.
-    Chat.requestWhisper = this.startWhisper.bind(this);
-  }
-
-  onJoined(room: RoomRecord): void {
-    if (!isChatScope(room.scope)) return;
-    const id = allChatScopeDisplayData[room.scope]?.joinedStringID;
-    if (!id) return;
-    this.addChatLine(new ChatLineNotice(getStringTableValue(id, this.props.stringTable)));
-  }
-
-  onLeft(room: RoomRecord): void {
-    if (!isChatScope(room.scope)) return;
-    const id = allChatScopeDisplayData[room.scope]?.leftStringID;
-    if (!id) return;
-    this.addChatLine(new ChatLineNotice(getStringTableValue(id, this.props.stringTable)));
-  }
-
-  onReceived(message: ReceivedResponse): void {
-    const scope = isChatScope(message.room.scope) ? message.room.scope : ChatScopes.Local;
-    if (scope === ChatScopes.Whisper && message.senderID != this.props.characterID) {
-      this.setState({ responseTarget: message.senderName });
+    // The HUD editor's drag copy must not take it over, or it would point at that copy after the drag ends.
+    if (!props.isDragCopy) {
+      Chat.requestWhisper = this.startWhisper.bind(this);
     }
-    this.addChatLine(new ChatLineMessage(scope, message, chatRenderer.render(message), this.startWhisper.bind(this)));
   }
 
   // Opens the chat input in whisper mode for the given player (used by left-clicking a chat name).
   private startWhisper(name: string): void {
     this.setState({ pendingWhisperTarget: name, isActive: true });
-  }
-
-  onError(error: ErroredResponse): void {
-    if (isServiceError(error)) {
-      this.addChatLine(new ChatLineSimple(ChatScopes.Error, convertError(error, false).message));
-    } else {
-      this.addChatLine(new ChatLineSimple(ChatScopes.Error, error.error.type));
-    }
-  }
-
-  onConnected(): void {
-    incrementChatConnections();
-  }
-
-  onConnectionFailure(reconnecting: boolean): void {
-    if (!reconnecting) this.openConnection();
-    // TODO : message for failure
-  }
-
-  onDisconnected(reconnecting: boolean): void {
-    if (!reconnecting) this.openConnection();
-    // TODO : message for disconnection
   }
 
   render(): React.ReactNode {
@@ -201,7 +143,7 @@ class AChat extends React.Component<Props, State, Snapshot> implements ChatServi
             <ChatInput
               isActive={isActive}
               setActive={(isActive: boolean) => this.setState({ isActive })}
-              getResponseTarget={() => this.state.responseTarget} // TODO: look up last person who whispered us
+              getResponseTarget={() => chatHistory.lastWhisperSenderName}
               sendMessage={this.sendMessage.bind(this)}
               whisperTargetRequest={this.state.pendingWhisperTarget}
               onWhisperTargetConsumed={() => this.setState({ pendingWhisperTarget: undefined })}
@@ -225,28 +167,19 @@ class AChat extends React.Component<Props, State, Snapshot> implements ChatServi
   }
 
   componentDidMount(): void {
-    chatService.addListener(this);
-    this.listeners.push(
-      clientAPI.bindCombatEventListener((combatEvents) =>
-        combatEvents.forEach((ev) => this.addChatLine(new ChatLineCombat(ev)))
-      ),
-      clientAPI.bindAnnouncementListener((type, text) => {
-        if (type == AnnouncementType.Text) this.addChatLine(new ChatLineSimple(ChatScopes.Global, text));
-      }),
-      game.onConsoleText((consoleText) => this.addChatLine(new ChatLineSimple(ChatScopes.Console, consoleText)))
-    );
-    window.addEventListener('click', this.handleWindowClick.bind(this));
-    if (!chatService.connected && this.props.characterID.length > 0) {
-      this.openConnection();
+    this.chatHistoryHandle = chatHistory.addListener(() => this.setState({ chatLines: chatHistory.chatLines }));
+    // Catch any line logged between the constructor and subscribing.
+    if (this.state.chatLines !== chatHistory.chatLines) {
+      this.setState({ chatLines: chatHistory.chatLines });
     }
+    window.addEventListener('click', this.handleWindowClick);
+    this.messagesEndRef?.scrollIntoView();
   }
 
   componentWillUnmount(): void {
-    window.removeEventListener('click', this.handleWindowClick.bind(this));
-    chatService.removeListener(this);
-    for (const listener of this.listeners) {
-      listener.close();
-    }
+    window.removeEventListener('click', this.handleWindowClick);
+    this.chatHistoryHandle?.close();
+    this.chatHistoryHandle = null;
   }
 
   getSnapshotBeforeUpdate(): Snapshot | null {
@@ -265,27 +198,6 @@ class AChat extends React.Component<Props, State, Snapshot> implements ChatServi
     if (this.state.currentTab !== prevState.currentTab) {
       this.messagesEndRef?.scrollIntoView();
     }
-
-    if (this.props.characterID != prevProps.characterID) {
-      this.getShouldConnect().then((shouldConnect) => {
-        if (shouldConnect) {
-          chatService.reset();
-        } else if (chatService.connected) {
-          chatService.close();
-        }
-      });
-    }
-  }
-
-  private async getShouldConnect(): Promise<boolean> {
-    if (!this.props.characterID) return Promise.resolve(false);
-    return !(await clientAPI.isOfflineMode());
-  }
-
-  private openConnection(): void {
-    this.getShouldConnect().then((shouldConnect) => {
-      if (shouldConnect) chatService.open();
-    });
   }
 
   private handleMessagesScroll(e: React.UIEvent<HTMLDivElement>): void {
@@ -296,38 +208,12 @@ class AChat extends React.Component<Props, State, Snapshot> implements ChatServi
     }
   }
 
-  private handleWindowClick(e: MouseEvent): void {
+  // Arrow property so addEventListener and removeEventListener get the same reference.
+  private handleWindowClick = (e: MouseEvent): void => {
     if (this.state.isActive && !(e.target instanceof HTMLElement && this.rootRef?.contains(e.target))) {
       this.setState({ isActive: false });
     }
-  }
-
-  private addChatLine(line: ChatLine): void {
-    const lines = this.state.chatLines.slice();
-
-    let index = binarySearch(
-      line,
-      lines,
-      (l?: ChatLine, r?: ChatLine) =>
-        (l?.numConnections ?? 0) - (r?.numConnections ?? 0) ||
-        (l?.timestamp ?? 0) - (r?.timestamp ?? 0) ||
-        (l?.id ?? 0) - (r?.id ?? 0) ||
-        0
-    );
-    if (index < 0) {
-      lines.splice(-index - 1, 0, line);
-    } else if (lines.length < index) {
-      lines.push(line);
-    } else {
-      lines.splice(index, 0, line);
-    }
-
-    if (lines.length > MAX_LINES) {
-      lines.shift();
-    }
-
-    this.setState({ chatLines: lines });
-  }
+  };
 
   private renderChatLines(): React.ReactNode {
     const scopes = this.state.currentTab.scopes;
@@ -346,7 +232,7 @@ class AChat extends React.Component<Props, State, Snapshot> implements ChatServi
   private sendMessage(scope: ChatScope, text: string, whisperTarget?: string): void {
     const room = chatService.rooms.find((r) => r.scope === scope);
     if (!room || (scope == ChatScopes.Whisper && !whisperTarget)) {
-      this.addChatLine(
+      chatHistory.addLine(
         new ChatLineSimple(
           ChatScopes.Error,
           getStringTableValue(
@@ -374,7 +260,6 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
   const { widgets, vminPx, uiFactionID } = state.hud;
   return {
     ...ownProps,
-    characterID: state.entities.self.characterID,
     stringTable: state.stringTable.stringTable,
     widgets,
     vminPx,

@@ -1,5 +1,8 @@
 /* tslint:disable */
 
+/** CSE.ID128 */
+export type ID128 = any;
+
 export type Decimal = any;
 
 /** CU.WebApi.Models.ProfileDateTime */
@@ -34,6 +37,7 @@ export interface IZoneInstanceUpdate {
 export interface CUQuery {
   characterRestrictions: CharacterCreationRestrictions | null /** Limitations on character creation and use */;
   featureFlags: (string | null)[] | null /** Enabled feature flags */;
+  friends: FriendsList | null /** Information about an account's friends */;
   game: GameDefsGQLData | null /** Information about gameplay definition data */;
   guild: Guild | null /** Information about an account's current guild */;
   guildOfferPermissions: GuildOfferPermissionSettings | null /** Information about an account's current guild offer permissions */;
@@ -44,6 +48,7 @@ export interface CUQuery {
   serverBuildNumber: number | null /** Build number for the actively running server */;
   serverTimestamp: string | null /** Retrieve the current time on the server. */;
   shardCharacters: (SimpleCharacter | null)[] | null /** Gets all characters from this shard */;
+  social: SocialSettings | null /** Information about an account's social settings */;
   traits: TraitsInfo | null /** Get all possible traits. */;
   zoneInstance: ZoneInstanceStatus | null /** ZoneInstance Queue Status */;
 }
@@ -51,6 +56,43 @@ export interface CUQuery {
 export interface CharacterCreationRestrictions {
   allowCrossFaction: boolean | null;
   maxSlots: number | null;
+}
+/** CU.WebApi.Models.Friends.FriendsList */
+export interface FriendsList {
+  account: Account | null;
+  friendInvites: (FriendInvite | null)[] | null;
+  friends: (Friend | null)[] | null;
+  revision: number | null;
+}
+/** CU.WebApi.Models.Common.Account */
+export interface Account {
+  displayName: string | null;
+  id: string | null;
+}
+/** CU.WebApi.Models.Friends.FriendInvite */
+export interface FriendInvite {
+  expires: string | null;
+  from: Account | null;
+  id: ID128 | null;
+  note: string | null /** personal note describing the user */;
+  sent: string | null;
+  to: Account | null;
+}
+/** CU.WebApi.Models.Friends.Friend */
+export interface Friend {
+  account: Account | null;
+  character: Character | null;
+  established: string | null;
+  note: string | null /** personal note describing the user */;
+}
+/** CU.WebApi.Models.Common.Character */
+export interface Character {
+  bodyTypeID: string | null;
+  classID: string | null;
+  factionID: Faction | null;
+  id: string | null;
+  name: string | null;
+  raceID: string | null;
 }
 /** CU.WebApi.GraphQL.GameDefsGQLData */
 export interface GameDefsGQLData {
@@ -136,11 +178,6 @@ export interface GuildApplication {
   sent: string | null;
   to: Account | null;
 }
-/** CU.WebApi.Models.Common.Account */
-export interface Account {
-  displayName: string | null;
-  id: string | null;
-}
 /** CU.WebApi.Models.Guilds.GuildInvitation */
 export interface GuildInvitation {
   expires: string | null;
@@ -199,15 +236,6 @@ export interface Application {
   sent: string | null;
   to: Character | null;
 }
-/** CU.WebApi.Models.Common.Character */
-export interface Character {
-  bodyTypeID: string | null;
-  classID: string | null;
-  factionID: Faction | null;
-  id: string | null;
-  name: string | null;
-  raceID: string | null;
-}
 /** CU.WebApi.Models.Warbands.Invitation */
 export interface Invitation {
   expires: string | null;
@@ -254,6 +282,20 @@ export interface SimpleCharacter {
   lastLogin: string | null;
   name: string | null;
   raceID: string | null;
+}
+/** CU.WebApi.Models.UserSettings.SocialSettings */
+export interface SocialSettings {
+  account: Account | null;
+  defaultAllowed: number | null /** bitflags, see UserInteraction in the REST interface */;
+  defaultBlocked: number | null /** bitflags, see UserInteraction in the REST interface */;
+  overrides: (UserOverrides | null)[] | null;
+}
+/** CU.WebApi.Models.UserSettings.UserOverrides */
+export interface UserOverrides {
+  account: Account | null;
+  allowed: number | null /** bitflags, see UserInteraction in the REST interface */;
+  blocked: number | null /** bitflags, see UserInteraction in the REST interface */;
+  note: string | null;
 }
 /** CSE.GameplayDefs.Store.Cache.TraitsInfo */
 export interface TraitsInfo {
@@ -326,10 +368,12 @@ export interface CUSubscription {
   characterRestrictions: CharacterCreationRestrictions | null /** Limitations on character creation and use */;
   characterUpdates: IPatcherCharacterUpdate | null /** Subscription for simple updates to characters */;
   featureFlags: (string | null)[] | null /** Enabled feature flags */;
+  friends: FriendsList | null /** State updates for an account's friends */;
   guildOffers: GuildOfferEvent | null /** State updates for an account's current guild offers */;
   manifestUpdates: ManifestUpdate | null /** Updates to a manifest */;
   notifications: Notification | null /** Status or event broadcasts identified by purpose */;
   partyOffers: OfferEvent | null /** State updates for a characters's current party offers */;
+  social: SocialSettings | null /** State updates for an account's social settings */;
   zoneInstanceUpdates: IZoneInstanceUpdate | null /** State updates for zone instance queues */;
 }
 /** CU.WebApi.Models.Guilds.GuildOfferEvent */
@@ -436,33 +480,8 @@ export interface Euler3f {
   roll: Decimal | null;
   yaw: Decimal | null;
 }
-/** CSE.GameplayDefs.ColorRGBA */
-export interface ColorRGBA {
-  a: Decimal | null;
-  b: number | null;
-  g: number | null;
-  hex: string | null /** Color in Hex format */;
-  hexa: string | null /** Color in Hex format with alpha */;
-  r: number | null;
-  rgba: string | null /** Color in RGBA format */;
-}
-/** CU.WebApi.Models.Characters.Updates.CharacterRemovedUpdate */
-export interface CharacterRemovedUpdate extends IPatcherCharacterUpdate {
-  characterID: CharacterID | null;
-  type: PatcherCharacterUpdateType | null;
-}
-/** CU.WebApi.Models.Characters.Updates.CharacterUpdate */
-export interface CharacterUpdate extends IPatcherCharacterUpdate {
-  character: SimpleCharacter | null;
-  type: PatcherCharacterUpdateType | null;
-}
-/** CU.WebApi.GraphQL.UnusedStructure */
-export interface UnusedStructure {
-  unused: boolean | null;
-}
-/** World.SecureTradeLocation */
-export interface SecureTradeLocation {
-  characterID: CharacterID | null /** The character that currently owns this item */;
+export interface FriendsfriendsArgs {
+  forAccount: string | null /** AccountID to look up for friends info (optional, defaults to logged in account) */;
 }
 export interface GuildguildArgs {
   forAccount: string | null /** AccountID to look up for a current guild (optional, defaults to logged in account) */;
@@ -492,6 +511,12 @@ export interface PartyOfferspartyOffersArgs {
     | string
     | null /** CharacterID to look up for current group offers (optional, defaults to logged in character) */;
 }
+export interface SocialsocialArgs {
+  forAccount: string | null /** AccountID to look up for friends info (optional, defaults to logged in account) */;
+}
+export interface FriendsfriendsArgs {
+  forAccount: string | null /** AccountID to look up for friends info (optional, defaults to logged in account) */;
+}
 export interface GuildOffersguildOffersArgs {
   forAccount:
     | string
@@ -503,10 +528,20 @@ export interface NotificationsnotificationsArgs {
 export interface PartyOfferspartyOffersArgs {
   forAccount: string | null /** AccountID to look up for group changes (optional, defaults to logged in account) */;
 }
+export interface SocialsocialArgs {
+  forAccount: string | null /** AccountID to look up for friends info (optional, defaults to logged in account) */;
+}
 export interface ZoneInstanceUpdateszoneInstanceUpdatesArgs {
   forCharacter:
     | string
     | null /** CharacterID to look up for activity changes (optional, defaults to logged in character) */;
+}
+/** CSE.Common.Camelot.Faction */
+export enum Faction {
+  Factionless = 'Factionless',
+  TDD = 'TDD',
+  Viking = 'Viking',
+  Arthurian = 'Arthurian'
 }
 /** CSE.GameplayDefs.StatType */
 export enum StatType {
@@ -515,13 +550,6 @@ export enum StatType {
   Secondary = 'Secondary',
   Derived = 'Derived',
   Hidden = 'Hidden'
-}
-/** CSE.Common.Camelot.Faction */
-export enum Faction {
-  Factionless = 'Factionless',
-  TDD = 'TDD',
-  Viking = 'Viking',
-  Arthurian = 'Arthurian'
 }
 /** CSE.GameplayDefs.Store.Cache.TraitCategory */
 export enum TraitCategory {

@@ -15,7 +15,7 @@ import { MoneyDisplay } from '../../shared/components/MoneyDisplay';
 import { getStringTableValue, StringIDGeneralPlus } from '../helpers/stringTableHelpers';
 import { StringTableEntryDef } from '../dataSources/manifest/stringTableManifest';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
-import { HUDLayer, HUDWidgetRegistration } from '../redux/hudSlice';
+import { HUDLayer, HUDWidgetRegistration, isWidgetHidden } from '../redux/hudSlice';
 import { HUDHorizontalAnchor, HUDVerticalAnchor } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
 
 const TOAST_EXIT_DURATION_MILLIS = 500;
@@ -348,10 +348,23 @@ class ANotificationToasts extends React.Component<Props & DispatchProp, State> {
   }
 }
 
+function getNotificationWidgetID(variant: NotificationToastsVariant): string {
+  return variant === 'level' ? WIDGET_ID_LEVEL_NOTIFICATIONS : WIDGET_ID_QUEST_NOTIFICATIONS;
+}
+
+// Toasts for a hidden notification widget are dropped where they're created instead of queuing until it's shown.
+export function isNotificationWidgetHidden(state: RootState, variant: NotificationToastsVariant): boolean {
+  const widget = state.hud.widgets[getNotificationWidgetID(variant)];
+  return !!widget && isWidgetHidden(widget);
+}
+
 // While the two notification widgets occupy the same HUD position (as they do by default), level
 // toasts flow into the quest widget's stack so simultaneous toasts stack instead of overlapping.
-// Dragging either widget elsewhere in the HUD Editor splits them into independent stacks.
+// Dragging either widget elsewhere in the HUD Editor, or hiding either one, splits them into independent stacks.
 function areNotificationWidgetsColocated(state: RootState): boolean {
+  if (isNotificationWidgetHidden(state, 'quest') || isNotificationWidgetHidden(state, 'level')) {
+    return false;
+  }
   const quest = state.hud.widgets[WIDGET_ID_QUEST_NOTIFICATIONS]?.state;
   const level = state.hud.widgets[WIDGET_ID_LEVEL_NOTIFICATIONS]?.state;
   return (
@@ -377,7 +390,7 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
       : state.toasters.questToasters;
   }
 
-  const widgetID = isLevelVariant ? WIDGET_ID_LEVEL_NOTIFICATIONS : WIDGET_ID_QUEST_NOTIFICATIONS;
+  const widgetID = getNotificationWidgetID(ownProps.variant);
   return {
     ...ownProps,
     queuedToasters,

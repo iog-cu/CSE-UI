@@ -90,3 +90,47 @@ export function typedObjectEntries<T extends object>(obj: T): [keyof T, T[keyof 
   // We use a type assertion within the function where we know it's safe
   return Object.entries(obj) as [keyof T, T[keyof T]][];
 }
+
+export function isDeepDifferent(curr: any, prev: any): boolean {
+  // This catches all nulls, undefined, etc.
+  if (typeof curr !== typeof prev) return true;
+
+  if (curr && typeof curr === 'object') {
+    if (!prev) {
+      return true;
+    }
+    const currKeys = Object.keys(curr);
+    const prevKeys = Object.keys(prev);
+    if (currKeys.length !== prevKeys.length) return true;
+
+    // Note that this fails to detect situations where curr has a key with value UNDEFINED and prev doesn't have that key at all.
+    // The most complete check would include comparing that all keys in curr are in prev, but that's very expensive.
+    return currKeys.some((cKey) => isDeepDifferent(curr[cKey], prev[cKey]));
+  } else {
+    return curr !== prev;
+  }
+}
+
+export function getDeepDifferentFieldNames(curr: any, prev: any): string[] {
+  let diffs: string[] = [];
+  if (curr && typeof curr === 'object') {
+    if (prev && typeof prev === 'object') {
+      Object.entries(curr).forEach(([key, value]) => {
+        if (value && typeof value === 'object') {
+          const recursiveDiffs = getDeepDifferentFieldNames(value, prev[key]);
+          if (recursiveDiffs.length > 0) {
+            diffs.push(`${key}: [${recursiveDiffs.join()}]`);
+          }
+        } else if (value !== prev?.[key]) {
+          diffs.push(key);
+        }
+      });
+    } else {
+      diffs.push('No prev, so ALL fields are different.');
+    }
+  } else {
+    // Curr doesn't exist, so no fields to diff.
+  }
+
+  return diffs;
+}

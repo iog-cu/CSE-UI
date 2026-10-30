@@ -10,6 +10,13 @@ export enum HUDHorizontalAnchor {
   Right = 'hud-horizontal-anchor-right'
 }
 
+export enum AbilityBarDecor {
+  Left = 'left',
+  Right = 'right',
+  Top = 'top',
+  Bottom = 'bottom'
+}
+
 export interface HUDResizableParams {
   widthVmin: number;
   heightVmin: number;
@@ -19,7 +26,6 @@ export interface HUDResizableParams {
 }
 
 export interface HUDWidgetState {
-  visible?: boolean;
   initialized?: boolean;
   xAnchor?: HUDHorizontalAnchor;
   yAnchor?: HUDVerticalAnchor;
@@ -36,6 +42,10 @@ export interface HUDWidgetState {
   chatFontSize?: number;
   /** Notification widgets only: seconds each toast stays on screen (0 hides notifications entirely). */
   toastDurationSeconds?: number;
+  /** Ability bars only: integer percentage of a slot's width left empty between neighboring slots. */
+  abilitySlotSpacing?: number;
+  /** Ability bars only: which decorative ornaments are shown. Unset entries use the bar's default. */
+  abilityBarDecor?: Partial<Record<AbilityBarDecor, boolean>>;
 }
 
 // These are pseudo-MapDataType entries, split off from MapDataType.Player.

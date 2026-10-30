@@ -43,7 +43,6 @@ interface HUDEditorState {
 }
 
 export const defaultWidgetState: HUDWidgetState = {
-  visible: true,
   initialized: false,
   xAnchor: HUDHorizontalAnchor.Left,
   yAnchor: HUDVerticalAnchor.Top,
@@ -53,6 +52,11 @@ export const defaultWidgetState: HUDWidgetState = {
   scale: 1
   // We don't set a value for `resizable`, because the default is to not be resizable.
 };
+
+// Menus are never hidden: closed menus already unload, and an unloaded menu can't finish closing.
+export function isWidgetHidden(widget: HUDWidget): boolean {
+  return !widget.registration?.isConditional && widget.state.opacity === 0;
+}
 
 export interface HUDWidget {
   registration: HUDWidgetRegistration | null;
@@ -212,6 +216,10 @@ export const hudSlice = createSlice({
     },
     setSelectedWidget: (state: HUDState, action: PayloadAction<string>) => {
       const widgetID = action.payload;
+      // Hidden widgets never report bounds, so the previous widget's bounds must not carry over.
+      if (state.editor.selectedWidgetID !== widgetID) {
+        state.editor.selectedWidgetBounds = null;
+      }
       state.editor.selectedWidgetID = widgetID;
       // Selecting a widget that isn't part of the active group clears the group selection. Selecting
       // one of the group's own members keeps the group active so the others stay visible/movable.

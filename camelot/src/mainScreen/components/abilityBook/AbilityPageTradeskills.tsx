@@ -22,7 +22,7 @@ import { AbilityGroup } from '@csegames/library/dist/_baseGame/types/AbilityType
 import { TooltipSource } from '../TooltipSource';
 import Draggable from '../Draggable';
 import DraggableHandle, { DropHandlerDraggableData } from '../DraggableHandle';
-import { DropTypeAbilityButton } from '../abilityBars/AbilityButton';
+import { DropTypeAbilityButton } from '../abilityBars/AbilityButtonShared';
 import { AbilityBarSlotDropTargetData } from '../abilityBars/AbilityBarSlot';
 import { getFactionData } from '../../gameData/factionData';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
@@ -37,6 +37,7 @@ import { typedObjectEntries } from '@csegames/library/dist/_baseGame/utils/objec
 import { GameDefsState } from '../../redux/gameDefsSlice';
 import { AbilityBookAbilityDisplayData } from './AbilityBook';
 import { getAbilityByDisplayDefID } from '../../helpers/abilityBookHelpers';
+import { FactionCheckbox } from '../FactionCheckbox';
 
 // CSS classes
 const Root = 'HUD-AbilityPageTradeskills-Root';
@@ -67,7 +68,9 @@ const CellIcon = 'HUD-AbilityPageTradeskills-CellIcon';
 const CellLevelContainer = 'HUD-AbilityPageTradeskills-CellLevelContainer';
 const CellLevelLabel = 'HUD-AbilityPageTradeskills-CellLevelLabel';
 const CellDetailsSection = 'HUD-AbilityPageTradeskills-CellDetailsSection';
+const CellNameRow = 'HUD-AbilityPageTradeskills-CellNameRow';
 const CellNameLabel = 'HUD-AbilityPageTradeskills-CellNameLabel';
+const CellTrackCheckbox = 'HUD-AbilityPageTradeskills-CellTrackCheckbox';
 const CellDivider = 'HUD-AbilityPageTradeskills-CellDivider';
 const AbilitiesContainer = 'HUD-AbilityPageTradeskills-AbilitiesContainer';
 const AbilitiesListEntry = 'HUD-AbilityPageTradeskills-AbilitiesListEntry';
@@ -84,6 +87,7 @@ const TooltipDescription = 'HUD-AbilityBook-TooltipDescription';
 const StringIDAbilityBookUnlockLevel = 'AbilityBookUnlockLevel';
 const StringIDTradeskillTabName = 'TradeskillTabName';
 const StringIDTradeskillCategoryNamePrefix = 'TradeskillCategoryName';
+const StringIDVendorTrack = 'VendorTrack';
 
 const MAX_LARGE_TRADESKILLS = 6;
 
@@ -109,6 +113,7 @@ interface InjectedProps {
   abilities: Record<number, AbilityWithActivation>;
   abilityIDsByDisplayDefID: Record<number, number>;
   self: PlayerEntityStateModel;
+  trackedProgressionTrackIDs: string[];
 }
 
 type Props = ReactProps & InjectedProps & AddDispatch;
@@ -197,7 +202,8 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
   ): React.ReactNode {
     const factionData = getFactionData(this.props.uiFactionID);
 
-    const cellsPerRow = all.length <= MAX_LARGE_TRADESKILLS ? 1 : 2;
+    const isSmall = all.length > MAX_LARGE_TRADESKILLS;
+    const cellsPerRow = isSmall ? 2 : 1;
     const isLastRow = index >= all.length - cellsPerRow;
 
     const prog = this.props.self.progression[def.id];
@@ -227,8 +233,17 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
             </FactionBorder>
           </div>
           <div className={CellDetailsSection}>
-            <div className={`${CellNameLabel}${sizeClass}`}>
-              {getStringTableValue(def.nameKey, this.props.stringTable)}
+            <div className={CellNameRow}>
+              <div className={`${CellNameLabel}${sizeClass}`}>
+                {getStringTableValue(def.nameKey, this.props.stringTable)}
+              </div>
+              <FactionCheckbox
+                className={CellTrackCheckbox}
+                isChecked={this.props.trackedProgressionTrackIDs.includes(def.id)}
+                labelText={isSmall ? undefined : getStringTableValue(StringIDVendorTrack, this.props.stringTable)}
+                soundEventClicked={SoundEvents.PLAY_UI_TRACK_SELECT}
+                onCheckedChanged={this.onTrackCheckedChanged.bind(this, def.id)}
+              />
             </div>
             <FactionBorder
               className={`${ProgressBarContainer}${sizeClass}`}
@@ -252,7 +267,7 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
             )}
           </div>
         </div>
-        {!isLastRow && all.length <= MAX_LARGE_TRADESKILLS ? <FactionDivider className={CellDivider} /> : null}
+        {!isLastRow && !isSmall ? <FactionDivider className={CellDivider} /> : null}
       </React.Fragment>
     );
   }
@@ -386,6 +401,13 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
     clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_SELECT);
   }
 
+  private onTrackCheckedChanged(trackID: string, isChecked: boolean): void {
+    clientAPI.setProgressionTrackTracked(this.props.self.characterID, trackID, isChecked);
+    if (isChecked) {
+      clientAPI.setTradeskillTrackerMinimized(false);
+    }
+  }
+
   private getFilteredAbilities(progressionTrackIDs: string[]): AbilityBookAbilityDisplayData[] {
     const abilities: AbilityBookAbilityDisplayData[] = [];
 
@@ -453,7 +475,8 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     abilities,
     abilityIDsByDisplayDefID,
     uiFactionID: state.hud.uiFactionID,
-    self: state.entities.self
+    self: state.entities.self,
+    trackedProgressionTrackIDs: state.tradeskillTracker.trackedProgressionTrackIDs
   };
 };
 

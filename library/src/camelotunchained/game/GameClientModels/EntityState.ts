@@ -76,10 +76,11 @@ export function isOther(entity: BaseEntityStateModel): entity is PlayerEntitySta
 // This should map to UI::EntityResource
 export interface EntityResource {
   name: string;
-  lastDecreaseTime: number;
   current: number;
   id: string;
   max: number;
+  // Cap on restoring the resource. Below max while part of it is locked.
+  limit: number;
   changeRate: number;
 }
 

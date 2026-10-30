@@ -43,7 +43,11 @@ export class DevUIPage extends React.PureComponent<Props> {
     return (
       <div className={Root}>
         {page.title && <div className={Title}>{page.title}</div>}
-        {page.content && <div className={ContentRoot}>{this.renderContent(page.content)}</div>}
+        {page.content && (
+          <div className={ContentRoot} onMouseUp={this.copySelection}>
+            {this.renderContent(page.content)}
+          </div>
+        )}
         {page.buttons && <div>{page.buttons.map((b) => this.renderDevButton(b))}</div>}
         {page.pages && (
           <div className={Pages}>
@@ -112,6 +116,13 @@ export class DevUIPage extends React.PureComponent<Props> {
       </div>
     );
   }
+
+  // The client doesn't forward Ctrl+C to the UI unless a text input has focus, so copy on select instead.
+  private copySelection = (): void => {
+    if (window.getSelection()?.toString()) {
+      document.execCommand('copy');
+    }
+  };
 
   private renderContent(content: Content): JSX.Element {
     if (typeof content === 'string') {

@@ -24,10 +24,7 @@ import { RootState } from '../../redux/store';
 import { ItemStatWidget } from './ItemStatWidget';
 import { ItemStatID } from './itemData';
 import { ItemTooltipResourceWidget } from './ItemTooltipResourceWidget';
-import {
-  EntityResource,
-  TagState
-} from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
+import { EntityResource, TagState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { getStringFromTagAffixIDs } from '../../helpers/tagHelpers';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import {
@@ -166,8 +163,13 @@ class AItemTooltip extends React.Component<Props> {
             <span>{itemDef?.name}</span>
           </div>
         </div>
-        <div className={`${ArmorTypeLabel}${this.lacksProficiency(ProficiencyTagPrefix, itemDef) ? ` ${Disallowed}` : ''}`}>
-          {getStringTableValue(itemDef?.tags?.find((tag) => tag.startsWith('Equipment.')) ?? '', this.props.stringTable)}
+        <div
+          className={`${ArmorTypeLabel}${this.lacksProficiency(ProficiencyTagPrefix, itemDef) ? ` ${Disallowed}` : ''}`}
+        >
+          {getStringTableValue(
+            itemDef?.tags?.find((tag) => tag.startsWith('Equipment.')) ?? '',
+            this.props.stringTable
+          )}
         </div>
         <FactionDivider simple />
         <div className={StatRow}>
@@ -254,13 +256,15 @@ class AItemTooltip extends React.Component<Props> {
     return (
       <div className={Root}>
         <div className={Header}>
-          <div className={QualityRow}>
-            <div className={QualityLabel}>
-              {getStringTableValue(StringIDReagentSelectionQuality, this.props.stringTable)}
-              {`:\xa0`}
+          {item && (
+            <div className={QualityRow}>
+              <div className={QualityLabel}>
+                {getStringTableValue(StringIDReagentSelectionQuality, this.props.stringTable)}
+                {`:\xa0`}
+              </div>
+              <div className={QualityValue}>{quality}</div>
             </div>
-            <div className={QualityValue}>{quality}</div>
-          </div>
+          )}
           <div className={TypeSlotLabel}>
             {getStringTableValue(StringIDItemTooltipConsumable, this.props.stringTable)}
           </div>
@@ -280,8 +284,8 @@ class AItemTooltip extends React.Component<Props> {
         )}
 
         <FactionDivider simple />
-        {this.getAdditionalStatDefs(item).map((statDef) => {
-          const formatted = this.getFormattedStatValue(item!, statDef);
+        {this.getAdditionalStatDefs(item, itemDef).map((statDef) => {
+          const formatted = this.getFormattedStatValue(item, statDef, itemDef);
           if (formatted === '0') return null;
           additionalStatCount++;
           return (
@@ -331,8 +335,15 @@ class AItemTooltip extends React.Component<Props> {
           </div>
         </div>
         <div className={StatRow}>
-          <span className={`${WeaponTypeLabel}${this.lacksProficiency(ProficiencyTagPrefix, itemDef) ? ` ${Disallowed}` : ''}`}>
-            {getStringTableValue(itemDef?.tags?.find((tag) => tag.startsWith('Equipment.')) ?? '', this.props.stringTable)}
+          <span
+            className={`${WeaponTypeLabel}${
+              this.lacksProficiency(ProficiencyTagPrefix, itemDef) ? ` ${Disallowed}` : ''
+            }`}
+          >
+            {getStringTableValue(
+              itemDef?.tags?.find((tag) => tag.startsWith('Equipment.')) ?? '',
+              this.props.stringTable
+            )}
           </span>
           <span className={WeaponTypeLabel}>{'\xa0|\xa0'}</span>
           <span className={WeaponTypeLabel}>
@@ -393,9 +404,7 @@ class AItemTooltip extends React.Component<Props> {
   private getFormattedStatValue(item: Item | undefined, statDef: StatDef, itemDef?: ItemDef): string {
     const isPercent = statDef.tags?.includes(TagForPercentStat);
     const isPercentOverOne = statDef.tags?.includes(TagForPercentOverOneStat);
-    const raw = item
-      ? getItemStatValue(item, statDef)
-      : (itemDef?.defStats?.[statDef.id as ItemStatID] ?? 0);
+    const raw = item ? getItemStatValue(item, statDef) : itemDef?.defStats?.[statDef.id as ItemStatID] ?? 0;
     const adjusted = isPercentOverOne ? (raw - 1) * 100 : isPercent ? raw * 100 : raw;
     const numeric = Number(adjusted.toFixed(2)).toString();
     return (isPercent || isPercentOverOne) && numeric !== '0' ? `${numeric}%` : numeric;

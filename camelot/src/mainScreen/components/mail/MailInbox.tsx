@@ -12,15 +12,20 @@ import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManif
 import {
   getStringTableValue,
   getTokenizedStringTableValue,
+  replaceStringTokens,
   StringIDGeneralSearch
 } from '../../helpers/stringTableHelpers';
 import { FactionBorder, BorderType } from '../FactionBorder';
 import { getFactionData } from '../../gameData/factionData';
 import { FactionButton } from '../FactionButton';
 import { FactionPageSwitcher } from '../FactionPageSwitcher';
-import { MailMessage } from '../../redux/mailSlice';
+import { MailMessage } from '@csegames/library/dist/camelotunchained/game/GameClientModels/MailSnapshot';
+import { resolveSenderName } from '../../redux/mailSlice';
 import { FactionCheckbox } from '../FactionCheckbox';
 import { ItemDef } from '../../dataSources/manifest/itemManifest';
+import { MailTemplateDef } from '../../dataSources/manifest/mailTemplateManifest';
+import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
+
 
 // Images are imported so that WebPack can find them (and give us errors if they are missing).
 import SearchIconURL from '../../../images/search-icon.png';
@@ -69,6 +74,7 @@ interface State {
 }
 
 interface ReactProps {
+  commonMessageStringTokens: Record<string, string>;
   onMessageSelected: (message: MailMessage) => void;
 }
 
@@ -77,6 +83,7 @@ interface InjectedProps {
   stringTable: Record<string, StringTableEntryDef>;
   messages: MailMessage[];
   itemsByNumericID: Record<number, ItemDef>;
+  mailTemplatesByNumericID: Record<number, MailTemplateDef>;
   dispatch?: Dispatch;
 }
 
@@ -95,10 +102,12 @@ class AMailInbox extends React.Component<Props, State> {
 
   render(): JSX.Element {
     const factionData = getFactionData(this.props.uiFactionID);
+    const sortedMessages = this.getSortedMessages(this.props.messages, this.state.searchValue);
+    const visibleMessages = this.getVisibleMessages(sortedMessages, this.state.currentPage);
 
     const canCollect = this.props.messages
       .filter((m) => this.state.selectedMessageIDs.includes(m.id))
-      .some((m) => m.money > 0 || m.attachmentIDs.length > 0);
+      .some((m) => !m.wasCollected && (m.money > 0 || m.attachmentIDs.length > 0));
 
     return (
       <div className={PageContainer}>
@@ -134,7 +143,7 @@ class AMailInbox extends React.Component<Props, State> {
             {getStringTableValue(StringIDMailDelete, this.props.stringTable)}
           </FactionButton>
         </div>
-        {this.renderMessageRows()}
+        {this.renderMessageRows(visibleMessages)}
         <div className={FooterSection}>
           <FactionPageSwitcher
             currentPage={this.state.currentPage}
@@ -146,15 +155,24 @@ class AMailInbox extends React.Component<Props, State> {
     );
   }
 
-  private renderMessageRows(): React.ReactNode {
-    const messages = this.getSortedMessages(this.props.messages, this.state.searchValue);
+  componentDidUpdate(): void {
+    const sortedMessages = this.getSortedMessages(this.props.messages, this.state.searchValue);
+    const visibleMessages = this.getVisibleMessages(sortedMessages, this.state.currentPage);
 
-    const firstMessageIndex = this.state.currentPage * MESSAGES_PER_PAGE;
+    // De-select messages that are not visible
+    const currentSelectedMessageIDs = this.state.selectedMessageIDs.filter((mID) => {
+      return visibleMessages.some((m) => m.id === mID);
+    });
+    if (this.state.selectedMessageIDs.length !== currentSelectedMessageIDs.length) {
+      this.setState({ selectedMessageIDs: currentSelectedMessageIDs });
+    }
+  }
 
+  private renderMessageRows(messages: MailMessage[]): React.ReactNode {
     const rows: React.ReactNode[] = [];
-    for (let i = firstMessageIndex; i < firstMessageIndex + MESSAGES_PER_PAGE; ++i) {
+    for (let i = 0; i < messages.length; ++i) {
       rows.push(this.renderMessageRow(i, messages[i]));
-      if (i !== firstMessageIndex + MESSAGES_PER_PAGE - 1) {
+      if (i !== MESSAGES_PER_PAGE - 1) {
         rows.push(<div className={Spacer} />);
       }
     }
@@ -162,16 +180,17 @@ class AMailInbox extends React.Component<Props, State> {
     return <>{rows}</>;
   }
 
-  private renderMessageRow(index: number, message?: MailMessage): React.ReactNode {
+  private renderMessageRow(index: number, message: MailMessage): React.ReactNode {
     const factionData = getFactionData(this.props.uiFactionID);
+    const mailTemplateDef = this.props.mailTemplatesByNumericID[message.templateID];
 
-    const firstItem = this.props.itemsByNumericID[message?.attachmentIDs?.[0]];
-    const showGold = !firstItem && message?.money > 0;
+    const firstItem = message.wasCollected ? null : this.props.itemsByNumericID[message.attachmentIDs[0]];
+    const showGold = !message.wasCollected && !firstItem && message.money > 0;
 
     return (
       <div
         className={RowSection}
-        key={`${index} ${message?.id}`}
+        key={`${index} ${message.id}`}
         style={{
           borderTop: `1px solid ${factionData.borderColor}`,
           borderBottom: `1px solid ${factionData.borderColor}`
@@ -181,7 +200,7 @@ class AMailInbox extends React.Component<Props, State> {
         {message && <img className={RowBackground} src={factionData.mailRowPaperImage} />}
         <FactionCheckbox
           className={Checkbox}
-          isChecked={this.state.selectedMessageIDs.includes(message?.id)}
+          isChecked={this.state.selectedMessageIDs.includes(message.id)}
           onCheckedChanged={(isChecked) => {
             if (isChecked) {
               this.setState({ selectedMessageIDs: [...this.state.selectedMessageIDs, message.id] });
@@ -199,9 +218,11 @@ class AMailInbox extends React.Component<Props, State> {
           <>
             <div className={RowPreviewContainer}>
               <div className={RowSenderName} style={{ color: factionData.mailSenderColor }}>
-                {message.senderName}
+                {resolveSenderName(message, this.props.stringTable)}
               </div>
-              <div className={RowMessageSubject}>{message.subject}</div>
+              <div className={RowMessageSubject}>
+                {replaceStringTokens(mailTemplateDef.subject, {...this.props.commonMessageStringTokens, ...message.resolvedStringTokens})}
+              </div>
             </div>
             <div className={RowDateLabel}>{this.getDateText(message)}</div>
             <div className={RowButton} onClick={this.onMessageRowClicked.bind(this, message)} />
@@ -212,24 +233,21 @@ class AMailInbox extends React.Component<Props, State> {
   }
 
   private onMessageRowClicked(messageToView: MailMessage): void {
+    clientAPI.markMessagesRead([messageToView.id]);
     this.props.onMessageSelected(messageToView);
   }
 
   private onCollectClicked(): void {
-    // TODO: Asynchronously attempt to acquire items from the selected messages and add those items to the Inventory.
-    // TODO: Note that there may not be enough room to claim all items, so we will need to handle that case!
-    // TODO: Note that any asynchronous action can fail in multiple ways, and we'll need to handle those errors.
+    clientAPI.collectRewards(this.state.selectedMessageIDs);
   }
 
   private onDeleteClicked(): void {
-    // TODO: If the selected messages have unclaimed items (or money!), we definitely need to prompt for confirmation.
-    // TODO: Asynchronously attempt to delete the selected messages.
-    // TODO: Note that any asynchronous action can fail in multiple ways, and we'll need to handle those errors.
+    clientAPI.deleteMessages(this.state.selectedMessageIDs);
   }
 
   private getDateText(message: MailMessage): string {
     const now = new Date().getTime();
-    const then = new Date(message.sentDate).getTime();
+    const then = new Date(message.sentAt).getTime();
 
     const daysBetween = Math.min(99, Math.floor((now - then) / 86400000));
 
@@ -265,16 +283,25 @@ class AMailInbox extends React.Component<Props, State> {
     const pattern = searchValue.trim();
     if (pattern && pattern.length > 0) {
       filteredMessages = allMessages.filter((m) => {
-        return m.senderName.toLowerCase().includes(pattern) || m.text.toLowerCase().includes(pattern);
+        const mailTemplateDef = this.props.mailTemplatesByNumericID[m.templateID];
+        const stringTokens = {...this.props.commonMessageStringTokens, ...m.resolvedStringTokens};
+        return resolveSenderName(m, this.props.stringTable).toLowerCase().includes(pattern) ||
+          replaceStringTokens(mailTemplateDef.body, stringTokens).toLowerCase().includes(pattern);
       });
     } else {
       filteredMessages = [...allMessages];
     }
 
-    // Sort items by sentDate.
-    const sortedMessages = filteredMessages.sort((a, b) => -a.sentDate.localeCompare(b.sentDate));
+    // Sort items by sequenceNumber.
+    const sortedMessages = filteredMessages.sort((a, b) => b.sequenceNumber - a.sequenceNumber);
 
     return sortedMessages;
+  }
+
+  private getVisibleMessages(sortedMessages: MailMessage[], currentPage: number): MailMessage[] {
+    const startIndex = currentPage * MESSAGES_PER_PAGE;
+    const endIndex = Math.min(startIndex + MESSAGES_PER_PAGE, sortedMessages.length);
+    return sortedMessages.slice(startIndex, endIndex);
   }
 }
 
@@ -284,7 +311,8 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
     uiFactionID: state.hud.uiFactionID,
     stringTable: state.stringTable.stringTable,
     messages: state.mail.messages,
-    itemsByNumericID: state.gameDefs.itemsByNumericID
+    itemsByNumericID: state.gameDefs.itemsByNumericID,
+    mailTemplatesByNumericID: state.gameDefs.mailTemplatesByNumericID
   };
 };
 

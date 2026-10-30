@@ -25,6 +25,9 @@ const keyPartyLayout = 'PartyLayout';
 const keyUIScale = 'UIScale';
 const keyShowGameInfoAtStartup = 'ShowGameInfoAtStartup';
 const keyMinimapState = 'MinimapState';
+const keyQuestTrackerMinimized = 'QuestTrackerMinimized';
+const keyTrackedProgressionTrackIDs = 'TrackedProgressionTrackIDs';
+const keyTradeskillTrackerMinimized = 'TradeskillTrackerMinimized';
 
 export const MIN_UI_SCALE = 0.5;
 export const MAX_UI_SCALE = 1.5;
@@ -32,6 +35,28 @@ export const MAX_UI_SCALE = 1.5;
 function clampUIScale(value: unknown): number {
   if (typeof value !== 'number' || !isFinite(value)) return 1;
   return Math.max(MIN_UI_SCALE, Math.min(value, MAX_UI_SCALE));
+}
+
+// Returns the character's new track IDs, or null when nothing changed.
+function storeProgressionTrackTracked(
+  store: Store,
+  characterID: string,
+  trackID: string,
+  isTracked: boolean
+): string[] | null {
+  const trackIDsByCharacter = store.get<Record<string, string[]>>(keyTrackedProgressionTrackIDs) ?? {};
+  const trackIDs = trackIDsByCharacter[characterID] ?? [];
+  if (trackIDs.includes(trackID) === isTracked) {
+    return null;
+  }
+  const newTrackIDs = isTracked ? [...trackIDs, trackID] : trackIDs.filter((id) => id !== trackID);
+  if (newTrackIDs.length > 0) {
+    trackIDsByCharacter[characterID] = newTrackIDs;
+  } else {
+    delete trackIDsByCharacter[characterID];
+  }
+  store.set(keyTrackedProgressionTrackIDs, trackIDsByCharacter);
+  return newTrackIDs;
 }
 
 export type NameplateStyle = 'fancy' | 'simple';
@@ -45,6 +70,9 @@ export type AnchorVisibilityChangedListener = (anchorID: number, visible: boolea
 export type KeyActionsUpdateListener = (keyActions: KeyActionsModel) => void;
 export type PartyLayoutChangedListener = (layout: PartyLayout) => void;
 export type UIScaleChangedListener = (scale: number) => void;
+export type QuestTrackerMinimizedChangedListener = (isMinimized: boolean) => void;
+export type TrackedProgressionTracksChangedListener = (characterID: string, trackIDs: string[]) => void;
+export type TradeskillTrackerMinimizedChangedListener = (isMinimized: boolean) => void;
 
 export interface HUDFunctions {
   bindAnchorVisibilityChangedListener(listener: AnchorVisibilityChangedListener): ListenerHandle;
@@ -52,6 +80,9 @@ export interface HUDFunctions {
   bindToggleHUDEditorListener(listener: NotificationListener): ListenerHandle;
   bindPartyLayoutChangedListener(listener: PartyLayoutChangedListener): ListenerHandle;
   bindUIScaleChangedListener(listener: UIScaleChangedListener): ListenerHandle;
+  bindQuestTrackerMinimizedChangedListener(listener: QuestTrackerMinimizedChangedListener): ListenerHandle;
+  bindTrackedProgressionTracksChangedListener(listener: TrackedProgressionTracksChangedListener): ListenerHandle;
+  bindTradeskillTrackerMinimizedChangedListener(listener: TradeskillTrackerMinimizedChangedListener): ListenerHandle;
 
   getWidgets(): Dictionary<HUDWidgetState>;
   updateWidgetState(widgetID: string, widget: HUDWidgetState): void;
@@ -79,6 +110,16 @@ export interface HUDFunctions {
   getMinimapState(): MinimapState;
   setMinimapState(state: MinimapState): void;
 
+  getQuestTrackerMinimized(): boolean;
+  setQuestTrackerMinimized(value: boolean): void;
+
+  /** Track IDs are shared by every character, so tracking is stored per character. */
+  getTrackedProgressionTrackIDs(characterID: string): string[];
+  setProgressionTrackTracked(characterID: string, trackID: string, isTracked: boolean): void;
+
+  getTradeskillTrackerMinimized(): boolean;
+  setTradeskillTrackerMinimized(value: boolean): void;
+
   /** Pass an empty string to unset the override. */
   setCursorOverrideURL(url: string): void;
 }
@@ -87,6 +128,9 @@ class CoherentHUDFunctions implements HUDFunctions {
   private store = new Store('CUHUD');
   private partyLayoutListeners: PartyLayoutChangedListener[] = [];
   private uiScaleListeners: UIScaleChangedListener[] = [];
+  private questTrackerMinimizedListeners: QuestTrackerMinimizedChangedListener[] = [];
+  private trackedProgressionTracksListeners: TrackedProgressionTracksChangedListener[] = [];
+  private tradeskillTrackerMinimizedListeners: TradeskillTrackerMinimizedChangedListener[] = [];
 
   bindAnchorVisibilityChangedListener(listener: AnchorVisibilityChangedListener): ListenerHandle {
     const innerHandle = engine.on('anchorVisibilityChanged', listener);
@@ -129,6 +173,35 @@ class CoherentHUDFunctions implements HUDFunctions {
     return {
       close: () => {
         this.uiScaleListeners = this.uiScaleListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindQuestTrackerMinimizedChangedListener(listener: QuestTrackerMinimizedChangedListener): ListenerHandle {
+    this.questTrackerMinimizedListeners.push(listener);
+    return {
+      close: () => {
+        this.questTrackerMinimizedListeners = this.questTrackerMinimizedListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindTrackedProgressionTracksChangedListener(listener: TrackedProgressionTracksChangedListener): ListenerHandle {
+    this.trackedProgressionTracksListeners.push(listener);
+    return {
+      close: () => {
+        this.trackedProgressionTracksListeners = this.trackedProgressionTracksListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindTradeskillTrackerMinimizedChangedListener(listener: TradeskillTrackerMinimizedChangedListener): ListenerHandle {
+    this.tradeskillTrackerMinimizedListeners.push(listener);
+    return {
+      close: () => {
+        this.tradeskillTrackerMinimizedListeners = this.tradeskillTrackerMinimizedListeners.filter(
+          (l) => l !== listener
+        );
       }
     };
   }
@@ -248,6 +321,35 @@ class CoherentHUDFunctions implements HUDFunctions {
     this.store.set(keyMinimapState, state);
   }
 
+  getQuestTrackerMinimized(): boolean {
+    return this.store.get<boolean>(keyQuestTrackerMinimized) ?? false;
+  }
+
+  setQuestTrackerMinimized(value: boolean): void {
+    this.store.set(keyQuestTrackerMinimized, value);
+    this.questTrackerMinimizedListeners.forEach((l) => l(value));
+  }
+
+  getTrackedProgressionTrackIDs(characterID: string): string[] {
+    return this.store.get<Record<string, string[]>>(keyTrackedProgressionTrackIDs)?.[characterID] ?? [];
+  }
+
+  setProgressionTrackTracked(characterID: string, trackID: string, isTracked: boolean): void {
+    const newTrackIDs = storeProgressionTrackTracked(this.store, characterID, trackID, isTracked);
+    if (newTrackIDs) {
+      this.trackedProgressionTracksListeners.forEach((l) => l(characterID, newTrackIDs));
+    }
+  }
+
+  getTradeskillTrackerMinimized(): boolean {
+    return this.store.get<boolean>(keyTradeskillTrackerMinimized) ?? false;
+  }
+
+  setTradeskillTrackerMinimized(value: boolean): void {
+    this.store.set(keyTradeskillTrackerMinimized, value);
+    this.tradeskillTrackerMinimizedListeners.forEach((l) => l(value));
+  }
+
   setCursorOverrideURL(url: string): void {
     engine.trigger(setCursorOverrideURLCallbackName, url);
   }
@@ -257,6 +359,9 @@ class BrowserHUDFunctions implements HUDFunctions {
   private store = new Store('CUHUD');
   private partyLayoutListeners: PartyLayoutChangedListener[] = [];
   private uiScaleListeners: UIScaleChangedListener[] = [];
+  private questTrackerMinimizedListeners: QuestTrackerMinimizedChangedListener[] = [];
+  private trackedProgressionTracksListeners: TrackedProgressionTracksChangedListener[] = [];
+  private tradeskillTrackerMinimizedListeners: TradeskillTrackerMinimizedChangedListener[] = [];
 
   bindAnchorVisibilityChangedListener(listener: AnchorVisibilityChangedListener): ListenerHandle {
     return { close() {} };
@@ -284,6 +389,35 @@ class BrowserHUDFunctions implements HUDFunctions {
     return {
       close: () => {
         this.uiScaleListeners = this.uiScaleListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindQuestTrackerMinimizedChangedListener(listener: QuestTrackerMinimizedChangedListener): ListenerHandle {
+    this.questTrackerMinimizedListeners.push(listener);
+    return {
+      close: () => {
+        this.questTrackerMinimizedListeners = this.questTrackerMinimizedListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindTrackedProgressionTracksChangedListener(listener: TrackedProgressionTracksChangedListener): ListenerHandle {
+    this.trackedProgressionTracksListeners.push(listener);
+    return {
+      close: () => {
+        this.trackedProgressionTracksListeners = this.trackedProgressionTracksListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindTradeskillTrackerMinimizedChangedListener(listener: TradeskillTrackerMinimizedChangedListener): ListenerHandle {
+    this.tradeskillTrackerMinimizedListeners.push(listener);
+    return {
+      close: () => {
+        this.tradeskillTrackerMinimizedListeners = this.tradeskillTrackerMinimizedListeners.filter(
+          (l) => l !== listener
+        );
       }
     };
   }
@@ -355,6 +489,35 @@ class BrowserHUDFunctions implements HUDFunctions {
 
   setMinimapState(state: MinimapState): void {
     this.store.set(keyMinimapState, state);
+  }
+
+  getQuestTrackerMinimized(): boolean {
+    return this.store.get<boolean>(keyQuestTrackerMinimized) ?? false;
+  }
+
+  setQuestTrackerMinimized(value: boolean): void {
+    this.store.set(keyQuestTrackerMinimized, value);
+    this.questTrackerMinimizedListeners.forEach((l) => l(value));
+  }
+
+  getTrackedProgressionTrackIDs(characterID: string): string[] {
+    return this.store.get<Record<string, string[]>>(keyTrackedProgressionTrackIDs)?.[characterID] ?? [];
+  }
+
+  setProgressionTrackTracked(characterID: string, trackID: string, isTracked: boolean): void {
+    const newTrackIDs = storeProgressionTrackTracked(this.store, characterID, trackID, isTracked);
+    if (newTrackIDs) {
+      this.trackedProgressionTracksListeners.forEach((l) => l(characterID, newTrackIDs));
+    }
+  }
+
+  getTradeskillTrackerMinimized(): boolean {
+    return this.store.get<boolean>(keyTradeskillTrackerMinimized) ?? false;
+  }
+
+  setTradeskillTrackerMinimized(value: boolean): void {
+    this.store.set(keyTradeskillTrackerMinimized, value);
+    this.tradeskillTrackerMinimizedListeners.forEach((l) => l(value));
   }
 
   setCursorOverrideURL(url: string): void {}

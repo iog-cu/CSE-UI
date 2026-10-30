@@ -8,7 +8,11 @@ import * as React from 'react';
 import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { EntityResourceIDs } from '@csegames/library/dist/camelotunchained/game/types/EntityResourceIDs';
-import { EntityResource, isEntityPlayer } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
+import {
+  EntityResource,
+  isEntityPlayer,
+  PlayerEntityStateModel
+} from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { printWithSeparator } from '@csegames/library/dist/_baseGame/utils/numberUtils';
 import { Faction } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
 import ContextMenuSource from '../ContextMenuSource';
@@ -22,17 +26,21 @@ import {
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { FactionData, getFactionData } from '../../gameData/factionData';
 import { CharacterKind } from '@csegames/library/dist/camelotunchained/game/types/CharacterKind';
-import { getIsEntityNPC } from '../../helpers/characterHelpers';
-import { PlayerUnitFrameChrome, ClassIcon, FrameForeground, LevelForeground, NameForeground } from './PlayerUnitFrameChrome';
+import { getIsEntityNPC, getLockedResourceRatio, getShieldRatio } from '../../helpers/characterHelpers';
 import {
-  isPlayerEntityWithStatusInstanceCounts,
-  PlayerEntityStateModelWithStatusInstanceCounts
-} from '../../redux/entitiesSlice';
-import { DETERMINATION_BUFF_STRING_ID } from '../../helpers/statusHelpers';
+  PlayerUnitFrameChrome,
+  ClassIcon,
+  FrameForeground,
+  LevelForeground,
+  NameForeground
+} from './PlayerUnitFrameChrome';
+import { ClassIconTooltip } from './ClassIconTooltip';
+import { DETERMINATION_BUFF_STRING_ID, DETERMINATION_PIP_STACK_THRESHOLDS } from '../../helpers/statusHelpers';
 
 // Images are imported so that WebPack can find them (and give us errors if they are missing).
 import Health from '../../../images/unit-frames/unit-frame-health.png';
-import FactionlessHealth from '../../../images/unit-frames/unit-frame-factionless-health.png';
+import LockedHealth from '../../../images/unit-frames/unit-frame-health-locked.png';
+import Shield from '../../../images/unit-frames/unit-frame-health-shield.png';
 import Courage from '../../../images/unit-frames/unit-frame-courage.png';
 import Mana from '../../../images/unit-frames/unit-frame-mana.png';
 import Focus from '../../../images/unit-frames/unit-frame-focus.png';
@@ -46,16 +54,20 @@ import NPCTierIconUnique from '../../../images/unit-frames/npc-tier-icon-unique.
 import NPCTierIconMiniboss from '../../../images/unit-frames/npc-tier-icon-miniboss.png';
 import NPCTierIconBoss from '../../../images/unit-frames/npc-tier-icon-boss.png';
 import JudgementPipFull from '../../../images/unit-frames/unit-frame-judgement-pip-full.png';
+import DeterminationPipFull from '../../../images/unit-frames/unit-frame-determination-pip-full.png';
 import { GameDefsState } from '../../redux/gameDefsSlice';
+import { ClassIconSize, getClassIconSize } from '../../helpers/classIconHelpers';
 
 // CSS classes
 const Root = 'HUD-PlayerUnitFrame-Root';
 const FrameRoot = 'HUD-PlayerUnitFrame-FrameRoot';
 const HitRegion = 'HUD-PlayerUnitFrame-HitRegion';
+const ClassIconHitRegion = 'HUD-PlayerUnitFrame-ClassIconHitRegion';
 const FrameBackground = 'HUD-PlayerUnitFrame-FrameBackground';
 const Marker = 'HUD-PlayerUnitFrame-Marker';
 const MarkerHealth = 'HUD-PlayerUnitFrame-MarkerHealth';
-const MarkerFactionlessHealth = 'HUD-PlayerUnitFrame-MarkerFactionlessHealth';
+const MarkerLockedHealth = 'HUD-PlayerUnitFrame-MarkerLockedHealth';
+const MarkerShield = 'HUD-PlayerUnitFrame-MarkerShield';
 const MarkerCourage = 'HUD-PlayerUnitFrame-MarkerCourage';
 const MarkerMana = 'HUD-PlayerUnitFrame-MarkerMana';
 const MarkerFocus = 'HUD-PlayerUnitFrame-MarkerFocus';
@@ -67,6 +79,8 @@ const SimplePanicContainer = 'HUD-PlayerUnitFrame-SimplePanicContainer';
 const SimplePanicBar = 'HUD-PlayerUnitFrame-SimplePanicBar';
 const PrimaryMiddle = 'HUD-PlayerUnitFrame-PrimaryMiddle';
 const PrimaryMiddleBar = 'HUD-PlayerUnitFrame-PrimaryMiddleBar';
+const LockedHealthBar = 'HUD-PlayerUnitFrame-LockedHealthBar';
+const ShieldBar = 'HUD-PlayerUnitFrame-ShieldBar';
 const SimplePrimaryMiddle = 'HUD-PlayerUnitFrame-SimplePrimaryMiddle';
 const SimpleSecondaryMiddle = 'HUD-PlayerUnitFrame-SimpleSecondaryMiddle';
 const PrimaryResourceText = 'HUD-PlayerUnitFrame-PrimaryResourceText';
@@ -78,16 +92,11 @@ const SimpleLevelNumber = 'HUD-PlayerUnitFrame-SimpleLevelNumber';
 const SimpleNameText = 'HUD-PlayerUnitFrame-SimpleNameText';
 const SimplePrimaryResourceText = 'HUD-PlayerUnitFrame-SimplePrimaryResourceText';
 const SimpleSecondaryResourceText = 'HUD-PlayerUnitFrame-SimpleSecondaryResourceText';
-const DeterminationPips = 'HUD-PlayerUnitFrame-DeterminationPips';
-const DeterminationPip = 'HUD-PlayerUnitFrame-DeterminationPip';
-const DeterminationPipBackground = 'HUD-PlayerUnitFrame-DeterminationPipBackground';
-const DeterminationPipBar = 'HUD-PlayerUnitFrame-DeterminationPipBar';
-const DeterminationPipBorder = 'HUD-PlayerUnitFrame-DeterminationPipBorder';
-const JudgementPips = 'HUD-PlayerUnitFrame-JudgementPips';
-const JudgementPip = 'HUD-PlayerUnitFrame-JudgementPip';
-const JudgementPipBackground = 'HUD-PlayerUnitFrame-JudgementPipBackground';
-const JudgementPipBar = 'HUD-PlayerUnitFrame-JudgementPipBar';
-const JudgementPipBorder = 'HUD-PlayerUnitFrame-JudgementPipBorder';
+const ResourcePips = 'HUD-PlayerUnitFrame-ResourcePips';
+const ResourcePip = 'HUD-PlayerUnitFrame-ResourcePip';
+const ResourcePipContent = 'HUD-PlayerUnitFrame-ResourcePipContent';
+const ResourcePipBackground = 'HUD-PlayerUnitFrame-ResourcePipBackground';
+const ResourcePipFill = 'HUD-PlayerUnitFrame-ResourcePipFill';
 
 // String IDs
 const StringIDUnitFrameCorpse = 'UnitFrameCorpse';
@@ -120,19 +129,23 @@ interface ReactProps {
 interface InjectedProps {
   defs: GameDefsState;
   friendlyTargetType: string | null;
-  entity: PlayerEntityStateModelWithStatusInstanceCounts | undefined;
+  entity: PlayerEntityStateModel | undefined;
+  statusInstanceCounts: Record<number, number>;
+  resources: Record<string, EntityResource>;
   stringTable: Record<string, StringTableEntryDef>;
-  determinationBuffNumericId: number;
+  determinationStacks: number;
+  classIconSize: ClassIconSize;
 }
 
 type Props = ReactProps & InjectedProps;
 
-class PlayerUnitFrame extends React.Component<Props> {
+class PlayerUnitFrame extends React.PureComponent<Props> {
   render(): JSX.Element {
     const faction = this.props.defs.factions[Faction[this.props.faction]];
 
     const entity = this.props.entity;
     const isNPC = getIsEntityNPC(entity);
+    const hasClassIconTooltip = !!entity && this.props.isOnline && this.hasClassIcon();
 
     let name = this.props.name;
     if (!this.props.isAlive && this.props.entityID?.length > 0) {
@@ -161,18 +174,23 @@ class PlayerUnitFrame extends React.Component<Props> {
             className={`${HitRegion}${this.props.isSimple ? ' simple' : ''}${isNPC ? ' npc' : ''}`}
             onClick={this.props.onTarget}
             menuParams={this.getContextMenuParams()}
-          />
+          >
+            {hasClassIconTooltip && (
+              <ClassIconTooltip
+                className={`${ClassIconHitRegion}${this.props.isSimple ? ' simple' : ''}`}
+                tooltipID={`UnitFrameClass_${this.props.entityID}`}
+                classDef={this.props.defs.classesByNumericID[this.props.classID]}
+                stringTable={this.props.stringTable}
+              />
+            )}
+          </ContextMenuSource>
         </div>
         {this.props.children}
       </div>
     );
   }
 
-  private getEntityContent(
-    entity: PlayerEntityStateModelWithStatusInstanceCounts,
-    name: string,
-    faction: FactionDef
-  ): JSX.Element {
+  private getEntityContent(entity: PlayerEntityStateModel, name: string, faction: FactionDef): JSX.Element {
     const isFactionless = this.props.faction === Faction.Factionless;
     const factionData = getFactionData(faction.id);
 
@@ -180,16 +198,14 @@ class PlayerUnitFrame extends React.Component<Props> {
       return this.getSimpleEntityContent(entity, name, factionData);
     }
 
-    const health = this.getResource(EntityResourceIDs.Health);
-    const mana = this.getResource(EntityResourceIDs.Mana);
-    const focus = this.getResource(EntityResourceIDs.Focus);
-    const focusCharger = this.getResource(EntityResourceIDs.FocusCharger);
-    const courage = this.getResource(EntityResourceIDs.Courage);
-    const faith = this.getResource(EntityResourceIDs.Faith);
-    const judgement = this.getResource(EntityResourceIDs.Judgement);
-    const determination = this.getResource(EntityResourceIDs.Determination);
-    const determinationStacks = determination ? this.getDeterminationStacks(entity) : 0;
-    const panic = this.getResource(EntityResourceIDs.Panic);
+    const health = this.props.resources[EntityResourceIDs.Health];
+    const mana = this.props.resources[EntityResourceIDs.Mana];
+    const focus = this.props.resources[EntityResourceIDs.Focus];
+    const focusCharger = this.props.resources[EntityResourceIDs.FocusCharger];
+    const courage = this.props.resources[EntityResourceIDs.Courage];
+    const faith = this.props.resources[EntityResourceIDs.Faith];
+    const determination = this.props.resources[EntityResourceIDs.Determination];
+    const panic = this.props.resources[EntityResourceIDs.Panic];
 
     const healthRatio = health ? health.current / health.max : 0;
     const manaRatio = mana ? mana.current / mana.max : 0;
@@ -222,11 +238,9 @@ class PlayerUnitFrame extends React.Component<Props> {
           {/* Health bar */}
           {health && (
             <>
-              <img
-                className={PrimaryMiddleBar}
-                src={isFactionless ? FactionlessHealth : Health}
-                style={{ width: `${healthRatio * 100}%` }}
-              />
+              {this.renderLockedHealth(health)}
+              <img className={PrimaryMiddleBar} src={Health} style={{ width: `${healthRatio * 100}%` }} />
+              {this.renderShield(health)}
               <div className={PrimaryResourceText}>
                 {getTokenizedStringTableValue(StringIDUnitFrameResourceHealth, this.props.stringTable, {
                   CURRENT: printWithSeparator(
@@ -238,7 +252,7 @@ class PlayerUnitFrame extends React.Component<Props> {
               </div>
               {healthRatio && (
                 <div
-                  className={`${Marker} ${isFactionless ? MarkerFactionlessHealth : MarkerHealth}`}
+                  className={`${Marker} ${MarkerHealth}`}
                   style={{
                     right: `calc(100% - ${healthRatio * 100}%)`
                   }}
@@ -382,50 +396,14 @@ class PlayerUnitFrame extends React.Component<Props> {
           isNPC={isNPC}
           isRealmNPC={isRealmNPC}
           classID={this.props.classID}
-          classIconImage={this.props.defs.classesByNumericID[this.props.classID]?.unitFrameIconImage}
+          classDef={this.props.defs.classesByNumericID[this.props.classID!]}
+          classIconSize={this.props.classIconSize}
+          hasClassIcon={this.hasClassIcon()}
           name={name}
           levelString={levelString}
           npcTierIconSource={this.getNPCTierIconSource()}
         />
-        {determination && (
-          <div className={DeterminationPips}>
-            <div className={DeterminationPip}>
-              <div className={DeterminationPipBackground}>
-                <img
-                  className={`${DeterminationPipBar} ${determinationStacks >= 6 ? 'full' : ''}`}
-                  src={Determination}
-                />
-              </div>
-              <img className={DeterminationPipBorder} src={factionData.unitFrameDeterminationPipBorder} />
-            </div>
-            <div className={DeterminationPip}>
-              <div className={DeterminationPipBackground}>
-                <img
-                  className={`${DeterminationPipBar} ${determinationStacks >= 5 ? 'full' : ''}`}
-                  src={Determination}
-                />
-              </div>
-              <img className={DeterminationPipBorder} src={factionData.unitFrameDeterminationPipBorder} />
-            </div>
-          </div>
-        )}
-
-        {/* Judgement pips */}
-        {judgement && (
-          <div className={JudgementPips}>
-            {Array.from({ length: judgement.max }, (_, i) => (
-              <div key={i} className={JudgementPip}>
-                <div className={JudgementPipBackground}>
-                  <img className={JudgementPipBorder} src={factionData.unitFrameJudgementPipBackground} />
-                  <img
-                    className={`${JudgementPipBar} ${judgement.current >= i + 1 ? 'full' : ''}`}
-                    src={JudgementPipFull}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {this.renderResourcePips(factionData)}
       </>
     );
   }
@@ -451,27 +429,21 @@ class PlayerUnitFrame extends React.Component<Props> {
     return NPCTierIconMinor;
   }
 
-  private getSimpleEntityContent(
-    entity: PlayerEntityStateModelWithStatusInstanceCounts,
-    name: string,
-    factionData: FactionData
-  ): JSX.Element {
+  private getSimpleEntityContent(entity: PlayerEntityStateModel, name: string, factionData: FactionData): JSX.Element {
     const isFactionless = this.props.faction === Faction.Factionless;
     const isNPC = getIsEntityNPC(entity);
     let levelString = '';
     if (!isNPC && isEntityPlayer(entity) && entity.characterLevel != null) {
       levelString = (entity.characterLevel + 1).toFixed(0);
     }
-    const health = this.getResource(EntityResourceIDs.Health);
-    const mana = this.getResource(EntityResourceIDs.Mana);
-    const focus = this.getResource(EntityResourceIDs.Focus);
-    const focusCharger = this.getResource(EntityResourceIDs.FocusCharger);
-    const courage = this.getResource(EntityResourceIDs.Courage);
-    const faith = this.getResource(EntityResourceIDs.Faith);
-    const determination = this.getResource(EntityResourceIDs.Determination);
-    const judgement = this.getResource(EntityResourceIDs.Judgement);
-    const panic = this.getResource(EntityResourceIDs.Panic);
-    const determinationStacks = determination ? this.getDeterminationStacks(entity) : 0;
+    const health = this.props.resources[EntityResourceIDs.Health];
+    const mana = this.props.resources[EntityResourceIDs.Mana];
+    const focus = this.props.resources[EntityResourceIDs.Focus];
+    const focusCharger = this.props.resources[EntityResourceIDs.FocusCharger];
+    const courage = this.props.resources[EntityResourceIDs.Courage];
+    const faith = this.props.resources[EntityResourceIDs.Faith];
+    const determination = this.props.resources[EntityResourceIDs.Determination];
+    const panic = this.props.resources[EntityResourceIDs.Panic];
 
     const healthRatio = health ? health.current / health.max : 0;
     const manaRatio = mana ? mana.current / mana.max : 0;
@@ -498,16 +470,11 @@ class PlayerUnitFrame extends React.Component<Props> {
         <div className={SimplePrimaryMiddle}>
           {health && (
             <>
-              <img
-                className={PrimaryMiddleBar}
-                src={isFactionless ? FactionlessHealth : Health}
-                style={{ width: `${healthRatio * 100}%` }}
-              />
+              {this.renderLockedHealth(health)}
+              <img className={PrimaryMiddleBar} src={Health} style={{ width: `${healthRatio * 100}%` }} />
+              {this.renderShield(health)}
               {healthRatio && (
-                <div
-                  className={`${Marker} ${isFactionless ? MarkerFactionlessHealth : MarkerHealth}`}
-                  style={{ right: `calc(100% - ${healthRatio * 100}%)` }}
-                />
+                <div className={`${Marker} ${MarkerHealth}`} style={{ right: `calc(100% - ${healthRatio * 100}%)` }} />
               )}
             </>
           )}
@@ -588,7 +555,9 @@ class PlayerUnitFrame extends React.Component<Props> {
           isNPC={isNPC}
           isRealmNPC={!isFactionless && isNPC}
           classID={this.props.classID}
-          classIconImage={this.props.defs.classesByNumericID[this.props.classID]?.unitFrameIconImage}
+          classDef={this.props.defs.classesByNumericID[this.props.classID!]}
+          classIconSize={this.props.classIconSize}
+          hasClassIcon={this.hasClassIcon()}
           name={name}
           levelString={levelString}
           npcTierIconSource={this.getNPCTierIconSource()}
@@ -607,43 +576,7 @@ class PlayerUnitFrame extends React.Component<Props> {
             name
           )}
         </div>
-        {determination && (
-          <div className={DeterminationPips}>
-            <div className={DeterminationPip}>
-              <div className={DeterminationPipBackground}>
-                <img
-                  className={`${DeterminationPipBar} ${determinationStacks >= 6 ? 'full' : ''}`}
-                  src={Determination}
-                />
-              </div>
-              <img className={DeterminationPipBorder} src={factionData.unitFrameDeterminationPipBorder} />
-            </div>
-            <div className={DeterminationPip}>
-              <div className={DeterminationPipBackground}>
-                <img
-                  className={`${DeterminationPipBar} ${determinationStacks >= 5 ? 'full' : ''}`}
-                  src={Determination}
-                />
-              </div>
-              <img className={DeterminationPipBorder} src={factionData.unitFrameDeterminationPipBorder} />
-            </div>
-          </div>
-        )}
-        {judgement && (
-          <div className={JudgementPips}>
-            {Array.from({ length: judgement.max }, (_, i) => (
-              <div key={i} className={JudgementPip}>
-                <div className={JudgementPipBackground}>
-                  <img className={JudgementPipBorder} src={factionData.unitFrameJudgementPipBackground} />
-                  <img
-                    className={`${JudgementPipBar} ${judgement.current >= i + 1 ? 'full' : ''}`}
-                    src={JudgementPipFull}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {this.renderResourcePips(factionData)}
       </>
     );
   }
@@ -691,27 +624,102 @@ class PlayerUnitFrame extends React.Component<Props> {
     }
   }
 
-  private getResource(resourceID: EntityResourceIDs): EntityResource | undefined {
-    return this.props.entity?.resources[resourceID];
+  private renderLockedHealth(health: EntityResource): JSX.Element | null {
+    const lockedHealthRatio = getLockedResourceRatio(health);
+    if (lockedHealthRatio <= 0) return null;
+
+    return (
+      <>
+        <img className={LockedHealthBar} src={LockedHealth} style={{ width: `${lockedHealthRatio * 100}%` }} />
+        <div className={`${Marker} ${MarkerLockedHealth}`} style={{ left: `${(1 - lockedHealthRatio) * 100}%` }} />
+      </>
+    );
   }
 
-  private getDeterminationStacks(entity: PlayerEntityStateModelWithStatusInstanceCounts): number {
-    return entity.statusInstanceCounts[this.props.determinationBuffNumericId] ?? 0;
+  private renderShield(health: EntityResource): JSX.Element | null {
+    const shield = this.props.resources[EntityResourceIDs.Shield];
+    if (!shield) return null;
+
+    const shieldRatio = getShieldRatio(shield, health);
+    if (shieldRatio <= 0) return null;
+
+    return (
+      <>
+        <img className={ShieldBar} src={Shield} style={{ width: `${shieldRatio * 100}%` }} />
+        <div className={`${Marker} ${MarkerShield}`} style={{ right: `${(1 - shieldRatio) * 100}%` }} />
+      </>
+    );
+  }
+
+  private renderResourcePips(factionData: FactionData): JSX.Element {
+    const determination = this.props.resources[EntityResourceIDs.Determination];
+    const judgement = this.props.resources[EntityResourceIDs.Judgement];
+
+    return (
+      <>
+        {determination && (
+          <div className={ResourcePips}>
+            {DETERMINATION_PIP_STACK_THRESHOLDS.map((threshold, i) =>
+              this.renderResourcePip(i, this.props.determinationStacks >= threshold, DeterminationPipFull, factionData)
+            )}
+          </div>
+        )}
+        {judgement && (
+          <div className={ResourcePips}>
+            {Array.from({ length: judgement.max }, (_, i) =>
+              this.renderResourcePip(i, judgement.current >= i + 1, JudgementPipFull, factionData)
+            )}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  private renderResourcePip(
+    pipIndex: number,
+    isFull: boolean,
+    fillImage: string,
+    factionData: FactionData
+  ): JSX.Element {
+    return (
+      <div key={pipIndex} className={ResourcePip}>
+        <div className={ResourcePipContent}>
+          <img className={ResourcePipBackground} src={factionData.unitFrameResourcePipBackground} />
+          <img className={`${ResourcePipFill}${isFull ? ' full' : ''}`} src={fillImage} />
+        </div>
+      </div>
+    );
+  }
+
+  // The fancy party layout draws its class icon outside the slot the other layouts share, so it doesn't count.
+  private hasClassIcon(): boolean {
+    const classDef = this.props.defs.classesByNumericID[this.props.classID];
+    return (
+      (this.props.isSimple || !this.props.isParty) &&
+      !getIsEntityNPC(this.props.entity) &&
+      !!this.props.classID &&
+      !!classDef?.unitFrameIconImage
+    );
   }
 }
 
 function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
   const { stringTable } = state.stringTable;
-  const determinationBuffNumericId = state.gameDefs.statusesByStringID?.[DETERMINATION_BUFF_STRING_ID]?.numericID;
   const rawEntity = state.entities.entities[ownProps.entityID];
+  const determinationBuffNumericId = state.gameDefs.statusesByStringID?.[DETERMINATION_BUFF_STRING_ID]?.numericID;
+  const determinationStacks =
+    state.entities.entityStatusInstanceCounts[ownProps.entityID]?.[determinationBuffNumericId] ?? 0;
 
   return {
     ...ownProps,
     defs: state.gameDefs,
     friendlyTargetType: state.entities.friendlyTarget?.type ?? null,
-    entity: isPlayerEntityWithStatusInstanceCounts(rawEntity) ? rawEntity : undefined,
+    entity: isEntityPlayer(rawEntity) ? rawEntity : undefined,
+    statusInstanceCounts: state.entities.entityStatusInstanceCounts[rawEntity?.entityID] ?? {},
+    resources: state.entities.entityResources[rawEntity?.entityID] ?? {},
     stringTable,
-    determinationBuffNumericId
+    determinationStacks,
+    classIconSize: getClassIconSize(state.hud.vminPx)
   };
 }
 

@@ -13,16 +13,15 @@ import { LoadingTopic } from '../redux/loadingSlice';
 import { HUDHorizontalAnchor, HUDVerticalAnchor } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
 import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
 import { StringTableEntryDef } from '../dataSources/manifest/stringTableManifest';
-import { getFactionData } from '../gameData/factionData';
+import { getFactionData, RealmColorStyle } from '../gameData/factionData';
 import { getRaceData } from '../gameData/raceData';
 import { RaceDef } from '../dataSources/manifest/raceManifest';
 import { BodyTypeDef } from '../dataSources/manifest/bodyTypeManifest';
-import { getStringTableValue } from '../helpers/stringTableHelpers';
+import { getStringTableValue, StringIDGeneralBar } from '../helpers/stringTableHelpers';
 import { buildEquippedItemsByGearSlot } from '../helpers/itemHelpers';
 import { Item, ItemLocationType } from '@csegames/library/dist/camelotunchained/game/types/Items';
 import { ItemDef } from '../dataSources/manifest/itemManifest';
 import { ItemIcon } from './items/ItemIcon';
-import { FactionTitle } from './FactionTitle';
 import { StatDef } from '../dataSources/manifest/statManifest';
 import { EntityStat, TagState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { BorderBackground, BorderType, FactionBorder } from './FactionBorder';
@@ -36,11 +35,14 @@ import { ClassDef } from '../dataSources/manifest/classManifest';
 const Root = 'HUD-Equipped-Root';
 const BodyContainer = 'HUD-Equipped-BodyContainer';
 const GearSlot = 'HUD-Equipped-GearSlot';
+const ClassLevel = 'HUD-Equipped-ClassLevel';
+const ClassLevelText = 'HUD-Equipped-ClassLevelText';
 const StatsSlider = 'HUD-Equipped-StatsSlider';
 const CharacterInfoPanel = 'HUD-Equipped-CharacterInfoPanel';
 const InfoSection = 'HUD-Equipped-InfoSection';
 const SectionBorder = 'HUD-Equipped-SectionBorder';
 const SectionHeader = 'HUD-Equipped-SectionHeader';
+const SectionHeaderLarge = 'HUD-Equipped-SectionHeader large';
 const SectionHeaderLabel = 'HUD-Equipped-SectionHeaderLabel';
 const InfoRow = 'HUD-Equipped-InfoRow';
 const InfoRowSmall = 'HUD-Equipped-InfoRow small';
@@ -70,6 +72,9 @@ const StringIDEquippedDefensiveStats = 'EquippedDefensiveStats';
 const StringIDEquippedUtility = 'EquippedUtility';
 const StringIDEquippedUsableWeaponTypes = 'EquippedUsableWeaponTypes';
 const StringIDEquippedUsableArmorTypes = 'EquippedUsableArmorTypes';
+const StringIDEquippedLevel = 'EquippedLevel';
+
+const LevelToken = '{LEVEL}';
 
 interface StatGroup {
   primaryId: string;
@@ -84,7 +89,7 @@ const OFFENSE_STAT_GROUPS: StatGroup[] = [
   // Right col
   { primaryId: 'WeaponDamage' },
   { primaryId: 'BaseWeaponDamageMultiplier' },
-  { primaryId: 'BaseSpellDamageMultiplier' },
+  { primaryId: 'BaseSpellDamageMultiplier' }
 ];
 
 const DEFENSE_STAT_GROUPS: StatGroup[] = [
@@ -97,15 +102,24 @@ const DEFENSE_STAT_GROUPS: StatGroup[] = [
   { primaryId: 'BlockValue', secondaryIds: ['BlockValueIncrease'] },
   { primaryId: 'BlockCooldown' },
   { primaryId: 'GutsValue', secondaryIds: ['GutsValueIncrease'] },
-  { primaryId: 'GutsThreshold', secondaryIds: ['GutsThresholdIncrease'] },
+  { primaryId: 'GutsThreshold', secondaryIds: ['GutsThresholdIncrease'] }
 ];
 
 // Explicit display order, not alphabetical. Grouped so the resistances grid's CSS columns read as themed vertical groups:
 // physical, elemental, cosmic, magic/mind. (see .resistances in MainScreen-Styles.scss)
 const RESISTANCE_ORDER = [
-  'SlashingResistanceValue', 'FireResistanceValue', 'ArcaneResistanceValue', 'ShadowResistanceValue',
-  'CrushingResistanceValue', 'LightningResistanceValue', 'ChaosResistanceValue', 'SpiritResistanceValue',
-  'PiercingResistanceValue', 'EarthResistanceValue', 'VoidResistanceValue', 'MindResistanceValue',
+  'SlashingResistanceValue',
+  'FireResistanceValue',
+  'ArcaneResistanceValue',
+  'ShadowResistanceValue',
+  'CrushingResistanceValue',
+  'LightningResistanceValue',
+  'ChaosResistanceValue',
+  'SpiritResistanceValue',
+  'PiercingResistanceValue',
+  'EarthResistanceValue',
+  'VoidResistanceValue',
+  'MindResistanceValue'
 ];
 
 const UTILITY_STAT_GROUPS: StatGroup[] = [
@@ -121,7 +135,7 @@ const UTILITY_STAT_GROUPS: StatGroup[] = [
   { primaryId: 'DebuffDurationReduction' },
   { primaryId: 'PanicResistanceValue' },
   { primaryId: 'BasePanicMultiplier' },
-  { primaryId: 'VeilResistance' },
+  { primaryId: 'VeilResistance' }
 ];
 
 const PROFICIENCY_TAG_PART_COUNT = 3;
@@ -170,6 +184,10 @@ class AEquipped extends React.Component<Props, State> {
 
   render(): JSX.Element {
     const factionData = getFactionData(this.props.uiFactionID);
+    const realmColorStyle: RealmColorStyle = {
+      '--faction-border-color': factionData.targetBorderColor,
+      '--faction-divider-color': factionData.borderColor
+    };
     const raceData = getRaceData(this.props.myRace.id);
     const slotSize = 6.5;
     const slotSizeSmall = 4.9;
@@ -191,7 +209,7 @@ class AEquipped extends React.Component<Props, State> {
     ];
 
     return (
-      <div className={Root}>
+      <div className={Root} style={realmColorStyle}>
         {!this.props.isDragCopy && (
           <Escapable
             escapeID={WIDGET_ID_EQUIPPED}
@@ -207,16 +225,7 @@ class AEquipped extends React.Component<Props, State> {
           panelBackground={BorderBackground.Leather}
           onToggleClicked={() => this.setState({ isStatsOpen: !this.state.isStatsOpen })}
         >
-          <div
-            id='equipped-character-info-panel'
-            className={CharacterInfoPanel}
-            style={
-              {
-                '--faction-border-color': factionData.targetBorderColor,
-                '--faction-divider-color': factionData.borderColor
-              } as React.CSSProperties
-            }
-          >
+          <div id='equipped-character-info-panel' className={CharacterInfoPanel}>
             <div className={InfoSection}>
               {this.renderSectionHeader(getStringTableValue(StringIDEquippedCharacterInfo, this.props.stringTable))}
               <FactionBorder
@@ -356,7 +365,17 @@ class AEquipped extends React.Component<Props, State> {
                 );
               })}
             </FactionBorder>
-            <FactionTitle>{this.props.characterName}</FactionTitle>
+            <FactionBorder
+              className={ClassLevel}
+              type={BorderType.Secondary}
+              background={BorderBackground.PatternLarge}
+              includeTop={false}
+            >
+              <div className={ClassLevelText}>
+                {this.renderLevel()} {this.getClassName()}
+              </div>
+            </FactionBorder>
+            {this.renderSectionHeader(this.props.characterName, SectionHeaderLarge)}
           </div>
           <BaseHUDWidgetDraggableHandle className={Handle} widgetID={WIDGET_ID_EQUIPPED} />
         </FactionBorder>
@@ -379,25 +398,49 @@ class AEquipped extends React.Component<Props, State> {
     return this.itemsByGearSlotCache.itemsByGearSlot;
   }
 
-  private renderSectionHeader(text: string): React.ReactNode {
+  private renderSectionHeader(text: string, className: string = SectionHeader): React.ReactNode {
     const factionData = getFactionData(this.props.uiFactionID);
     return (
-      <div className={SectionHeader} style={{ backgroundImage: `url(${factionData.headerBorderSecondaryImage})` }}>
+      <div className={className} style={{ backgroundImage: `url(${factionData.headerBorderSecondaryImage})` }}>
         <span className={SectionHeaderLabel}>{text}</span>
       </div>
     );
   }
 
   private renderCharacterInfoLine(): React.ReactNode {
-    const classDef = this.props.classesByNumericID[this.props.classID];
-    const displayLevel = this.props.characterLevel + 1;
     const raceName = getStringTableValue(this.props.myRace?.name ?? '', this.props.stringTable);
-    const className = getStringTableValue(classDef?.name ?? '', this.props.stringTable);
+    const separator = this.getSeparator();
     return (
       <>
-        {this.props.characterName} | Level <span className={InfoValue}>{displayLevel}</span> | {raceName} | {className}
+        {this.props.characterName}
+        {separator}
+        {this.renderLevel()}
+        {separator}
+        {raceName}
+        {separator}
+        {this.getClassName()}
       </>
     );
+  }
+
+  private renderLevel(): React.ReactNode {
+    const [prefix, suffix] = getStringTableValue(StringIDEquippedLevel, this.props.stringTable).split(LevelToken);
+    return (
+      <>
+        {prefix}
+        <span className={InfoValue}>{this.props.characterLevel + 1}</span>
+        {suffix}
+      </>
+    );
+  }
+
+  private getSeparator(): string {
+    return ` ${getStringTableValue(StringIDGeneralBar, this.props.stringTable)} `;
+  }
+
+  private getClassName(): string {
+    const classDef = this.props.classesByNumericID[this.props.classID];
+    return getStringTableValue(classDef?.name ?? '', this.props.stringTable);
   }
 
   private renderGroupedSection(groups: StatGroup[]): React.ReactNode {
@@ -405,9 +448,7 @@ class AEquipped extends React.Component<Props, State> {
     return groups.map((group, i) => {
       const primaryDef = stats[group.primaryId];
       if (!primaryDef) return null;
-      const secondaryDefs = (group.secondaryIds ?? [])
-        .map((id) => stats[id])
-        .filter((s): s is StatDef => s != null);
+      const secondaryDefs = (group.secondaryIds ?? []).map((id) => stats[id]).filter((s): s is StatDef => s != null);
       return (
         <div className={StatGroupEl} key={i}>
           {this.renderGridCell(primaryDef, `${i}-primary`)}
@@ -482,7 +523,7 @@ class AEquipped extends React.Component<Props, State> {
       names.push(getStringTableValue(this.weaponTagToStringTableKey(weaponTag), stringTable));
     }
 
-    return names.filter((n) => n).join(' | ');
+    return names.filter((n) => n).join(this.getSeparator());
   }
 
   private getArmorTypeList(): string {
@@ -503,10 +544,12 @@ class AEquipped extends React.Component<Props, State> {
       }
     }
 
-    return names.filter((n) => n).join(' | ');
+    return names.filter((n) => n).join(this.getSeparator());
   }
 
   private weaponTagToStringTableKey(tag: string): string {
+    // Like shields, instruments are a Weapon proficiency but their equipment tag isn't under Equipment.Weapon.
+    if (tag === 'Instrument') return 'Equipment.Instrument';
     const match = tag.match(/^(\d+)h(.+)$/i);
     return match ? `Equipment.Weapon.${match[2]}.${match[1]}h` : `Equipment.Weapon.${tag}`;
   }
@@ -523,7 +566,7 @@ class AEquipped extends React.Component<Props, State> {
 }
 
 const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & InjectedProps => {
-  const { name, stats, race, gender, classID, tags, characterLevel } = state.entities.self;
+  const { name, race, gender, classID, tags, characterLevel } = state.entities.self;
   return {
     ...ownProps,
     uiFactionID: state.hud.uiFactionID,
@@ -534,7 +577,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     equippedItems: state.inventory.equipment,
     stats: state.gameDefs.stats,
     characterName: name,
-    characterStats: stats,
+    characterStats: state.entities.entityStats[state.entities.self.entityID] ?? {},
     classID,
     classesByNumericID: state.gameDefs.classesByNumericID,
     characterLevel: characterLevel ?? 0,

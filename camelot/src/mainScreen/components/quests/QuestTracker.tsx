@@ -33,6 +33,11 @@ import { isGenericQuestDisplay } from '../../helpers/questHelpers';
 
 // CSS classes
 const Root = 'HUD-QuestTracker-Root';
+const Header = 'HUD-QuestTracker-Header';
+const HeaderTitle = 'HUD-QuestTracker-HeaderTitle';
+const MinimizeButton = 'HUD-QuestTracker-MinimizeButton';
+const RowsDrawer = 'HUD-QuestTracker-RowsDrawer';
+const Rows = 'HUD-QuestTracker-Rows';
 const QuestRoot = 'HUD-QuestTracker-QuestRoot';
 const QuestRow = 'HUD-QuestTracker-QuestRow';
 const QuestDrawer = 'HUD-QuestTracker-QuestDrawer';
@@ -71,6 +76,10 @@ const StringIDQuestLogQuestNameKingsBountyCurrent = 'QuestLogQuestNameKingsBount
 // Reuse the vendor's existing untrack label — same action, same wording.
 const StringIDVendorUntrack = 'VendorUntrack';
 const StringIDQuestTrackerOpenInLog = 'QuestTrackerOpenInLog';
+const StringIDHUDEditorWidgetNameQuestTracker = 'HUDEditorWidgetNameQuestTracker';
+
+const MinimizeButtonExpandText = '+';
+const MinimizeButtonMinimizeText = '-';
 
 interface RowState {
   id: string;
@@ -96,6 +105,7 @@ interface InjectedProps {
   stringTable: Record<string, StringTableEntryDef>;
   uiFactionID: string;
   trackedQuestIDs: string[];
+  isMinimized: boolean;
   quests: Record<string, QuestStateEx>;
   defs: GameDefsState;
   inventory: Item[];
@@ -117,7 +127,22 @@ class AQuestTracker extends React.Component<Props, State> {
     const hasTrackedQuests = this.state.rows.length > 0;
     return (
       <div className={`${Root}${hasTrackedQuests ? ' filled' : ''}`}>
-        {this.state.rows.map(this.renderQuestCell.bind(this))}
+        {hasTrackedQuests && this.renderHeader()}
+        <CollapsingDrawer className={RowsDrawer} isOpen={!this.props.isMinimized}>
+          <div className={Rows}>{this.state.rows.map(this.renderQuestCell.bind(this))}</div>
+        </CollapsingDrawer>
+      </div>
+    );
+  }
+
+  private renderHeader(): React.ReactNode {
+    const title = getStringTableValue(StringIDHUDEditorWidgetNameQuestTracker, this.props.stringTable);
+    return (
+      <div className={Header}>
+        <div className={HeaderTitle}>{`${title} (${this.props.trackedQuestIDs.length})`}</div>
+        <div className={MinimizeButton} onClick={this.toggleMinimized.bind(this)}>
+          {this.props.isMinimized ? MinimizeButtonExpandText : MinimizeButtonMinimizeText}
+        </div>
       </div>
     );
   }
@@ -461,6 +486,11 @@ class AQuestTracker extends React.Component<Props, State> {
     );
   }
 
+  private toggleMinimized(): void {
+    clientAPI.playGameSound(SoundEvents.PLAY_UI_QUEST_DROPDOWN_ARROW);
+    clientAPI.setQuestTrackerMinimized(!this.props.isMinimized);
+  }
+
   private toggleQuestDetails(id: string): void {
     clientAPI.playGameSound(SoundEvents.PLAY_UI_QUEST_DROPDOWN_ARROW);
     if (this.state.openQuests.includes(id)) {
@@ -478,6 +508,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
     stringTable: state.stringTable.stringTable,
     uiFactionID: state.hud.uiFactionID,
     trackedQuestIDs: state.quests.trackedQuestIDs,
+    isMinimized: state.quests.isTrackerMinimized,
     quests: state.quests.quests,
     defs: state.gameDefs,
     inventory: state.inventory.primary
@@ -489,7 +520,7 @@ const QuestTracker = connect(mapStateToProps)(AQuestTracker);
 export const WIDGET_ID_QUESTTRACKER = 'Quest Tracker';
 export const questTrackerRegistry: HUDWidgetRegistration = {
   id: WIDGET_ID_QUESTTRACKER,
-  nameStringID: 'HUDEditorWidgetNameQuestTracker',
+  nameStringID: StringIDHUDEditorWidgetNameQuestTracker,
   defaults: {
     xAnchor: HUDHorizontalAnchor.Right,
     yAnchor: HUDVerticalAnchor.Top,

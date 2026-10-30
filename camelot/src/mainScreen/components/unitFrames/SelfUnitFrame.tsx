@@ -86,7 +86,7 @@ class ASelfUnitFrame extends React.Component<Props> {
           isDeputy={getIsCharacterDeputy(player.characterID, this.props.party, this.props.warband)}
           isOnline={true}
         >
-          <StatusEffects statuses={player.statuses} entityID={player.entityID} />
+          <StatusEffects entityID={player.entityID} />
         </PlayerUnitFrame>
       </div>
     );

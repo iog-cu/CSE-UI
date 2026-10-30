@@ -483,6 +483,7 @@ class AQuestLog extends React.Component<Props & DispatchProp, State> {
           if (newIsChecked) {
             clientAPI.addTrackedQuestID(quest.instanceID);
             this.props.dispatch(addTrackedQuestID(quest.instanceID));
+            clientAPI.setQuestTrackerMinimized(false);
           } else {
             clientAPI.removeTrackedQuestID(quest.instanceID);
             this.props.dispatch(removeTrackedQuestID(quest.instanceID));

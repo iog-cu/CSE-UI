@@ -4,9 +4,16 @@ import { connect } from 'react-redux';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { TextInput, TextInputType } from '../input/TextInput';
 import { FactionButton } from '../FactionButton';
-import { getStringTableValue, StringIDGeneralCancel } from '../../helpers/stringTableHelpers';
+import {
+  getStringTableValue,
+  getTokenizedStringTableValue,
+  StringIDGeneralCancel
+} from '../../helpers/stringTableHelpers';
 import { StringIDGeneralConfirm } from '../../helpers/stringTableHelpers';
 import { hideModal } from '../../redux/modalsSlice';
+import { callCreateFriendInvite } from '../../helpers/rest/friendsRestCalls';
+import { callSocialSetUserPermissions, SocialSetUserPermissionsParams } from '../../helpers/rest/socialRestCalls';
+import { UserInteractions } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
 
 // CSS classes
 const Root = 'HUD-AddFriendFoeDialog-Root';
@@ -16,9 +23,13 @@ const InputStatus = 'HUD-AddFriendFoeDialog-InputStatus';
 const ButtonSection = 'HUD-AddFriendFoeDialog-ButtonSection';
 const ActionButton = 'HUD-AddFriendFoeDialog-ActionButton';
 
+// String IDs
+const StringIDFriendFoeInvitationSent = 'FriendFoeInvitationSent';
+const StringIDFriendFoePlayerBlocked = 'FriendFoePlayerBlocked';
+
 interface State {
   inputValue: string;
-  lastInvited: string;
+  lastInput: string;
 }
 
 interface ReactProps {
@@ -38,7 +49,7 @@ class AAddFriendFoeDialog extends React.Component<Props, State> {
 
     this.state = {
       inputValue: '',
-      lastInvited: ''
+      lastInput: ''
     };
   }
 
@@ -46,23 +57,25 @@ class AAddFriendFoeDialog extends React.Component<Props, State> {
     return (
       <div className={Root}>
         <TextInput
-          type={TextInputType.CharacterName}
+          type={TextInputType.General}
           className={NameInputContainer}
           inputClassName={NameCharacterInput}
           value={this.state.inputValue}
           setValue={(value: string) => {
             this.setState({ inputValue: value });
           }}
-          showLength
-          showRules
         />
 
         <div className={InputStatus}>
-          {/* {this.state.lastInvited.length > 0
-            ? getTokenizedStringTableValue(StringIDPartyInvitationSent, this.props.stringTable, {
-                PLAYER_NAME: this.state.lastInvited
-              })
-            : ''} */}
+          {this.state.lastInput.length > 0
+            ? getTokenizedStringTableValue(
+                this.props.isFoe ? StringIDFriendFoePlayerBlocked : StringIDFriendFoeInvitationSent,
+                this.props.stringTable,
+                {
+                  NAME: this.state.lastInput
+                }
+              )
+            : ''}
         </div>
 
         <div className={ButtonSection}>
@@ -82,10 +95,19 @@ class AAddFriendFoeDialog extends React.Component<Props, State> {
   }
 
   private onAddClicked(): void {
-    // TODO: Going to need some clientAPI call, most likely.
-    // TODO: if (this.props.isFoe) ...
+    const name = this.state.inputValue.trim();
 
-    this.setState({ lastInvited: this.state.inputValue.trim() });
+    if (this.props.isFoe) {
+      const perms: SocialSetUserPermissionsParams = {
+        allowed: UserInteractions.None,
+        blocked: UserInteractions.All,
+        name
+      };
+      this.props.dispatch(callSocialSetUserPermissions(perms));
+    } else {
+      this.props.dispatch(callCreateFriendInvite({ name }));
+    }
+    this.setState({ lastInput: this.state.inputValue.trim() });
   }
 
   private onCancelClicked(): void {

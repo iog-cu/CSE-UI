@@ -15,6 +15,7 @@ import {
   HUDWidget,
   addConditionalWidgetExiting,
   initializeWidget,
+  isWidgetHidden,
   showConditionalWidget,
   toggleConditionalWidget,
   updateHUDSize,
@@ -64,7 +65,6 @@ interface InjectedProps {
   exitingConditionalWidgetIDs: string[];
   escapables: EscapableParams[];
   selectedWidgetID: string | null;
-  selectedGroupMemberIDs: string[];
   initCompleted: boolean;
   friendlyTarget: AnyEntityStateModel | null;
   enemyTarget: AnyEntityStateModel | null;
@@ -199,10 +199,7 @@ export class ABaseHUD extends React.Component<Props & DispatchProp> {
       return null;
     }
     const widgetID = widget.registration.id;
-    // Members of the actively-selected group are force-rendered while editing, even if hidden, so the
-    // user can see and arrange every widget in the group.
-    const isEditableGroupMember = this.props.isEditingHUD && this.props.selectedGroupMemberIDs.includes(widgetID);
-    if (!widget.state.visible && !isEditableGroupMember) {
+    if (isWidgetHidden(widget)) {
       return null;
     }
     return <BaseHUDWidget key={`HUDWidget.${widgetID}`} widgetID={widgetID}></BaseHUDWidget>;
@@ -410,7 +407,7 @@ export class ABaseHUD extends React.Component<Props & DispatchProp> {
 
 function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
   const { showMockData, widgets, escapables, isMouseUpNeeded } = state.hud;
-  const { selectedWidgetID, selectedGroupMemberIDs } = state.hud.editor;
+  const { selectedWidgetID } = state.hud.editor;
   const initCompleted = state.loading.initCompleted;
   const { friendlyTarget, enemyTarget, selfID } = state.entities;
   const { activeConditionalWidgetIDs, exitingConditionalWidgetIDs, isBindingKey } = state.hud;
@@ -425,7 +422,6 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
     widgets,
     escapables,
     selectedWidgetID,
-    selectedGroupMemberIDs,
     initCompleted,
     friendlyTarget,
     enemyTarget,

@@ -146,7 +146,7 @@ class ATargetUnitFrame extends React.Component<Props> {
                 <TargetPosition isFriendly={this.props.isFriendly} faction={target.faction} />
               )}
             </div>
-            <StatusEffects statuses={target.statuses} entityID={target.entityID} />
+            <StatusEffects entityID={target.entityID} />
           </PlayerUnitFrame>
         )}
       </div>

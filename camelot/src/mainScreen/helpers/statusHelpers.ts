@@ -7,6 +7,8 @@ type StatusDefMinus = Omit<StatusDef, 'id'>;
 export type StatusData = StatusState & StatusDefMinus & { instanceCount: number };
 
 export const DETERMINATION_BUFF_STRING_ID = 'determination_reset_handler';
+// Determination buff stack count each unit frame pip fills at, left to right.
+export const DETERMINATION_PIP_STACK_THRESHOLDS = [6, 5];
 
 export const includesTagCaseInsensitive = (tags: string[], substring: string): boolean =>
   tags.some((tag) => tag.toLowerCase().includes(substring));

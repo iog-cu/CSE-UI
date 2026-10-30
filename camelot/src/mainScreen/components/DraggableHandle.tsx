@@ -34,11 +34,13 @@ interface ReactProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Must match with the draggableID on a Draggable. */
   draggableID: string;
   /** Can only trigger drop events on DropTargets with a matching dropType. */
-  dropType?: string;
+  dropType?: string | string[];
   /** Fired when a drag ends, whether or not it is over a matching DropTarget. */
   dropHandler?: (data: any, draggableData: DropHandlerDraggableData) => void;
   /** Fired when a drag begins (technically on mouseDown). */
   dragStartHandler?: () => void;
+  /** Fired while dragging. */
+  dragMoveHandler?: (delta: [number, number]) => void;
   /** Optional hook to transform (e.g. snap/align) the raw drag delta before it is applied. */
   snapDelta?: (rawDelta: [number, number]) => [number, number];
   isDisabled?: boolean;
@@ -61,6 +63,8 @@ class DraggableHandle extends React.Component<Props & DispatchProp> {
   // Storing these here since consumers only care about the delta.
   private dragStartX: number = 0;
   private dragStartY: number = 0;
+  private lastX: number = 0;
+  private lastY: number = 0;
 
   private mouseMoveHandler: (e: MouseEvent) => void;
   private mouseUpHandler: (e: MouseEvent) => void;
@@ -130,8 +134,8 @@ class DraggableHandle extends React.Component<Props & DispatchProp> {
       this.props.dragStartHandler?.();
 
       // Stash the start coordinates so we can calculate deltas.
-      this.dragStartX = clientX;
-      this.dragStartY = clientY;
+      this.dragStartX = this.lastX = clientX;
+      this.dragStartY = this.lastY = clientY;
 
       // Register for window-level events, since we aren't moving the original Draggable.
       // Need to be able to catch the mouseUp and mouseMove when the cursor is over other widgets.
@@ -168,6 +172,10 @@ class DraggableHandle extends React.Component<Props & DispatchProp> {
     const rawDelta: [number, number] = [e.clientX - this.dragStartX, e.clientY - this.dragStartY];
     const delta = this.props.snapDelta ? this.props.snapDelta(rawDelta) : rawDelta;
     this.props.dispatch(updateDragDelta(delta));
+
+    this.props.dragMoveHandler?.([e.clientX - this.lastX, e.clientY - this.lastY]);
+    this.lastX = e.clientX;
+    this.lastY = e.clientY;
   }
 
   private reportDrop(draggableData: DropHandlerDraggableData): void {
@@ -189,20 +197,23 @@ class DraggableHandle extends React.Component<Props & DispatchProp> {
 
     // Iterate all matching DropTargets and see if we are over one.
     let targetFound: boolean = false;
-    Object.entries(this.props.dropTargets[this.props.dropType] ?? {}).forEach((entry) => {
-      // Only report to the first valid DropTarget.
-      if (targetFound) {
-        return;
-      }
+    const dropTypes = Array.isArray(this.props.dropType) ? this.props.dropType : [this.props.dropType];
+    dropTypes.forEach((dropType) => {
+      Object.entries(this.props.dropTargets[dropType] ?? {}).forEach((entry) => {
+        // Only report to the first valid DropTarget.
+        if (targetFound) {
+          return;
+        }
 
-      const dropTarget = entry[1];
+        const dropTarget = entry[1];
 
-      const bounds = dropTarget.element.getBoundingClientRect();
+        const bounds = dropTarget.element.getBoundingClientRect();
 
-      if (dcx >= bounds.x && dcx <= bounds.right && dcy >= bounds.y && dcy <= bounds.bottom) {
-        targetFound = true;
-        this.props.dropHandler(dropTarget.data, draggableData);
-      }
+        if (dcx >= bounds.x && dcx <= bounds.right && dcy >= bounds.y && dcy <= bounds.bottom) {
+          targetFound = true;
+          this.props.dropHandler(dropTarget.data, draggableData);
+        }
+      });
     });
 
     // Not all drops require a target.  Sometimes we just care where the item got dragged to.

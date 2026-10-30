@@ -22,7 +22,7 @@ import { AbilityGroup } from '@csegames/library/dist/_baseGame/types/AbilityType
 import { TooltipSource } from '../TooltipSource';
 import Draggable from '../Draggable';
 import DraggableHandle, { DropHandlerDraggableData } from '../DraggableHandle';
-import { DropTypeAbilityButton } from '../abilityBars/AbilityButton';
+import { DropTypeAbilityButton } from '../abilityBars/AbilityButtonShared';
 import { AbilityBarSlotDropTargetData } from '../abilityBars/AbilityBarSlot';
 import { getFactionData } from '../../gameData/factionData';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
@@ -38,8 +38,10 @@ import {
   getAbilityByDisplayDefID,
   getAvailableAbilityPoints,
   TAG_PREFIX_ARCHETYPE_CLASS,
+  TAG_PREFIX_PASSIVE,
   TAG_PREFIX_SPECIALIZATION
 } from '../../helpers/abilityBookHelpers';
+import { ProgressionTrackDef } from '../../dataSources/manifest/progressionTrackManifest';
 
 const LEVEL_UP_ANIMATION_DURATION_MS = 1500;
 
@@ -160,7 +162,7 @@ class AAbilityPageClass extends React.Component<Props, State> {
             </div>
           </FactionBorder>
           <FactionButton className={`${TrainButton} max`} size={'m'} widthOverrideVmin={6.5} />
-          {this.renderAbilityTrack(archetypeTracks[0], false)}
+          {this.renderAbilityTrack(archetypeTracks[0], false, this.renderPassive())}
         </FactionBorder>
         <div className={SpecsColumn}>
           <FactionBorder className={SpecsSection} type={BorderType.Primary} background={BorderBackground.PatternLarge}>
@@ -230,13 +232,18 @@ class AAbilityPageClass extends React.Component<Props, State> {
     return state;
   }
 
-  private renderAbilityTrack(ptID: string, isSpec: boolean): React.ReactNode {
+  private renderAbilityTrack(ptID: string, isSpec: boolean, leadingCells?: React.ReactNode): React.ReactNode {
     const abilityData = this.getFilteredAbilities([ptID]);
     if (abilityData.length <= 0) {
       return null;
     }
 
-    return <div className={AbilityTrackColumn}>{abilityData.map(this.renderAbilityCell.bind(this, isSpec))}</div>;
+    return (
+      <div className={AbilityTrackColumn}>
+        {leadingCells}
+        {abilityData.map(this.renderAbilityCell.bind(this, isSpec))}
+      </div>
+    );
   }
 
   private getMaxLevelForTrack(ptID: string): number {
@@ -309,25 +316,19 @@ class AAbilityPageClass extends React.Component<Props, State> {
     all: AbilityBookAbilityDisplayData[]
   ): React.ReactNode {
     const factionData = getFactionData(this.props.uiFactionID);
-    const draggableId = `AbilityBook${data.ability?.id}`;
 
     const progress = this.props.self.progression[data.progressionTrackID];
     const trackLevel = progress?.level ?? 0;
     const isLocked = trackLevel < data.unlockedAtLevel;
     const isLast = index === all.length - 1;
-    const lastClass = isLast ? ' last' : '';
+    // Only spec tracks end in a capstone ability.
+    const lastClass = isLast && isSpec ? ' last' : '';
 
     const isLevelUpTrack = this.state.levelUpTrackID === data.progressionTrackID;
     const shouldAnimateCell = isLevelUpTrack && data.unlockedAtLevel === trackLevel;
     // Lines are drawn after cells, so if the NEXT cell should animate, then this LINE should animate.
     const shouldAnimateLine = isLevelUpTrack && (all[index + 1]?.unlockedAtLevel ?? 0) === trackLevel;
 
-    // Swaps change the ability's displayDefID in place, so derive the icon from the live ability
-    // (same as AbilityButton), falling back to the track's base def.
-    const liveDisplayDef = data.ability
-      ? this.props.defs.abilityDisplayDefsByNumericID[data.ability.displayDefID] ?? data.displayDef
-      : data.displayDef;
-      
     return (
       <div className={`${AbilityContainer}${lastClass}`}>
         <TooltipSource
@@ -341,30 +342,44 @@ class AAbilityPageClass extends React.Component<Props, State> {
           style={shouldAnimateCell ? { opacity: 0.2 } : {}}
         >
           {isLast && isSpec && <img className={LastAbilityDecoration} src={factionData.hudnavEndImage} />}
-          <FactionBorder className={`${AbilityIconContainer}${lastClass}`} type={BorderType.Secondary}>
-            <Draggable
-              className={`${AbilitiesListEntryDraggable}${lastClass}`}
-              draggableID={draggableId}
-              draggingRender={() => (
-                <img className={`${AbilitiesListEntryIconDraggable}${lastClass}`} src={liveDisplayDef.iconURL} />
-              )}
-            >
-              <DraggableHandle
-                className={`${AbilitiesListEntryDraggableHandle}${!data.ability ? ' disabled' : ''}${lastClass}`}
-                draggableID={draggableId}
-                dropHandler={this.onAbilityDropped.bind(this)}
-                dragStartHandler={this.onAbilityDragStarted.bind(this)}
-                dropType={DropTypeAbilityButton}
-                isDisabled={!data.ability}
-              >
-                <img className={AbilitiesListEntryIcon} src={liveDisplayDef.iconURL} />
-              </DraggableHandle>
-            </Draggable>
-          </FactionBorder>
+          {this.renderDraggableAbilityIcon(data, lastClass)}
           {isLast && isSpec && <img className={`${LastAbilityDecoration} right`} src={factionData.hudnavEndImage} />}
         </TooltipSource>
         {!isLast && this.renderConnectionLine(trackLevel, data, index, all, shouldAnimateLine)}
       </div>
+    );
+  }
+
+  private renderDraggableAbilityIcon(data: AbilityBookAbilityDisplayData, lastClass: string): React.ReactNode {
+    const draggableId = `AbilityBook${data.ability?.id}`;
+
+    // Swaps change the ability's displayDefID in place, so derive the icon from the live ability
+    // (same as AbilityButton), falling back to the track's base def.
+    const liveDisplayDef = data.ability
+      ? this.props.defs.abilityDisplayDefsByNumericID[data.ability.displayDefID] ?? data.displayDef
+      : data.displayDef;
+
+    return (
+      <FactionBorder className={`${AbilityIconContainer}${lastClass}`} type={BorderType.Secondary}>
+        <Draggable
+          className={`${AbilitiesListEntryDraggable}${lastClass}`}
+          draggableID={draggableId}
+          draggingRender={() => (
+            <img className={`${AbilitiesListEntryIconDraggable}${lastClass}`} src={liveDisplayDef.iconURL} />
+          )}
+        >
+          <DraggableHandle
+            className={`${AbilitiesListEntryDraggableHandle}${!data.ability ? ' disabled' : ''}${lastClass}`}
+            draggableID={draggableId}
+            dropHandler={this.onAbilityDropped.bind(this)}
+            dragStartHandler={this.onAbilityDragStarted.bind(this)}
+            dropType={DropTypeAbilityButton}
+            isDisabled={!data.ability}
+          >
+            <img className={AbilitiesListEntryIcon} src={liveDisplayDef.iconURL} />
+          </DraggableHandle>
+        </Draggable>
+      </FactionBorder>
     );
   }
 
@@ -383,11 +398,7 @@ class AAbilityPageClass extends React.Component<Props, State> {
       <>
         <div
           className={ConnectionLine}
-          style={
-            nextIsUnlocked && !shouldAnimate
-              ? { borderColor: 'white', backgroundColor: factionData.mailSenderColor }
-              : {}
-          }
+          style={nextIsUnlocked && !shouldAnimate ? this.getUnlockedConnectionLineStyle() : {}}
         />
         {shouldAnimate && (
           <div
@@ -396,6 +407,57 @@ class AAbilityPageClass extends React.Component<Props, State> {
           />
         )}
       </>
+    );
+  }
+
+  private getUnlockedConnectionLineStyle(): React.CSSProperties {
+    return { borderColor: 'white', backgroundColor: getFactionData(this.props.uiFactionID).mailSenderColor };
+  }
+
+  private renderPassive(): React.ReactNode {
+    const passiveTrackID = this.props.myClass.progressionTracks.find((ptID) => {
+      return this.props.defs.progressionTracks[ptID]?.tags.some((tag) => tag.startsWith(TAG_PREFIX_PASSIVE));
+    });
+    if (!passiveTrackID) {
+      return null;
+    }
+
+    const track = this.props.defs.progressionTracks[passiveTrackID];
+    const trackLevel = this.props.self.progression[passiveTrackID]?.level ?? 0;
+    const grantedAbilities = this.getFilteredAbilities([passiveTrackID]);
+
+    // Uses ability cells so the passive lines up with the spec rows.
+    return (
+      <>
+        <div className={AbilityContainer}>
+          <TooltipSource
+            className={AbilitiesListEntry}
+            tooltipID={`passive${track.id}`}
+            content={this.renderPassiveTooltip.bind(this, track)}
+            positionType='mouse'
+          >
+            <FactionBorder className={AbilityIconContainer} type={BorderType.Secondary}>
+              <img className={AbilitiesListEntryIcon} src={track.iconURL} />
+            </FactionBorder>
+          </TooltipSource>
+          {grantedAbilities.length > 0 && (
+            <div
+              className={ConnectionLine}
+              style={grantedAbilities[0].unlockedAtLevel <= trackLevel ? this.getUnlockedConnectionLineStyle() : {}}
+            />
+          )}
+        </div>
+        {grantedAbilities.map(this.renderAbilityCell.bind(this, false))}
+      </>
+    );
+  }
+
+  private renderPassiveTooltip(track: ProgressionTrackDef): JSX.Element {
+    return (
+      <div className={TooltipRoot}>
+        <div className={TooltipHeader}>{getStringTableValue(track.nameKey, this.props.stringTable)}</div>
+        <div className={TooltipDescription}>{getStringTableValue(track.descriptionKey, this.props.stringTable)}</div>
+      </div>
     );
   }
 

@@ -4,50 +4,73 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import {
+  MailSnapshot,
+  MailMessage
+} from '@csegames/library/dist/camelotunchained/game/GameClientModels/MailSnapshot';
+import { StringTableEntryDef } from '../dataSources/manifest/stringTableManifest';
+import { getStringTableValue } from '../helpers/stringTableHelpers';
 
-export interface MailMessage {
-  id: number;
-  senderName: string;
-  sentDate: string; // YYYYMMDD
-  subject: string;
-  text: string;
-  attachmentIDs: number[];
-  money: number;
+const StringIDMailNameKing = "MailNameKing";
+const StringIDMailNameUnknown = "MailNameUnknown";
+
+export interface MailState extends MailSnapshot {
 }
 
-export interface MailState {
-  messages: MailMessage[];
+export function resolveSenderName(
+  message: MailMessage,
+  stringTable: Record<string, StringTableEntryDef>
+): string {
+  if (message.sentFromKing) {
+    return getStringTableValue(StringIDMailNameKing, stringTable);
+  }
+  if ((message.senderName?.length ?? 0) > 0) {
+    return message.senderName!;
+  }
+  return getStringTableValue(StringIDMailNameUnknown, stringTable);
 }
 
 export const mailStateMockData: MailState = {
   messages: [
     {
       id: 1,
+      sequenceNumber: 0,
       senderName: 'Kenneth Maul',
-      sentDate: '2025-09-02',
-      subject: 'Lorem ipsum',
-      text: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?',
+      sentFromKing: false,
+      sentAt: Date.parse('2025-09-02'),
+      wasRead: true,
+      wasCollected: true,
+      templateID: 1,
       attachmentIDs: [2621639, 23935788],
-      money: 11.36
+      money: 11.36,
+      resolvedStringTokens: { Foo: "Bar" }
     },
     {
       id: 2,
+      sequenceNumber: 0,
       senderName: 'Drakul',
-      sentDate: '2025-09-01',
-      subject: 'Lorem ipsum',
-      text: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?',
+      sentFromKing: false,
+      sentAt: Date.parse('2025-09-01'),
+      wasRead: true,
+      wasCollected: false,
+      templateID: 1,
       attachmentIDs: [],
-      money: 0
+      money: 0,
+      resolvedStringTokens: { Foo: "Bar" }
     },
     {
       id: 3,
-      senderName: 'Szell',
-      sentDate: '2025-08-31',
-      subject: 'Lorem ipsum',
-      text: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?',
+      sequenceNumber: 0,
+      senderName: null,
+      sentFromKing: true,
+      sentAt: Date.parse('2025-08-31'),
+      wasRead: false,
+      wasCollected: false,
+      templateID: 1,
       attachmentIDs: [],
-      money: 1000
+      money: 1000,
+      resolvedStringTokens: { Foo: "Bar" }
     }
   ]
 };
@@ -60,10 +83,15 @@ export const mailSlice = createSlice({
   name: 'mail',
   initialState: DefaultMailState,
   reducers: {
+    updateMailSnapshot: (state: MailState, action: PayloadAction<MailSnapshot>) => {
+      state.messages = action.payload.messages;
+    }
     // updateMailSearchValue: (state, action: PayloadAction<string>) => {
     //   state.searchValue = action.payload;
     // }
   }
 });
 
-export const {} = mailSlice.actions;
+export const {
+  updateMailSnapshot
+} = mailSlice.actions;

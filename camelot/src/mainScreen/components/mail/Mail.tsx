@@ -6,14 +6,13 @@
 
 import * as React from 'react';
 import { connect, DispatchProp } from 'react-redux';
-import { RootState } from '../../redux/store';
+import { RootState, store } from '../../redux/store';
 import { addConditionalWidgetExiting, HUDLayer, HUDWidgetRegistration } from '../../redux/hudSlice';
 import Escapable from '../Escapable';
 import { HUDHorizontalAnchor, HUDVerticalAnchor } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { getStringTableValue } from '../../helpers/stringTableHelpers';
 import { FactionTabButtonsVertical } from '../FactionTabButtonsVertical';
-import { MailMessage } from '../../redux/mailSlice';
 import { ItemDef } from '../../dataSources/manifest/itemManifest';
 import { MailInbox } from './MailInbox';
 import { MailMessageView } from './MailMessageView';
@@ -21,6 +20,7 @@ import { MailOutbox } from './MailOutbox';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
 import { CornerButtonType, FactionCornerButton } from '../FactionCornerButton';
 import { BaseHUDWidgetDraggableHandle } from '../BaseHUDWidgetDraggableHandle';
+import { MailMessage } from '@csegames/library/dist/camelotunchained/game/GameClientModels/MailSnapshot';
 
 // CSS classes
 const Root = 'HUD-Mail-Root';
@@ -43,7 +43,7 @@ interface State {
   searchValue: string;
   currentPage: number;
   selectedMessageIDs: number[];
-  messageToView: MailMessage | null;
+  messageIDToView: number | null;
   selectedAttachmentIndex: number;
 }
 
@@ -68,7 +68,7 @@ class AMail extends React.Component<Props & DispatchProp, State> {
       searchValue: '',
       currentPage: 0,
       selectedMessageIDs: [],
-      messageToView: null,
+      messageIDToView: null,
       selectedAttachmentIndex: -1
     };
   }
@@ -85,7 +85,7 @@ class AMail extends React.Component<Props & DispatchProp, State> {
           ]}
           selectedTabIndex={this.state.currentTab}
           onTabSelected={(tabIndex: number) => {
-            this.setState({ currentTab: tabIndex, messageToView: null });
+            this.setState({ currentTab: tabIndex, messageIDToView: null });
           }}
         />
         <FactionBorder
@@ -110,12 +110,15 @@ class AMail extends React.Component<Props & DispatchProp, State> {
   }
 
   private renderPageContent(): React.ReactNode {
-    if (this.state.messageToView) {
+    const messageToView = this.props.messages.find(m => m.id === this.state.messageIDToView);
+    const commonMessageStringTokens = this.getCommonMessageStringTokens();
+    if (messageToView) {
       return (
         <MailMessageView
-          message={this.state.messageToView}
+          message={messageToView}
+          commonMessageStringTokens={commonMessageStringTokens}
           onCloseRequested={() => {
-            this.setState({ messageToView: null });
+            this.setState({ messageIDToView: null });
           }}
         />
       );
@@ -125,8 +128,9 @@ class AMail extends React.Component<Props & DispatchProp, State> {
       case MailTab.Inbox: {
         return (
           <MailInbox
+            commonMessageStringTokens={commonMessageStringTokens}
             onMessageSelected={(m: MailMessage) => {
-              this.setState({ messageToView: m, selectedAttachmentIndex: -1 });
+              this.setState({ messageIDToView: m.id, selectedAttachmentIndex: -1 });
             }}
           />
         );
@@ -135,6 +139,12 @@ class AMail extends React.Component<Props & DispatchProp, State> {
         return <MailOutbox />;
       }
     }
+  }
+
+  private getCommonMessageStringTokens(): Record<string, string> {
+    return {
+      CharacterName: store.getState().entities.self.name
+    };
   }
 
   private closeSelf(): void {

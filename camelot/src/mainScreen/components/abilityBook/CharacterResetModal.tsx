@@ -23,7 +23,10 @@ import {
   StringIDGeneralReset
 } from '../../helpers/stringTableHelpers';
 import { StatDef } from '../../dataSources/manifest/statManifest';
-import { PlayerEntityStateModel } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
+import {
+  EntityStat,
+  PlayerEntityStateModel
+} from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { getFactionData } from '../../gameData/factionData';
 import { MoneyDisplay } from '../../../shared/components/MoneyDisplay';
 import { FactionButton } from '../FactionButton';
@@ -101,6 +104,7 @@ interface InjectedProps {
   stringTable: Record<string, StringTableEntryDef>;
   defs: GameDefsState;
   self: PlayerEntityStateModel;
+  selfStats: Record<number, EntityStat>;
   uiFactionID: string;
   wallet: Item[];
   abilityProgressionRespecCostPerLevel: number;
@@ -115,7 +119,7 @@ class ACharacterResetModal extends React.Component<Props, State> {
     // Get stats from existing character.
     let pendingStats: Record<string, number> = {};
     this.getEditableStats().forEach((def: StatDef) => {
-      const value = props.self.stats[def.numericID]?.value ?? 0;
+      const value = props.selfStats[def.numericID]?.value ?? 0;
       pendingStats[def.id] = value;
     });
 
@@ -307,7 +311,7 @@ class ACharacterResetModal extends React.Component<Props, State> {
     const factionData = getFactionData(this.props.uiFactionID);
 
     // Can't Reassign if no stats have been changed.
-    const hasNoChanges = Object.values(this.props.self.stats).every((stat) => {
+    const hasNoChanges = Object.values(this.props.selfStats).every((stat) => {
       const statID = this.props.defs.statsByNumericID[stat.id].id;
       return this.state.pendingStats[statID] === undefined || this.state.pendingStats[statID] === stat.value;
     });
@@ -507,6 +511,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     stringTable: state.stringTable.stringTable,
     defs: state.gameDefs,
     self: state.entities.self,
+    selfStats: state.entities.entityStats[state.entities.self.entityID] ?? {},
     uiFactionID: state.hud.uiFactionID,
     wallet: state.inventory.wallet,
     abilityProgressionRespecCostPerLevel: state.gameDefs.settings.abilityProgressionRespecCostPerLevel

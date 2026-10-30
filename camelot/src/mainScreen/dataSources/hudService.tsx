@@ -56,9 +56,22 @@ import { store } from '../redux/store';
 import { repairWarningRegistry } from '../components/playerWarningIcons/PlayerWarningIcons';
 import { questLogRegistry } from '../components/quests/QuestLog';
 import { questTrackerRegistry } from '../components/quests/QuestTracker';
+import { tradeskillTrackerRegistry } from '../components/tradeskillTracker/TradeskillTracker';
 import { levelNotificationsRegistry, questNotificationsRegistry } from '../components/NotificationToasts';
 import { ModalParams } from '../redux/modalsSlice';
 import { CharacterResetModal } from '../components/abilityBook/CharacterResetModal';
+import { HUDWidgetState } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
+
+// Saves from the removed visibility toggle can still carry `visible: false`.
+type LegacyHUDWidgetState = HUDWidgetState & { visible?: boolean };
+
+function convertLegacyHiddenWidgets(widgets: Record<string, LegacyHUDWidgetState>): Record<string, HUDWidgetState> {
+  const converted: Record<string, HUDWidgetState> = {};
+  for (const [widgetID, { visible, ...widgetState }] of Object.entries(widgets)) {
+    converted[widgetID] = visible === false ? { ...widgetState, opacity: 0 } : widgetState;
+  }
+  return converted;
+}
 
 // We need this at the file level to handle the cases where registerHUDWidget() is
 // called before the HUDService is initialized.
@@ -71,7 +84,7 @@ export class HUDService extends ExternalDataSource {
     this.DEBUGRegisterWidgets();
 
     // Pull data from LocalStorage and send it to Redux.
-    const widgets = clientAPI.getWidgets();
+    const widgets = convertLegacyHiddenWidgets(clientAPI.getWidgets());
     this.dispatch(updateWidgetStates(widgets));
 
     const poisToHide = clientAPI.getPOIsToHide();
@@ -126,6 +139,7 @@ export class HUDService extends ExternalDataSource {
     registerHUDWidget(socialRegistry);
     registerHUDWidget(tradeRegistry);
     registerHUDWidget(tradeRequestsRegistry);
+    registerHUDWidget(tradeskillTrackerRegistry);
     registerHUDWidget(vendorRegistry);
     registerHUDWidget(warbandRegistry);
     registerHUDWidget(warningIconsRegistry);

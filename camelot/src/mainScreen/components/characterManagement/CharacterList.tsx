@@ -47,6 +47,10 @@ const StringIDCharacterManagementDeleteCharacterMessage = 'CharacterManagementDe
 const Root = 'HUD-CharacterList-Root';
 const CharacterCountNumber = 'HUD-CharacterList-CharacterCountNumber';
 const CharacterCountLabel = 'HUD-CharacterList-CharacterCountLabel';
+const ListFrame = 'HUD-CharacterList-ListFrame';
+const EdgeFadeTop = 'HUD-CharacterList-EdgeFadeTop';
+const EdgeFadeBottom = 'HUD-CharacterList-EdgeFadeBottom';
+const Divider = 'HUD-CharacterList-Divider';
 const ListContainer = 'HUD-CharacterList-CharacterListContainer';
 const ListContent = 'HUD-CharacterList-CharacterListContent';
 const Cell = 'HUD-CharacterList-Cell';
@@ -88,11 +92,15 @@ class ACharacterList extends React.Component<Props> {
           textClasses={[CharacterCountNumber]}
           nodes={[]}
         />
-        <FactionDivider />
-        <FactionScrollArea className={ListContainer} contentClassName={ListContent}>
-          {this.props.characters.map(this.renderCharacterCell.bind(this))}
-        </FactionScrollArea>
-        <FactionDivider />
+        <div className={ListFrame}>
+          <FactionScrollArea className={ListContainer} contentClassName={ListContent}>
+            {this.props.characters.map(this.renderCharacterCell.bind(this))}
+          </FactionScrollArea>
+          <div className={EdgeFadeTop} />
+          <div className={EdgeFadeBottom} />
+          <FactionDivider className={Divider} position='top' />
+          <FactionDivider className={Divider} position='bottom' />
+        </div>
       </div>
     );
   }

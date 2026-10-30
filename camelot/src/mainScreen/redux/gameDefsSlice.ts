@@ -25,6 +25,9 @@ import { ItemDef } from '../dataSources/manifest/itemManifest';
 import { ItemModSetDef } from '../dataSources/manifest/itemModSetManifest';
 import { ItemRecipeDef } from '../dataSources/manifest/itemRecipeManifest';
 import { ItemTooltipCategoryDef } from '../dataSources/manifest/itemTooltipCategoryManifest';
+import { MailTemplateDef } from '../dataSources/manifest/mailTemplateManifest';
+import { ProgressionTrackDef } from '../dataSources/manifest/progressionTrackManifest';
+import { QuestDef } from '../dataSources/manifest/questDefManifest';
 import { RaceDef } from '../dataSources/manifest/raceManifest';
 import { RequirementDef } from '../dataSources/manifest/requirementManifest';
 import { StatLoadoutDef } from '../dataSources/manifest/statLoadoutManifest';
@@ -33,8 +36,6 @@ import { StatusDef } from '../dataSources/manifest/statusManifest';
 import { WeaponCategoryDef } from '../dataSources/manifest/weaponCategoryManifest';
 import { WeaponClassDef } from '../dataSources/manifest/weaponClassManifest';
 import { WeaponTypeDef } from '../dataSources/manifest/weaponTypeManifest';
-import { ProgressionTrackDef } from '../dataSources/manifest/progressionTrackManifest';
-import { QuestDef } from '../dataSources/manifest/questDefManifest';
 
 export interface GameDefsState {
   abilityBookTabs: AbilityBookTabDef[];
@@ -63,6 +64,8 @@ export interface GameDefsState {
   itemModSetsByStringID: Record<string, ItemModSetDef>;
   itemModSetsByNumericID: Record<number, ItemModSetDef>;
   itemTooltipCategories: Record<string, ItemTooltipCategoryDef>;
+  mailTemplatesByNumericID: Record<number, MailTemplateDef>;
+  mailTemplatesByStringID: Record<string, MailTemplateDef>;
   progressionTracks: Record<string, ProgressionTrackDef>;
   questDefs: Record<string, QuestDef>;
   racesByNumericID: Record<number, RaceDef>;
@@ -111,6 +114,8 @@ function buildDefaultGameDefsState() {
     itemModSetsByNumericID: {},
     itemModSetsByStringID: {},
     itemTooltipCategories: {},
+    mailTemplatesByNumericID: {},
+    mailTemplatesByStringID: {},
     progressionTracks: {},
     questDefs: {},
     racesByNumericID: {},
@@ -242,6 +247,11 @@ export const gameDefsSlice = createSlice({
     ) => {
       state.itemTooltipCategories = action.payload ?? {};
     },
+    updateMailTemplates: (state: GameDefsState, action: PayloadAction<[Record<string, MailTemplateDef>, Record<number, MailTemplateDef>]>) => {
+      const [byString, byNumber] = action.payload;
+      state.mailTemplatesByStringID = byString ?? {};
+      state.mailTemplatesByNumericID = byNumber ?? {};
+    },
     updateProgressionTracks: (state: GameDefsState, action: PayloadAction<Record<string, ProgressionTrackDef>>) => {
       state.progressionTracks = action.payload;
     },
@@ -319,6 +329,7 @@ export const {
   updateItems,
   updateItemModSets,
   updateItemTooltipCategories,
+  updateMailTemplates,
   updateProgressionTracks,
   updateQuestDefs,
   updateRaces,

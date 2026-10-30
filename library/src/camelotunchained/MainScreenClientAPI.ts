@@ -19,6 +19,7 @@ import { GuildFunctions, GuildMocks, impl as gf } from './clientFunctions/GuildF
 import { HUDFunctions, impl as hf } from './clientFunctions/HUDFunctions';
 import { InventoryFunctions, InventoryMocks, impl as ivf } from './clientFunctions/InventoryFunctions';
 import { KeybindsFunctions, KeybindsMocks, impl as kbf } from './clientFunctions/KeybindsFunctions';
+import { MailFunctions, MailMocks, impl as mlf } from './clientFunctions/MailFunctions';
 import { NetworkEventMocks, NetworkFunctions, impl as nf } from '../_baseGame/clientFunctions/NetworkFunctions';
 import { PartyFunctions, PartyMocks, impl as pf } from './clientFunctions/PartyFunctions';
 import { ProgressionFunctions, impl as progf } from '../_baseGame/clientFunctions/ProgressionFunctions';
@@ -31,6 +32,7 @@ import { QuestFunctions, QuestMocks, impl as qf } from './clientFunctions/QuestF
 import { SceneRenderFunctions, impl as srf } from '../_baseGame/clientFunctions/SceneRenderFunctions';
 import { TradeFunctions, TradeMocks, impl as stf } from './clientFunctions/TradeFunctions';
 import { SystemFunctions, impl as sysf } from '../_baseGame/clientFunctions/SystemFunctions';
+import { VersionFunctions, impl as ver } from '../_baseGame/clientFunctions/VersionFunctions';
 import { ViewFunctions, ViewEventMocks, impl as vf } from '../_baseGame/clientFunctions/ViewFunctions';
 import { WarbandFunctions, WarbandMocks, impl as wf } from './clientFunctions/WarbandFunctions';
 
@@ -61,6 +63,7 @@ export type MainScreenClientAPI = AbilityFunctions &
   HUDFunctions &
   InventoryFunctions &
   KeybindsFunctions &
+  MailFunctions &
   NetworkFunctions &
   PartyFunctions &
   PerformanceWarningsFunctions &
@@ -69,6 +72,7 @@ export type MainScreenClientAPI = AbilityFunctions &
   SceneRenderFunctions &
   SystemFunctions &
   TradeFunctions &
+  VersionFunctions &
   ViewFunctions &
   WarbandFunctions;
 
@@ -85,6 +89,7 @@ export type MainScreenClientMocks = AbilityMocks &
   GuildMocks &
   InventoryMocks &
   KeybindsMocks &
+  MailMocks &
   NetworkEventMocks &
   PartyMocks &
   PerformanceWarningsMocks &
@@ -119,6 +124,8 @@ export const clientAPI: MainScreenClientAPI = {
   executeAbility: abf.executeAbility.bind(abf),
   moveAbility: abf.moveAbility.bind(abf),
   setAbility: abf.setAbility.bind(abf),
+  setAbilityItem: abf.setAbilityItem.bind(abf),
+  swapAbilitySlots: abf.swapAbilitySlots.bind(abf),
   // Animation
   startAnimation: ani.startAnimation.bind(ani),
   // Announcement
@@ -187,6 +194,12 @@ export const clientAPI: MainScreenClientAPI = {
   setGroupPOITypeVisibility: hf.setGroupPOITypeVisibility.bind(hf),
   getMinimapState: hf.getMinimapState.bind(hf),
   setMinimapState: hf.setMinimapState.bind(hf),
+  getQuestTrackerMinimized: hf.getQuestTrackerMinimized.bind(hf),
+  setQuestTrackerMinimized: hf.setQuestTrackerMinimized.bind(hf),
+  getTrackedProgressionTrackIDs: hf.getTrackedProgressionTrackIDs.bind(hf),
+  setProgressionTrackTracked: hf.setProgressionTrackTracked.bind(hf),
+  getTradeskillTrackerMinimized: hf.getTradeskillTrackerMinimized.bind(hf),
+  setTradeskillTrackerMinimized: hf.setTradeskillTrackerMinimized.bind(hf),
   getNameplateStyle: hf.getNameplateStyle.bind(hf),
   setNameplateStyle: hf.setNameplateStyle.bind(hf),
   getPartyLayout: hf.getPartyLayout.bind(hf),
@@ -197,6 +210,9 @@ export const clientAPI: MainScreenClientAPI = {
   setShowGameInfoAtStartup: hf.setShowGameInfoAtStartup.bind(hf),
   bindPartyLayoutChangedListener: hf.bindPartyLayoutChangedListener.bind(hf),
   bindUIScaleChangedListener: hf.bindUIScaleChangedListener.bind(hf),
+  bindQuestTrackerMinimizedChangedListener: hf.bindQuestTrackerMinimizedChangedListener.bind(hf),
+  bindTrackedProgressionTracksChangedListener: hf.bindTrackedProgressionTracksChangedListener.bind(hf),
+  bindTradeskillTrackerMinimizedChangedListener: hf.bindTradeskillTrackerMinimizedChangedListener.bind(hf),
   setCursorOverrideURL: hf.setCursorOverrideURL.bind(hf),
   // Inventory
   bindInventoryUpdatedListener: ivf.bindInventoryUpdatedListener.bind(ivf),
@@ -211,6 +227,12 @@ export const clientAPI: MainScreenClientAPI = {
   removeKeybindSet: kbf.removeKeybindSet.bind(kbf),
   setKeybindSet: kbf.setKeybindSet.bind(kbf),
   getKeybindSetKey: kbf.getKeybindSetKey.bind(kbf),
+  // Mail
+  bindMailUpdatedListener: mlf.bindMailUpdatedListener.bind(mlf),
+  bindMailErrorListener: mlf.bindMailErrorListener.bind(mlf),
+  deleteMessages: mlf.deleteMessages.bind(mlf),
+  markMessagesRead: mlf.markMessagesRead.bind(mlf),
+  collectRewards: mlf.collectRewards.bind(mlf),
   // NetworkFunctions
   bindConnectionStatusListener: nf.bindConnectionStatusListener.bind(nf),
   bindConnectionTargetsListener: nf.bindConnectionTargetsListener.bind(nf),
@@ -227,6 +249,7 @@ export const clientAPI: MainScreenClientAPI = {
   bindPerformanceWarningsListener: pwf.bindPerformanceWarningsListener.bind(pwf),
   // Progression
   applySpecAllocation: progf.applySpecAllocation.bind(progf),
+  applyTierAllocation: progf.applyTierAllocation.bind(progf),
   // Quests
   bindQuestsUpdatedListener: qf.bindQuestsUpdatedListener.bind(qf),
   turnInQuest: qf.turnInQuest.bind(qf),
@@ -243,6 +266,9 @@ export const clientAPI: MainScreenClientAPI = {
   renderPaperDoll: srf.renderPaperDoll.bind(srf),
   deletePaperDoll: srf.deletePaperDoll.bind(srf),
   pauseAllPaperDollExcept: srf.pauseAllPaperDollExcept.bind(srf),
+  cycleCamerasForPaperDoll: srf.cycleCamerasForPaperDoll.bind(srf),
+  selectCameraForPaperDoll: srf.selectCameraForPaperDoll.bind(srf),
+  dragPaperDoll: srf.dragPaperDoll.bind(srf),
   // System
   openBrowser: sysf.openBrowser.bind(sysf),
   quit: sysf.quit.bind(sysf),
@@ -264,6 +290,8 @@ export const clientAPI: MainScreenClientAPI = {
   moveTradeItem: stf.moveTradeItem.bind(stf),
   confirmTradeItems: stf.confirmTradeItems.bind(stf),
   cancelTrade: stf.cancelTrade.bind(stf),
+  // Version
+  getBuildNumber: ver.getBuildNumber.bind(ver),
   // View
   setInitializationComplete: vf.setInitializationComplete.bind(vf),
   bindShowWidgetListener: vf.bindShowWidgetListener.bind(vf),
@@ -300,8 +328,13 @@ export const mockEvents: MainScreenClientMocks = {
   triggerCharacterClassDefsLoaded: df.triggerCharacterClassDefsLoaded.bind(df),
   triggerCharacterRaceDefsLoaded: df.triggerCharacterRaceDefsLoaded.bind(df),
   triggerManifestDefsLoaded: df.triggerManifestDefsLoaded.bind(df),
+  // Guild
+  triggerGuildUpdated: gf.triggerGuildUpdated.bind(gf),
   // Inventory
   triggerInventoryUpdated: ivf.triggerInventoryUpdated.bind(ivf),
+  // Mail
+  triggerMailUpdated: mlf.triggerMailUpdated.bind(mlf),
+  triggerMailError: mlf.triggerMailError.bind(mlf),
   // Network
   triggerConnectionStatus: nf.triggerConnectionStatus.bind(nf),
   triggerConnectionTargets: nf.triggerConnectionTargets.bind(nf),
@@ -313,8 +346,6 @@ export const mockEvents: MainScreenClientMocks = {
   triggerPerformanceWarnings: pwf.triggerPerformanceWarnings.bind(pwf),
   // Quests
   triggerQuestsUpdated: qf.triggerQuestsUpdated.bind(qf),
-  // Social
-  triggerGuildUpdated: gf.triggerGuildUpdated.bind(gf),
   // Trade
   triggerTradeInviteAdded: stf.triggerTradeInviteAdded.bind(stf),
   triggerTradeInviteRemoved: stf.triggerTradeInviteRemoved.bind(stf),

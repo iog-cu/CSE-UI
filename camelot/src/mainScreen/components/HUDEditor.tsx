@@ -11,6 +11,7 @@ import {
   hideHUDEditor,
   HUDWidget,
   HUDWidgetRegistration,
+  isWidgetHidden,
   resetAllWidgets,
   resetWidget,
   setNameplateStyle,
@@ -31,12 +32,14 @@ import { hideModal, showModal } from '../redux/modalsSlice';
 import { AbilityEditStatus, AbilityGroup, ButtonLayout } from '@csegames/library/dist/_baseGame/types/AbilityTypes';
 import Escapable from './Escapable';
 import {
+  AbilityBarDecor,
   HUDHorizontalAnchor,
   HUDVerticalAnchor,
   HUDWidgetState
 } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
 import {
   getStringTableValue,
+  getStringTableValueOrFallback,
   getTokenizedStringTableValue,
   StringIDGeneralCancel,
   StringIDGeneralDelete,
@@ -50,6 +53,7 @@ import { WIDGET_ID_CRAFTING } from './crafting/Crafting';
 import { WIDGET_ID_EQUIPPED } from './Equipped';
 import { WIDGET_ID_INVENTORY } from './inventory/Inventory';
 import { WIDGET_ID_LEVEL_BARS } from './levelBars/LevelBars';
+import { WIDGET_ID_TRADESKILL_TRACKER } from './tradeskillTracker/TradeskillTracker';
 import { WIDGET_ID_NAV_MENU } from './HUDNavMenu';
 import { WIDGET_ID_PARTY } from './party/Party';
 import { WIDGET_ID_WORLD_MAP } from './WorldMap';
@@ -80,6 +84,8 @@ import {
   NameplateStyle
 } from '@csegames/library/dist/camelotunchained/clientFunctions/HUDFunctions';
 // import { getAbilityBarsCount } from '../helpers/abilityBarHelpers';
+import { getAbilityBarWidgetID, isAbilityBarDecorShown, isAbilityBarWidgetID } from '../helpers/abilityBarHelpers';
+import { AbilitySlotSpacingDefault } from './abilityBars/AbilityBar';
 import { onToggleUIEditMode } from '../helpers/hudEditModeHelpers';
 import { FlatButton } from './FlatButton';
 import { SimpleRect } from '../redux/dragAndDropSlice';
@@ -175,6 +181,8 @@ const SnapToggleContainer = 'HUD-HUDEditor-SnapToggleContainer';
 const SnapToggleRow = 'HUD-HUDEditor-SnapToggleRow';
 const SnapToggleDivider = 'HUD-HUDEditor-SnapToggleDivider';
 const PartyLayoutIconHorizontal = 'HUD-HUDEditor-PartyLayoutIcon--horizontal';
+const DecorButtons = 'HUD-HUDEditor-DecorButtons';
+const DecorButton = 'HUD-HUDEditor-DecorButton';
 
 // CSS state modifier classes
 const ModSelected = 'selected';
@@ -189,6 +197,12 @@ const MaxAbilitySlots = 20;
 // Widget scale bounds
 const MinWidgetScale = 0.5;
 const MaxWidgetScale = 3;
+
+const MinMenuOpacity = 0.1;
+
+function getMinWidgetOpacity(widget: HUDWidget): number {
+  return widget.registration?.isConditional ? MinMenuOpacity : 0;
+}
 
 // String IDs
 const StringIDHUDEditorResetAll = 'HUDEditorResetAll';
@@ -227,6 +241,12 @@ const StringIDHUDEditorTargetPlatesSimple = 'HUDEditorTargetPlatesSimple';
 const StringIDHUDEditorTargetPlatesFancy = 'HUDEditorTargetPlatesFancy';
 const StringIDHUDEditorChatFontSize = 'HUDEditorChatFontSize';
 const StringIDHUDEditorToastDuration = 'HUDEditorToastDuration';
+const StringIDHUDEditorAbilitySlotSpacing = 'HUDEditorAbilitySlotSpacing';
+const StringIDHUDEditorAbilityBarDecor = 'HUDEditorAbilityBarDecor';
+const StringIDHUDEditorAbilityBarDecorLeft = 'HUDEditorAbilityBarDecorLeft';
+const StringIDHUDEditorAbilityBarDecorRight = 'HUDEditorAbilityBarDecorRight';
+const StringIDHUDEditorAbilityBarDecorTop = 'HUDEditorAbilityBarDecorTop';
+const StringIDHUDEditorAbilityBarDecorBottom = 'HUDEditorAbilityBarDecorBottom';
 const StringIDHUDEditorExpandAll = 'HUDEditorExpandAll';
 const StringIDHUDEditorCollapseAll = 'HUDEditorCollapseAll';
 const StringIDHUDEditorSelectedWidgetOpacity = 'HUDEditorSelectedWidgetOpacity';
@@ -242,6 +262,16 @@ const ChatFontSizeDefault = 100;
 const ToastDurationSecondsMin = 0;
 const ToastDurationSecondsMax = 5;
 const ToastDurationSecondsDefault = 5;
+
+const AbilitySlotSpacingMin = 0;
+const AbilitySlotSpacingMax = 15;
+
+const AbilityBarDecorButtons: { decor: AbilityBarDecor; labelStringID: string; fallbackLabel: string }[] = [
+  { decor: AbilityBarDecor.Left, labelStringID: StringIDHUDEditorAbilityBarDecorLeft, fallbackLabel: 'Left' },
+  { decor: AbilityBarDecor.Right, labelStringID: StringIDHUDEditorAbilityBarDecorRight, fallbackLabel: 'Right' },
+  { decor: AbilityBarDecor.Top, labelStringID: StringIDHUDEditorAbilityBarDecorTop, fallbackLabel: 'Top' },
+  { decor: AbilityBarDecor.Bottom, labelStringID: StringIDHUDEditorAbilityBarDecorBottom, fallbackLabel: 'Bottom' }
+];
 
 const DraggableID = 'HUDEditor';
 
@@ -265,7 +295,7 @@ const HUDEditorWidgetGroups: HUDEditorWidgetGroup[] = [
     key: 'abilities-group',
     labelStringID: StringIDHUDEditorAbilitiesGroupName,
     fallbackLabel: 'Abilities',
-    match: (id) => id.startsWith('Bar:') || [WIDGET_ID_ABILITY_BOOK, WIDGET_ID_ABILITY_CASTING].includes(id)
+    match: (id) => isAbilityBarWidgetID(id) || [WIDGET_ID_ABILITY_BOOK, WIDGET_ID_ABILITY_CASTING].includes(id)
   },
   {
     key: 'character-group',
@@ -277,7 +307,8 @@ const HUDEditorWidgetGroups: HUDEditorWidgetGroup[] = [
         WIDGET_ID_LEVEL_BARS,
         WIDGET_ID_LEVEL_NOTIFICATIONS,
         WIDGET_ID_PLAYERWARNINGICONS,
-        WIDGET_ID_RESPAWN
+        WIDGET_ID_RESPAWN,
+        WIDGET_ID_TRADESKILL_TRACKER
       ].includes(id)
   },
   {
@@ -572,7 +603,7 @@ class AHUDEditor extends React.Component<Props, State> {
   private renderListItem(widgetID: string): React.ReactNode {
     const isSelected = widgetID === this.props.selectedWidgetID;
     const selectedClass = isSelected ? ModSelected : '';
-    const hiddenClass = this.props.widgets[widgetID].state.visible ? '' : ModHidden;
+    const hiddenClass = isWidgetHidden(this.props.widgets[widgetID]) ? ModHidden : '';
     return (
       <div
         className={`${ListItem} ${selectedClass} ${hiddenClass}`}
@@ -635,7 +666,7 @@ class AHUDEditor extends React.Component<Props, State> {
               {memberIDs.map((id) => {
                 const isSelected = id === this.props.selectedWidgetID;
                 const selectedClass = isSelected ? ModSelected : '';
-                const hiddenClass = this.props.widgets[id]?.state.visible ? '' : ModHidden;
+                const hiddenClass = isWidgetHidden(this.props.widgets[id]) ? ModHidden : '';
                 return (
                   <div
                     className={`${TargetPlatesGroupItem} ${ListItem} ${selectedClass} ${hiddenClass}`}
@@ -971,6 +1002,7 @@ class AHUDEditor extends React.Component<Props, State> {
   private renderWidgetControls(factionData: FactionData): JSX.Element {
     if ((this.props.selectedWidgetID?.length ?? 0) > 0) {
       const widget = this.props.widgets[this.props.selectedWidgetID ?? ''];
+      const opacityPercent = Math.round((widget.state.opacity ?? 1) * 100);
       return (
         <>
           <div className={SelectedWidgetHeader}>
@@ -989,15 +1021,15 @@ class AHUDEditor extends React.Component<Props, State> {
               <input
                 className={SliderInput}
                 type='range'
-                min={0}
+                min={getMinWidgetOpacity(widget) * 100}
                 max={100}
                 step={1}
-                value={Math.round((widget.state.opacity ?? 1) * 100)}
+                value={opacityPercent}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.setOpacity(Number(e.target.value) / 100)}
               />
               <div className={ToolbarText}>
                 {getTokenizedStringTableValue(StringIDGeneralPercent, this.props.stringTable, {
-                  VALUE: String(Math.round((widget.state.opacity ?? 1) * 100))
+                  VALUE: String(opacityPercent)
                 })}
               </div>
             </div>
@@ -1044,6 +1076,14 @@ class AHUDEditor extends React.Component<Props, State> {
             <>
               <div className={SelectedWidgetDivider} style={{ backgroundColor: factionData.borderColor }} />
               {this.renderToastDurationControls()}
+            </>
+          )}
+          {isAbilityBarWidgetID(this.props.selectedWidgetID ?? '') && (
+            <>
+              <div className={SelectedWidgetDivider} style={{ backgroundColor: factionData.borderColor }} />
+              {this.renderAbilitySlotSpacingControls()}
+              <div className={SelectedWidgetDivider} style={{ backgroundColor: factionData.borderColor }} />
+              {this.renderAbilityBarDecorControls()}
             </>
           )}
         </>
@@ -1184,18 +1224,9 @@ class AHUDEditor extends React.Component<Props, State> {
           className={DisplayPrioritySelector}
           value={widget.state.layerOffset ?? 0}
           onValueChanged={(newValue: number) => {
-            // Copy the original state.
             const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
-
-            // Update the value.
             state.layerOffset = newValue;
-
-            // Save to HUDLocalStore.
-            clientAPI.updateWidgetState(this.props.selectedWidgetID!, state);
-            // Save to Redux.
-            const delta: Record<string, HUDWidgetState> = {};
-            delta[this.props.selectedWidgetID!] = state;
-            this.props.dispatch(updateWidgetStates(delta));
+            this.saveSelectedWidgetState(state);
           }}
         />
       </TooltipSource>
@@ -1279,10 +1310,82 @@ class AHUDEditor extends React.Component<Props, State> {
   private setToastDuration(value: number): void {
     const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
     state.toastDurationSeconds = Math.max(ToastDurationSecondsMin, Math.min(value, ToastDurationSecondsMax));
-    clientAPI.updateWidgetState(this.props.selectedWidgetID!, state);
-    const update: Record<string, HUDWidgetState> = {};
-    update[this.props.selectedWidgetID!] = state;
-    this.props.dispatch(updateWidgetStates(update));
+    this.saveSelectedWidgetState(state);
+  }
+
+  private renderAbilitySlotSpacingControls(): JSX.Element {
+    const widget = this.props.widgets[this.props.selectedWidgetID!];
+    const value = widget.state.abilitySlotSpacing ?? AbilitySlotSpacingDefault;
+    return (
+      <div className={OptionRow}>
+        <div className={OptionLabel}>
+          {getStringTableValueOrFallback(
+            StringIDHUDEditorAbilitySlotSpacing,
+            this.props.stringTable,
+            'Ability Spacing'
+          )}
+        </div>
+        <div className={SliderRow}>
+          <input
+            className={SliderInput}
+            type='range'
+            min={AbilitySlotSpacingMin}
+            max={AbilitySlotSpacingMax}
+            step={1}
+            value={value}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.setAbilitySlotSpacing(Number(e.target.value))}
+          />
+          <div className={ToolbarText}>
+            {getTokenizedStringTableValue(StringIDGeneralPercent, this.props.stringTable, {
+              VALUE: String(value)
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  private setAbilitySlotSpacing(value: number): void {
+    const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
+    state.abilitySlotSpacing = Math.max(AbilitySlotSpacingMin, Math.min(value, AbilitySlotSpacingMax));
+    this.saveSelectedWidgetState(state);
+  }
+
+  private renderAbilityBarDecorControls(): JSX.Element {
+    const widgetID = this.props.selectedWidgetID!;
+    const widgetState = this.props.widgets[widgetID].state;
+    const layoutID = Object.values(this.props.layouts).find(
+      (layout) => getAbilityBarWidgetID(layout.id) === widgetID
+    )?.id;
+    return (
+      <div className={OptionRow}>
+        <div className={OptionLabel}>
+          {getStringTableValueOrFallback(StringIDHUDEditorAbilityBarDecor, this.props.stringTable, 'Decor')}
+        </div>
+        <div className={DecorButtons}>
+          {AbilityBarDecorButtons.map(({ decor, labelStringID, fallbackLabel }) => {
+            const isShown =
+              layoutID !== undefined &&
+              isAbilityBarDecorShown(decor, widgetState, layoutID, this.props.layouts, this.props.groups);
+            return (
+              <FlatButton
+                key={decor}
+                className={isShown ? `${DecorButton} ${ModSelected}` : DecorButton}
+                onClick={this.setAbilityBarDecor.bind(this, decor, !isShown)}
+              >
+                {getStringTableValueOrFallback(labelStringID, this.props.stringTable, fallbackLabel)}
+              </FlatButton>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  private setAbilityBarDecor(decor: AbilityBarDecor, isShown: boolean): void {
+    const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
+    state.abilityBarDecor = { ...state.abilityBarDecor, [decor]: isShown };
+    this.saveSelectedWidgetState(state);
   }
 
   /*
@@ -1369,10 +1472,7 @@ class AHUDEditor extends React.Component<Props, State> {
   private setChatFontSize(value: number): void {
     const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
     state.chatFontSize = Math.max(ChatFontSizeMin, Math.min(value, ChatFontSizeMax));
-    clientAPI.updateWidgetState(this.props.selectedWidgetID!, state);
-    const update: Record<string, HUDWidgetState> = {};
-    update[this.props.selectedWidgetID!] = state;
-    this.props.dispatch(updateWidgetStates(update));
+    this.saveSelectedWidgetState(state);
   }
 
   private getHorizontalMove(delta: number): [number, number] {
@@ -1422,47 +1522,38 @@ class AHUDEditor extends React.Component<Props, State> {
     this.buttonHeldHandle = 0;
   }
 
-  private setOpacity(opacity: number): void {
-    const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
-    state.opacity = Math.max(0, Math.min(opacity, 1));
+  private saveSelectedWidgetState(state: HUDWidgetState): void {
     clientAPI.updateWidgetState(this.props.selectedWidgetID!, state);
-    const delta: Dictionary<HUDWidgetState> = {};
-    delta[this.props.selectedWidgetID!] = state;
-    this.props.dispatch(updateWidgetStates(delta));
+    this.props.dispatch(updateWidgetStates({ [this.props.selectedWidgetID!]: state }));
+  }
+
+  private setOpacity(opacity: number): void {
+    const widget = this.props.widgets[this.props.selectedWidgetID!];
+    const state = { ...widget.state };
+    state.opacity = Math.max(getMinWidgetOpacity(widget), Math.min(opacity, 1));
+    this.saveSelectedWidgetState(state);
   }
 
   private setScale(scale: number): void {
     const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
     state.scale = Math.max(MinWidgetScale, Math.min(scale, MaxWidgetScale));
-    clientAPI.updateWidgetState(this.props.selectedWidgetID!, state);
-    const delta: Dictionary<HUDWidgetState> = {};
-    delta[this.props.selectedWidgetID!] = state;
-    this.props.dispatch(updateWidgetStates(delta));
+    this.saveSelectedWidgetState(state);
   }
 
   private changePosition(pDelta: [number, number]): void {
-    // Copy the original state.
     const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
-    // Modify the state.
     state.xOffset = Math.round(((state.xOffset ?? 0) + pDelta[0]) * 100) / 100;
     state.yOffset = Math.round(((state.yOffset ?? 0) + pDelta[1]) * 100) / 100;
-    // Save to HUDLocalStore.
-    clientAPI.updateWidgetState(this.props.selectedWidgetID!, state);
-    // Save to Redux.
-    const delta: Dictionary<HUDWidgetState> = {};
-    delta[this.props.selectedWidgetID!] = state;
-    this.props.dispatch(updateWidgetStates(delta));
+    this.saveSelectedWidgetState(state);
   }
 
   private changeAnchors(xAnchor: HUDHorizontalAnchor, yAnchor: HUDVerticalAnchor): void {
     if (!this.props.selectedWidgetBounds) return;
 
-    // Copy the original state.
     const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
 
     const pxToVmin = Math.min(this.props.hudHeight, this.props.hudWidth) / 100;
 
-    // Modify the state.
     // Recalculate the offsets so the widget doesn't actually move when you change anchors.
     if (xAnchor !== state.xAnchor) {
       if (xAnchor === HUDHorizontalAnchor.Left) {
@@ -1490,12 +1581,7 @@ class AHUDEditor extends React.Component<Props, State> {
     }
     state.xAnchor = xAnchor;
     state.yAnchor = yAnchor;
-    // Save to HUDLocalStore.
-    clientAPI.updateWidgetState(this.props.selectedWidgetID!, state);
-    // Save to Redux.
-    const delta: Record<string, HUDWidgetState> = {};
-    delta[this.props.selectedWidgetID!] = state;
-    this.props.dispatch(updateWidgetStates(delta));
+    this.saveSelectedWidgetState(state);
   }
 
   private onResetWidgetClicked(): void {

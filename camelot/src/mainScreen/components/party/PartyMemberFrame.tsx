@@ -1,5 +1,8 @@
 import HealthBar from '../../../images/unit-frames/unit-frame-health.png';
+import LockedHealthBar from '../../../images/unit-frames/unit-frame-health-locked.png';
+import ShieldBar from '../../../images/unit-frames/unit-frame-health-shield.png';
 import JudgementPipFull from '../../../images/unit-frames/unit-frame-judgement-pip-full.png';
+import DeterminationPipFull from '../../../images/unit-frames/unit-frame-determination-pip-full.png';
 import Courage from '../../../images/unit-frames/unit-frame-courage.png';
 import Mana from '../../../images/unit-frames/unit-frame-mana.png';
 import Focus from '../../../images/unit-frames/unit-frame-focus.png';
@@ -11,14 +14,15 @@ import * as React from 'react';
 import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { EntityResourceIDs } from '@csegames/library/dist/camelotunchained/game/types/EntityResourceIDs';
-import { EntityResource } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import {
-  isPlayerEntityWithStatusInstanceCounts,
-  PlayerEntityStateModelWithStatusInstanceCounts
-} from '../../redux/entitiesSlice';
+  EntityResource,
+  isEntityPlayer,
+  PlayerEntityStateModel
+} from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import {
   DETERMINATION_BUFF_STRING_ID,
+  DETERMINATION_PIP_STACK_THRESHOLDS,
   getNewestStatusInstances,
   getStatusInstanceKey,
   isStatusBuff,
@@ -26,6 +30,7 @@ import {
   StatusInstanceGroup
 } from '../../helpers/statusHelpers';
 import { StatusEffectsIcon } from '../unitFrames/StatusEffectsIcon';
+import { ClassIconTooltip } from '../unitFrames/ClassIconTooltip';
 import ContextMenuSource from '../ContextMenuSource';
 import { ContextMenuItem, ContextMenuParams } from '../../redux/contextMenuSlice';
 import { getStringTableValue } from '../../helpers/stringTableHelpers';
@@ -38,12 +43,17 @@ import { PartyMember } from '@csegames/library/dist/camelotunchained/game/GameCl
 import {
   getIsCharacterDeputy,
   getIsCharacterLeader,
+  getLockedResourceRatio,
+  getShieldRatio,
   getUnitFrameContextMenuItems
 } from '../../helpers/characterHelpers';
 import { WarbandState } from '../../redux/warbandSlice';
 import { PartyState } from '../../redux/partySlice';
 import { GuildSnapshot } from '@csegames/library/dist/camelotunchained/game/GameClientModels/GuildSnapshot';
 import { Faction } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
+import { StatusState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/StatusState';
+import { getTagFromString, tagsMatch } from '../../helpers/tagHelpers';
+import { ClassIconSize, getClassIconSize } from '../../helpers/classIconHelpers';
 
 // CSS classes
 const Root = 'HUD-PartyMemberFrame-Root';
@@ -51,9 +61,12 @@ const FrameContent = 'HUD-PartyMemberFrame-FrameContent';
 const OfflineClass = 'HUD-PartyMemberFrame-FrameContent--offline';
 const HealthBarContainer = 'HUD-PartyMemberFrame-HealthBarContainer';
 const HealthResourceBar = 'HUD-PartyMemberFrame-HealthResourceBar';
+const LockedHealthResourceBar = 'HUD-PartyMemberFrame-LockedHealthResourceBar';
+const ShieldResourceBar = 'HUD-PartyMemberFrame-ShieldResourceBar';
 const SecondaryResourceContainer = 'HUD-PartyMemberFrame-SecondaryResourceContainer';
 const SecondaryResourceBar = 'HUD-PartyMemberFrame-SecondaryResourceBar';
 const ZoneOverlay = 'HUD-PartyMemberFrame-ZoneOverlay';
+const VeilOverlay = 'HUD-PartyMemberFrame-VeilOverlay';
 const ClassIcon = 'HUD-PartyMemberFrame-ClassIcon';
 const PanicContainer = 'HUD-PartyMemberFrame-PanicContainer';
 const PanicBar = 'HUD-PartyMemberFrame-PanicBar';
@@ -62,17 +75,14 @@ const NameLabel = 'HUD-PartyMemberFrame-NameLabel';
 const TitleLabel = 'HUD-PartyMemberFrame-TitleLabel';
 const OfflineLabel = 'HUD-PartyMemberFrame-OfflineLabel';
 const HealthMarker = 'HUD-PartyMemberFrame-HealthMarker';
+const LockedHealthMarker = 'HUD-PartyMemberFrame-LockedHealthMarker';
+const ShieldMarker = 'HUD-PartyMemberFrame-ShieldMarker';
 const SecondaryMarker = 'HUD-PartyMemberFrame-SecondaryMarker';
-const DeterminationPips = 'HUD-PartyMemberFrame-DeterminationPips';
-const DeterminationPip = 'HUD-PartyMemberFrame-DeterminationPip';
-const DeterminationPipBackground = 'HUD-PartyMemberFrame-DeterminationPipBackground';
-const DeterminationPipBar = 'HUD-PartyMemberFrame-DeterminationPipBar';
-const DeterminationPipBorder = 'HUD-PartyMemberFrame-DeterminationPipBorder';
-const JudgementPips = 'HUD-PartyMemberFrame-JudgementPips';
-const JudgementPip = 'HUD-PartyMemberFrame-JudgementPip';
-const JudgementPipBackground = 'HUD-PartyMemberFrame-JudgementPipBackground';
-const JudgementPipBar = 'HUD-PartyMemberFrame-JudgementPipBar';
-const JudgementPipBorder = 'HUD-PartyMemberFrame-JudgementPipBorder';
+const ResourcePips = 'HUD-PartyMemberFrame-ResourcePips';
+const ResourcePip = 'HUD-PartyMemberFrame-ResourcePip';
+const ResourcePipContent = 'HUD-PartyMemberFrame-ResourcePipContent';
+const ResourcePipBackground = 'HUD-PartyMemberFrame-ResourcePipBackground';
+const ResourcePipFill = 'HUD-PartyMemberFrame-ResourcePipFill';
 const BuffContainer = 'HUD-PartyMemberFrame-BuffContainer';
 const BuffRow = 'HUD-PartyMemberFrame-BuffRow';
 const BuffOverflow = 'HUD-PartyMemberFrame-BuffOverflow';
@@ -80,6 +90,7 @@ const RoleIndicator = 'HUD-PartyMemberFrame-RoleIndicator';
 const TargetBorder = 'HUD-PartyMemberFrame-TargetBorder';
 // Tags
 const TagUIHidden = 'UI.Hidden';
+const TagVeilPlane = 'Granted.State.Plane.Veil';
 
 // String IDs
 const StringIDUnitFrameCorpse = 'UnitFrameCorpse';
@@ -94,7 +105,10 @@ interface ReactProps {
 }
 
 interface InjectedProps {
-  entity: PlayerEntityStateModelWithStatusInstanceCounts | undefined;
+  entity: PlayerEntityStateModel | undefined;
+  statuses: Record<string, StatusState>;
+  statusInstanceCounts: Record<number, number>;
+  resources: Record<string, EntityResource>;
   defs: GameDefsState;
   stringTable: Record<string, StringTableEntryDef>;
   factionData: FactionData;
@@ -108,6 +122,7 @@ interface InjectedProps {
   selfGuildID: string;
   guild: GuildSnapshot;
   isTargeted: boolean;
+  classIconSize: ClassIconSize;
 }
 
 type Props = ReactProps & InjectedProps;
@@ -117,16 +132,19 @@ class APartyMemberFrame extends React.Component<Props> {
     const classDef = this.props.defs.classesByNumericID[this.props.memberData.classID];
     const entity = this.props.entity;
 
-    const health = this.getResource(EntityResourceIDs.Health);
-    const courage = this.getResource(EntityResourceIDs.Courage);
-    const mana = this.getResource(EntityResourceIDs.Mana);
-    const focus = this.getResource(EntityResourceIDs.Focus);
-    const faith = this.getResource(EntityResourceIDs.Faith);
-    const determination = this.getResource(EntityResourceIDs.Determination);
-    const judgement = this.getResource(EntityResourceIDs.Judgement);
-    const panic = this.getResource(EntityResourceIDs.Panic);
+    const health = this.props.resources[EntityResourceIDs.Health];
+    const shield = this.props.resources[EntityResourceIDs.Shield];
+    const courage = this.props.resources[EntityResourceIDs.Courage];
+    const mana = this.props.resources[EntityResourceIDs.Mana];
+    const focus = this.props.resources[EntityResourceIDs.Focus];
+    const faith = this.props.resources[EntityResourceIDs.Faith];
+    const determination = this.props.resources[EntityResourceIDs.Determination];
+    const judgement = this.props.resources[EntityResourceIDs.Judgement];
+    const panic = this.props.resources[EntityResourceIDs.Panic];
 
     const healthRatio = health ? health.current / health.max : 0;
+    const lockedHealthRatio = health ? getLockedResourceRatio(health) : 0;
+    const shieldRatio = health && shield ? getShieldRatio(shield, health) : 0;
     const courageRatio = courage ? courage.current / courage.max : 0;
     const manaRatio = mana ? mana.current / mana.max : 0;
     const focusRatio = focus ? focus.current / focus.max : 0;
@@ -134,9 +152,11 @@ class APartyMemberFrame extends React.Component<Props> {
     const determinationRatio = determination ? determination.current / determination.max : 0;
     const panicRatio = panic ? panic.current / panic.max : 0;
 
-    const determinationStacks = determination && entity ? this.getDeterminationStacks(entity) : 0;
+    const determinationStacks = this.getDeterminationStacks();
 
     const isDead = entity ? !entity.isAlive : false;
+    const isInVeil =
+      !!entity && tagsMatch(entity.tags, [getTagFromString(TagVeilPlane, this.props.defs.tagAffixIDByStringID)]);
 
     const isLeader = getIsCharacterLeader(this.props.memberData.characterID, this.props.party, this.props.warband);
     const isDeputy = getIsCharacterDeputy(this.props.memberData.characterID, this.props.party, this.props.warband);
@@ -149,7 +169,10 @@ class APartyMemberFrame extends React.Component<Props> {
     const buffs: StatusData[] = [];
     const debuffs: StatusData[] = [];
     if (entity && !shouldHideBuffs) {
-      const statusInstances = getNewestStatusInstances(Object.values(entity.statuses), entity.statusInstanceCounts);
+      const statusInstances = getNewestStatusInstances(
+        Object.values(this.props.statuses),
+        this.props.statusInstanceCounts
+      );
       statusInstances.forEach((status: StatusInstanceGroup) => {
         const def = this.props.defs.statusesByNumericID[status.id];
         if (!def || status.isDisabled) return;
@@ -177,7 +200,29 @@ class APartyMemberFrame extends React.Component<Props> {
           {this.props.memberData.isOnline && (
             <>
               <div className={HealthBarContainer}>
+                {lockedHealthRatio > 0 && (
+                  <>
+                    <img
+                      className={LockedHealthResourceBar}
+                      src={LockedHealthBar}
+                      style={{ width: `${lockedHealthRatio * 100}%` }}
+                    />
+                    <div
+                      className={`${HealthMarker} ${LockedHealthMarker}`}
+                      style={{ left: `${(1 - lockedHealthRatio) * 100}%` }}
+                    />
+                  </>
+                )}
                 <img className={HealthResourceBar} src={HealthBar} style={{ width: `${healthRatio * 100}%` }} />
+                {shieldRatio > 0 && (
+                  <>
+                    <img className={ShieldResourceBar} src={ShieldBar} style={{ width: `${shieldRatio * 100}%` }} />
+                    <div
+                      className={`${HealthMarker} ${ShieldMarker}`}
+                      style={{ right: `${(1 - shieldRatio) * 100}%` }}
+                    />
+                  </>
+                )}
                 {healthRatio > 0 && (
                   <div className={HealthMarker} style={{ right: `calc(100% - ${healthRatio * 100}%)` }} />
                 )}
@@ -220,51 +265,19 @@ class APartyMemberFrame extends React.Component<Props> {
 
               {/* Determination pips */}
               {determination && (
-                <div className={DeterminationPips}>
-                  <div className={DeterminationPip}>
-                    <div className={DeterminationPipBackground}>
-                      <img
-                        className={`${DeterminationPipBar}${determinationStacks >= 6 ? ` full` : ''}`}
-                        src={Determination}
-                      />
-                    </div>
-                    <img
-                      className={DeterminationPipBorder}
-                      src={this.props.factionData.unitFrameDeterminationPipBorder}
-                    />
-                  </div>
-                  <div className={DeterminationPip}>
-                    <div className={DeterminationPipBackground}>
-                      <img
-                        className={`${DeterminationPipBar}${determinationStacks >= 5 ? ` full` : ''}`}
-                        src={Determination}
-                      />
-                    </div>
-                    <img
-                      className={DeterminationPipBorder}
-                      src={this.props.factionData.unitFrameDeterminationPipBorder}
-                    />
-                  </div>
+                <div className={ResourcePips}>
+                  {DETERMINATION_PIP_STACK_THRESHOLDS.map((threshold, i) =>
+                    this.renderResourcePip(i, determinationStacks >= threshold, DeterminationPipFull)
+                  )}
                 </div>
               )}
 
               {/* Judgement pips */}
               {judgement && (
-                <div className={JudgementPips}>
-                  {Array.from({ length: judgement.max }, (_, i) => (
-                    <div key={i} className={JudgementPip}>
-                      <div className={JudgementPipBackground}>
-                        <img
-                          className={JudgementPipBorder}
-                          src={this.props.factionData.unitFrameJudgementPipBackground}
-                        />
-                        <img
-                          className={`${JudgementPipBar}${judgement.current >= i + 1 ? ` full` : ''}`}
-                          src={JudgementPipFull}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                <div className={ResourcePips}>
+                  {Array.from({ length: judgement.max }, (_, i) =>
+                    this.renderResourcePip(i, judgement.current >= i + 1, JudgementPipFull)
+                  )}
                 </div>
               )}
 
@@ -279,7 +292,7 @@ class APartyMemberFrame extends React.Component<Props> {
                         entityID={this.props.memberData.entityID}
                       />
                     ))}
-                    {buffs.length > 8 && <span className={BuffOverflow}>+</span>}
+                    {buffs.length > 8 && <span className={BuffOverflow}>{'+'}</span>}
                   </div>
                   <div className={`${BuffRow} debuffs`}>
                     {debuffs.slice(0, 8).map((data) => (
@@ -289,7 +302,7 @@ class APartyMemberFrame extends React.Component<Props> {
                         entityID={this.props.memberData.entityID}
                       />
                     ))}
-                    {debuffs.length > 8 && <span className={`${BuffOverflow} debuff`}>+</span>}
+                    {debuffs.length > 8 && <span className={`${BuffOverflow} debuff`}>{'+'}</span>}
                   </div>
                 </div>
               )}
@@ -297,7 +310,14 @@ class APartyMemberFrame extends React.Component<Props> {
           )}
 
           {/* Class icon */}
-          {classDef && <img className={ClassIcon} src={classDef.unitFrameIconImage} />}
+          {classDef && (
+            <img
+              className={ClassIcon}
+              src={
+                this.props.classIconSize === 'small' ? classDef.unitFrameIconSmallImage : classDef.unitFrameIconImage
+              }
+            />
+          )}
 
           {/* Panic bar — after class icon so it layers on top without needing z-index */}
           {this.props.memberData.isOnline && panic && (
@@ -307,8 +327,9 @@ class APartyMemberFrame extends React.Component<Props> {
             </div>
           )}
 
-          {/* Dark overlay when online but in a different zone — rendered here so name/title sit above it */}
+          {/* Overlays render before the name so name/title sit above them */}
           {this.props.memberData.isOnline && !isInZone && <div className={ZoneOverlay} />}
+          {isInVeil && <div className={VeilOverlay} />}
 
           {/* Name */}
           <div className={NameLabel}>
@@ -322,6 +343,16 @@ class APartyMemberFrame extends React.Component<Props> {
             <div className={OfflineLabel}>{getStringTableValue(StringIDUnitFrameOffline, this.props.stringTable)}</div>
           ) : (
             titleText && <div className={TitleLabel}>{titleText}</div>
+          )}
+
+          {/* Last so the overlays above don't cover it */}
+          {classDef && (
+            <ClassIconTooltip
+              className={ClassIcon}
+              tooltipID={`PartyMemberClass_${this.props.memberData.characterID}`}
+              classDef={classDef}
+              stringTable={this.props.stringTable}
+            />
           )}
         </FactionBorder>
         {this.props.isTargeted && (
@@ -365,12 +396,19 @@ class APartyMemberFrame extends React.Component<Props> {
     clientAPI.requestFriendlyTarget(this.props.memberData.entityID);
   }
 
-  private getResource(resourceID: EntityResourceIDs): EntityResource | undefined {
-    return this.props.entity?.resources[resourceID];
+  private getDeterminationStacks(): number {
+    return this.props.statusInstanceCounts[this.props.determinationBuffNumericId] ?? 0;
   }
 
-  private getDeterminationStacks(entity: PlayerEntityStateModelWithStatusInstanceCounts): number {
-    return entity.statusInstanceCounts[this.props.determinationBuffNumericId] ?? 0;
+  private renderResourcePip(pipIndex: number, isFull: boolean, fillImage: string): JSX.Element {
+    return (
+      <div key={pipIndex} className={ResourcePip}>
+        <div className={ResourcePipContent}>
+          <img className={ResourcePipBackground} src={this.props.factionData.unitFrameResourcePipBackground} />
+          <img className={`${ResourcePipFill}${isFull ? ' full' : ''}`} src={fillImage} />
+        </div>
+      </div>
+    );
   }
 }
 
@@ -380,7 +418,10 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
   return {
     ...ownProps,
     defs: state.gameDefs,
-    entity: isPlayerEntityWithStatusInstanceCounts(rawEntity) ? rawEntity : undefined,
+    entity: isEntityPlayer(rawEntity) ? rawEntity : undefined,
+    statusInstanceCounts: state.entities.entityStatusInstanceCounts[rawEntity?.entityID] ?? {},
+    statuses: state.entities.entityStatuses[rawEntity?.entityID] ?? {},
+    resources: state.entities.entityResources[rawEntity?.entityID] ?? {},
     stringTable: state.stringTable.stringTable,
     factionData: getFactionData(state.hud.uiFactionID),
     determinationBuffNumericId: state.gameDefs.statusesByStringID?.[DETERMINATION_BUFF_STRING_ID]?.numericID,
@@ -392,7 +433,8 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
     selfGroupID: state.entities.self?.groupID ?? '',
     selfGuildID: state.entities.self?.guildID ?? '',
     guild: state.guild,
-    isTargeted: !!state.entities.friendlyTargetID && ownProps.memberData.entityID === state.entities.friendlyTargetID
+    isTargeted: !!state.entities.friendlyTargetID && ownProps.memberData.entityID === state.entities.friendlyTargetID,
+    classIconSize: getClassIconSize(state.hud.vminPx)
   };
 };
 

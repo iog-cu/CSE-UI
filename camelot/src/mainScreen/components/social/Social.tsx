@@ -20,6 +20,8 @@ import { FactionData, getFactionData } from '../../gameData/factionData';
 import { BaseHUDWidgetDraggableHandle } from '../BaseHUDWidgetDraggableHandle';
 import { Guild } from './Guild';
 import { FriendFoeList } from './FriendFoeList';
+import { FriendInvite } from '@csegames/library/dist/camelotunchained/graphql/schema';
+import { splitFriendInvites } from '../../dataSources/socialService';
 
 // CSS classes
 const Root = 'HUD-Social-Root';
@@ -28,6 +30,8 @@ const Tabs = 'HUD-Social-Tabs';
 const TabButton = 'HUD-Social-TabButton';
 const TabIcon = 'HUD-Social-TabIcon';
 const TabContent = 'HUD-Social-TabContent';
+const TabBadgeContainer = 'HUD-Social-TabBadgeContainer';
+const TabBadgeLabel = 'HUD-Social-TabBadgeLabel';
 
 const Handle = 'HUD-FancyBorder-HeaderHandle';
 
@@ -56,6 +60,8 @@ interface ReactProps {
 interface InjectedProps {
   stringTable: Record<string, StringTableEntryDef>;
   uiFactionID: string;
+  friendInvites: FriendInvite[];
+  selfAccountID: string;
 }
 
 type Props = ReactProps & InjectedProps;
@@ -95,6 +101,8 @@ class ASocial extends React.Component<Props & DispatchProp, State> {
   private renderTabButton(tab: SocialTab): React.ReactNode {
     const factionData = getFactionData(this.props.uiFactionID);
 
+    const badgeCount = this.getTabBadgeCount(tab);
+
     return (
       <FactionBorderSelectable
         key={tab}
@@ -107,6 +115,11 @@ class ASocial extends React.Component<Props & DispatchProp, State> {
         background={BorderBackground.Leather}
       >
         <img className={TabIcon} src={factionData[tabIconKeys[tab] as keyof FactionData] as string} />
+        {badgeCount > 0 && (
+          <FactionBorder className={TabBadgeContainer} type={BorderType.Secondary} background={BorderBackground.Darken}>
+            <div className={TabBadgeLabel}>{badgeCount}</div>
+          </FactionBorder>
+        )}
         <TooltipSource
           className={TabIcon}
           tooltipID={tab}
@@ -115,6 +128,18 @@ class ASocial extends React.Component<Props & DispatchProp, State> {
         />
       </FactionBorderSelectable>
     );
+  }
+
+  private getTabBadgeCount(tab: SocialTab): number {
+    switch (tab) {
+      case SocialTab.FriendsFoes: {
+        const [_, invitesReceived] = splitFriendInvites(this.props.friendInvites, this.props.selfAccountID);
+        return invitesReceived.length;
+      }
+      case SocialTab.Guild: {
+        return 0;
+      }
+    }
   }
 
   private renderTabContent(): React.ReactNode {
@@ -135,7 +160,9 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
   return {
     ...ownProps,
     stringTable: state.stringTable.stringTable,
-    uiFactionID: state.hud.uiFactionID
+    uiFactionID: state.hud.uiFactionID,
+    friendInvites: (state.social.friends.friendInvites ?? []) as FriendInvite[],
+    selfAccountID: state.entities.self.accountID
   };
 };
 

@@ -24,6 +24,7 @@ import { getFactionData } from '../../gameData/factionData';
 import { chatService, slashCommands } from './ChatSetup';
 import { game } from '@csegames/library/dist/_baseGame';
 import { ContextMenuItem, showContextMenu } from '../../redux/contextMenuSlice';
+import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
 
 const MAX_COMMAND_HISTORY_LENGTH = 20;
 
@@ -230,7 +231,7 @@ class AChatInput extends React.Component<Props, State> {
     switch (scope) {
       case ChatScopes.Whisper:
         const target = this.props.getResponseTarget();
-        if (target && isResponseSelector(text)) {
+        if (target && match && isResponseSelector(match[1].toLowerCase())) {
           this.setState({ text: '', scope, whisperTarget: target });
         } else if (match && match[2]) {
           this.setState({ text: '', scope, whisperTarget: match[2] });
@@ -248,6 +249,8 @@ class AChatInput extends React.Component<Props, State> {
   }
 
   handleChatSubmit(): void {
+    clientAPI.playGameSound(SoundEvents.PLAY_UI_CHAT_SEND);
+
     const { text, scope, whisperTarget } = this.state;
     if (!text) {
       this.props.setActive(false);

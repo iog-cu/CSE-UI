@@ -17,6 +17,8 @@ import { FactionDef } from '../../dataSources/manifest/factionManifest';
 import { getStringTableValue, StringIDGeneralUnknownFaction } from '../../helpers/stringTableHelpers';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { SimpleCharacter } from '@csegames/library/dist/camelotunchained/graphql/schema';
+import DraggableHandle from '../DraggableHandle';
+import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 
 // CSS classes
 const Root = 'HUD-CharacterPaperDoll-Root';
@@ -62,9 +64,18 @@ class ACharacterPaperDoll extends React.Component<Props, State> {
             ? getStringTableValue(factionDef?.name ?? StringIDGeneralUnknownFaction, this.props.stringTable)
             : character?.name ?? ''}
         </FactionTitle>
-        <img className={Doll} src={this.getDollURL()} />
+        <DraggableHandle
+          draggableID={this.getDollName()}
+          dragMoveHandler={this.onDragMove.bind(this)}
+        >
+          <img className={Doll} src={this.getDollURL()} onWheel={(e) => { clientAPI.selectCameraForPaperDoll(this.getDollName(), e.deltaY > 0 ? 0 : 1); }} />
+        </DraggableHandle>
       </div>
     );
+  }
+
+  private onDragMove(delta: [number, number]): void {
+    clientAPI.dragPaperDoll(this.getDollName(), delta[0], delta[1]);
   }
 
   private getDollURL(): string {
@@ -73,6 +84,24 @@ class ACharacterPaperDoll extends React.Component<Props, State> {
     } else {
       return this.getDollURLForCharacter();
     }
+  }
+
+  private getDollName(): string {
+    if (this.props.characterCreationState) {
+      const { factionID, classID, raceID, bodyTypeID } = this.props.characterCreationState;
+      if (factionID) {
+        return `cc-${bodyTypeID}-${raceID}-${classID}`;
+      }
+    }
+    else {
+      const character = this.props.characters.find((c) => c.id === this.props.selectedCharacterID);
+      if (character) {
+        if (character.name) {
+          return `${character.name}`;
+        } 
+      }
+    }
+    return '';
   }
 
   private getDollURLForCharacter(): string {

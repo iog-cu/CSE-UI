@@ -30,6 +30,7 @@ interface QuestsState extends QuestsSnapshot {
   loggedQuestIDs: string[];
   trackedQuestIDs: string[];
   autoTrackedQuestIDs: string[]; // Quests we have already auto-tracked at least once, to prevent re-adding them if the player has untracked them.
+  isTrackerMinimized: boolean;
 }
 
 function generateDefaultState(): QuestsState {
@@ -38,7 +39,8 @@ function generateDefaultState(): QuestsState {
     rolloverTime: '',
     loggedQuestIDs: [],
     trackedQuestIDs: [],
-    autoTrackedQuestIDs: []
+    autoTrackedQuestIDs: [],
+    isTrackerMinimized: false
   };
 
   return defaultState;
@@ -80,6 +82,9 @@ export const questSlice = createSlice({
     },
     removeAutoTrackedQuestID: (state: QuestsState, action: PayloadAction<string>) => {
       state.autoTrackedQuestIDs = state.autoTrackedQuestIDs.filter((id) => id !== action.payload);
+    },
+    updateQuestTrackerMinimized: (state: QuestsState, action: PayloadAction<boolean>) => {
+      state.isTrackerMinimized = action.payload;
     }
   }
 });
@@ -95,5 +100,6 @@ export const {
   removeTrackedQuestID,
   updateAutoTrackedQuestIDs,
   addAutoTrackedQuestID,
-  removeAutoTrackedQuestID
+  removeAutoTrackedQuestID,
+  updateQuestTrackerMinimized
 } = questSlice.actions;

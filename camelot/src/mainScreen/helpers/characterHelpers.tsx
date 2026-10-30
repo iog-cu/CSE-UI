@@ -35,6 +35,7 @@ import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenCli
 import { EntityID } from '@csegames/library/dist/_baseGame/types/localDefinitions';
 import {
   AnyEntityStateModel,
+  EntityResource,
   PlayerEntityStateModel
 } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { CharacterKind } from '@csegames/library/dist/camelotunchained/game/types/CharacterKind';
@@ -473,4 +474,13 @@ export function getIsAccountGuildMaster(accountID: string, guild: GuildSnapshot)
 
 export function getIsEntityNPC(entity: AnyEntityStateModel | undefined): boolean {
   return entity != null && (entity as PlayerEntityStateModel).characterKind !== CharacterKind.User;
+}
+
+export function getLockedResourceRatio(resource: EntityResource): number {
+  return resource.limit < resource.max ? 1 - resource.limit / resource.max : 0;
+}
+
+// Design wants the shield sized against the health bar, not against its own max.
+export function getShieldRatio(shield: EntityResource, health: EntityResource): number {
+  return health.max > 0 ? Math.min(shield.current / health.max, 1) : 0;
 }

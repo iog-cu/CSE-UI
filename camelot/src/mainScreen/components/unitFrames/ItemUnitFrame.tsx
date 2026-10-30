@@ -100,7 +100,7 @@ class AItemUnitFrame extends React.Component<Props> {
             <TargetPosition isFriendly={this.props.isFriendly} faction={entity.faction} />
           </div>
         </div>
-        <StatusEffects statuses={entity.statuses} entityID={entity.entityID} />
+        <StatusEffects entityID={entity.entityID} />
       </div>
     );
   }
@@ -120,7 +120,7 @@ class AItemUnitFrame extends React.Component<Props> {
             <TargetPosition isFriendly={this.props.isFriendly} faction={entity.faction} />
           </div>
         </div>
-        <StatusEffects statuses={entity.statuses} entityID={entity.entityID} />
+        <StatusEffects entityID={entity.entityID} />
       </div>
     );
   }

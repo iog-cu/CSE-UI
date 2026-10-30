@@ -19,11 +19,14 @@ import { Provider as ReduxProvider } from 'react-redux';
 import { ErrorBoundary } from '../shared/components/ErrorBoundary';
 import { store } from './redux/store';
 import { BaseHUD } from './components/BaseHUD';
+import { BuildMismatchModal } from './components/BuildMismatchModal';
 import { LoadingScreen } from './components/loading';
 import { AbilitiesService } from './dataSources/abilitiesService';
 import { AnnouncementsService } from './dataSources/announcementsService';
 import { BuildModeService } from './dataSources/buildModeService';
+import { BuildVersionService } from './dataSources/buildVersionService';
 import { CharactersService } from './dataSources/charactersService';
+import { ChatDataService } from './dataSources/chatDataService';
 import { CombatService } from './dataSources/combatService';
 import { EntityStateService } from './dataSources/entityStateService';
 import { GameDefsService } from './dataSources/gameDefsService';
@@ -42,11 +45,14 @@ import { ImagePreloader } from '../shared/components/ImagePreloader';
 import { WarbandService } from './dataSources/warbandService';
 import { CraftingService } from './dataSources/craftingService';
 import { GuildService } from './dataSources/guildService';
+import { ProgressionService } from './dataSources/progressionService';
 import { QuestService } from './dataSources/questService';
 import { ClockService } from './dataSources/clockService';
 import { TradeService } from './dataSources/tradeService';
 import { NotificationsService } from './dataSources/notificationsService';
 import { ZoneInstanceService } from './dataSources/zoneInstanceService';
+import { MailService } from './dataSources/mailService';
+import { SocialService } from './dataSources/socialService';
 
 initializeSentry();
 
@@ -57,7 +63,9 @@ ReactDom.render(
       <AbilitiesService />
       <AnnouncementsService />
       <BuildModeService />
+      <BuildVersionService />
       <CharactersService />
+      <ChatDataService />
       <ClockService />
       <CombatService />
       <CraftingService />
@@ -70,12 +78,15 @@ ReactDom.render(
       <KeyActionsService />
       <KeybindsService />
       <LoadingService />
+      <MailService />
       <ManifestDefService />
       <NetworkService />
       <NotificationsService />
       <PartyService />
       <PerformanceWarningsDataService />
+      <ProgressionService />
       <QuestService />
+      <SocialService />
       <TradeService />
       <WarbandService />
       <ZonesService />
@@ -83,6 +94,7 @@ ReactDom.render(
       <ImagePreloader />
       <BaseHUD />
       <LoadingScreen />
+      <BuildMismatchModal />
     </ReduxProvider>
   </ErrorBoundary>,
   document.getElementById('mainScreen')

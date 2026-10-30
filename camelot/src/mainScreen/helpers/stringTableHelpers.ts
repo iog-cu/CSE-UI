@@ -63,6 +63,7 @@ export const StringIDGeneralComingSoon = 'GeneralComingSoon';
 export const StringIDGeneralDaysRemaining = 'GeneralDaysRemaining';
 export const StringIDGeneralHoursRemaining = 'GeneralHoursRemaining';
 export const StringIDGeneralMinutesRemaining = 'GeneralMinutesRemaining';
+export const StringIDGeneralMinutesShort = 'GeneralMinutesShort';
 export const StringIDGeneralWarning = 'GeneralWarning';
 export const StringIDGeneralUnlock = 'GeneralUnlock';
 export const StringIDGeneralUnlocked = 'GeneralUnlocked';
@@ -73,6 +74,7 @@ export const StringIDGeneralReset = 'GeneralReset';
 export const StringIDGeneralReassign = 'GeneralReassign';
 export const StringIDGeneralNotEnoughGold = 'GeneralNotEnoughGold';
 export const StringIDGeneralRemove = 'GeneralRemove';
+export const StringIDGeneralIgnore = 'GeneralIgnore';
 
 const reported = new Set<string>();
 
@@ -105,6 +107,15 @@ export function getStringTableValue(entryID: string, stringTable: Record<string,
   }
 
   return tableValue.text;
+}
+
+/** For entries not yet added to the string table: shows `fallback` until the entry exists, instead of its raw ID. */
+export function getStringTableValueOrFallback(
+  entryID: string,
+  stringTable: Record<string, StringTableEntryDef>,
+  fallback: string
+): string {
+  return stringTable?.[entryID]?.text ?? fallback;
 }
 
 export function getTokenizedStringTableValue(

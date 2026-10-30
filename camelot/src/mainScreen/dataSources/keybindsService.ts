@@ -6,21 +6,18 @@
 
 import { game } from '@csegames/library/dist/_baseGame';
 import { ListenerHandle } from '@csegames/library/dist/_baseGame/listenerHandle';
-import { Dispatch } from '@reduxjs/toolkit';
 import { ExternalDataSource } from '../redux/externalDataSource';
 import { setKeybinds } from '../redux/keybindsSlice';
 
-export function refetchKeybinds(dispatch: Dispatch) {
-  dispatch(setKeybinds(game.keybinds));
-}
-
 export class KeybindsService extends ExternalDataSource {
   protected bind(): Promise<ListenerHandle[]> {
-    refetchKeybinds(this.dispatch);
+    this.refetchKeybinds();
 
-    // While the client does provide a "keybindChanged" event, that event is fairly worthless
-    // to us, as the UI is already the one triggering all keybind changes.
+    // The client applies keybind changes asynchronously, so game.keybinds is only current once this fires.
+    return Promise.resolve([game.onKeybindChanged(this.refetchKeybinds.bind(this))]);
+  }
 
-    return Promise.resolve([]);
+  private refetchKeybinds(): void {
+    this.dispatch(setKeybinds(game.keybinds));
   }
 }

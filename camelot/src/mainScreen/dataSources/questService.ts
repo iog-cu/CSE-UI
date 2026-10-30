@@ -19,6 +19,7 @@ import {
   updateAutoTrackedQuestIDs,
   updateLoggedQuestIDs,
   updateQuests,
+  updateQuestTrackerMinimized,
   updateRolloverTime,
   updateTrackedQuestIDs
 } from '../redux/questSlice';
@@ -36,6 +37,7 @@ import { getStringTableValue } from '../helpers/stringTableHelpers';
 import { CurrencyID } from '../helpers/itemHelpers';
 import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
 import { WithWebInterface } from '../redux/withWebInterface';
+import { isNotificationWidgetHidden } from '../components/NotificationToasts';
 
 const StringIDQuestNotificationAccepted = 'QuestNotificationAccepted';
 const StringIDQuestNotificationCompleted = 'QuestNotificationCompleted';
@@ -50,8 +52,12 @@ export class QuestService extends WithWebInterface(ExternalDataSource) {
     this.dispatch(updateLoggedQuestIDs(clientAPI.getLoggedQuestIDs()));
     this.dispatch(updateTrackedQuestIDs(clientAPI.getTrackedQuestIDs()));
     this.dispatch(updateAutoTrackedQuestIDs(clientAPI.getAutoTrackedQuestIDs()));
+    this.dispatch(updateQuestTrackerMinimized(clientAPI.getQuestTrackerMinimized()));
 
     return [
+      clientAPI.bindQuestTrackerMinimizedChangedListener((isMinimized) => {
+        this.dispatch(updateQuestTrackerMinimized(isMinimized));
+      }),
       // Clear the snapshot on disconnect (logout / character switch) to avoid diffing the next character's first snapshot against the stale one
       await this.onDisconnect(() => {
         this.lastQuests = null;
@@ -114,6 +120,9 @@ export class QuestService extends WithWebInterface(ExternalDataSource) {
     oldQuests: Record<string, QuestStateEx>,
     newQuests: Record<string, QuestStateEx>
   ): void {
+    if (isNotificationWidgetHidden(this.reduxState, 'quest')) {
+      return;
+    }
     const { gameDefs, stringTable, entities } = this.reduxState;
     const selfProgression = entities.self?.progression;
 

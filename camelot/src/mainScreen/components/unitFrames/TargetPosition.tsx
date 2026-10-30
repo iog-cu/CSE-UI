@@ -55,7 +55,7 @@ class ATargetPosition extends React.Component<Props, State> {
     };
   }
 
-  render(): JSX.Element {
+  render(): React.ReactNode {
     if (!this.state.distance) return null;
 
     const faction = this.props.factions[Faction[this.props.faction]];

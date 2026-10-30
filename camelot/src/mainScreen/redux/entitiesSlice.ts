@@ -8,6 +8,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   AnyEntityStateModel,
   BaseEntityStateModel,
+  EntityResource,
+  EntityStat,
   isEntityPlayer,
   PlayerEntityStateModel,
   SnapshotFlags
@@ -17,34 +19,11 @@ import { EntityContext } from '@csegames/library/dist/_baseGame/types/EntityCont
 import { CharacterKind } from '@csegames/library/dist/camelotunchained/game/types/CharacterKind';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
+import { StatusState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/StatusState';
 
 export interface ContextUpdate {
   context: EntityContext;
   entityID: string;
-}
-
-// statusInstanceCounts is precomputed once in EntityStateService.handleEntityUpdated (same reshape-on-ingest
-// pattern used for `stats`/`resources`): duplicate status ids are legal (reapply glitches, and statuses like
-// Exertion that stack via repeated instances rather than an Amount stat), so consumers read the count for a
-// given status id directly instead of re-deriving it by scanning entity.statuses per render.
-export type AnyEntityStateModelWithStatusInstanceCounts = AnyEntityStateModel & {
-  statusInstanceCounts: Record<number, number>;
-};
-
-export type PlayerEntityStateModelWithStatusInstanceCounts = PlayerEntityStateModel & {
-  statusInstanceCounts: Record<number, number>;
-};
-
-export function hasStatusInstanceCounts(
-  entity: AnyEntityStateModel | undefined
-): entity is AnyEntityStateModelWithStatusInstanceCounts {
-  return entity != null && 'statusInstanceCounts' in entity;
-}
-
-export function isPlayerEntityWithStatusInstanceCounts(
-  entity: AnyEntityStateModel | undefined
-): entity is PlayerEntityStateModelWithStatusInstanceCounts {
-  return isEntityPlayer(entity) && 'statusInstanceCounts' in entity;
 }
 
 export const DefaultBaseEntityState: BaseEntityStateModel = {
@@ -93,6 +72,18 @@ interface EntitiesState {
   enemyTargetID: string | null;
   friendlyTarget: AnyEntityStateModel | null;
   friendlyTargetID: string | null;
+  // Maps entityID to a Record that maps statusID to count.
+  // statusInstanceCounts is precomputed once in EntityStateService.handleEntityUpdated (same reshape-on-ingest
+  // pattern used for `stats`/`resources`): duplicate status ids are legal (reapply glitches, and statuses like
+  // Exertion that stack via repeated instances rather than an Amount stat), so consumers read the count for a
+  // given status id directly instead of re-deriving it by scanning entity.statuses per render.
+  entityStatusInstanceCounts: Record<string, Record<number, number>>;
+  // Maps entityID to a Record that maps statID to stat data.
+  entityStats: Record<string, Record<number, EntityStat>>;
+  // Maps entityID to a Record that maps arrayIndex (why not just be an array?) to status data.
+  entityStatuses: Record<string, Record<number, StatusState>>;
+  // Maps entityID to a Record that maps resourceID to resource data.
+  entityResources: Record<string, Record<string, EntityResource>>;
 }
 
 const DefaultEntitiesState: EntitiesState = {
@@ -102,7 +93,11 @@ const DefaultEntitiesState: EntitiesState = {
   enemyTarget: null,
   enemyTargetID: null,
   friendlyTarget: null,
-  friendlyTargetID: null
+  friendlyTargetID: null,
+  entityStatusInstanceCounts: {},
+  entityStats: {},
+  entityStatuses: {},
+  entityResources: {}
 };
 
 export const entitiesSlice = createSlice({
@@ -121,10 +116,41 @@ export const entitiesSlice = createSlice({
         state.friendlyTarget = action.payload;
       }
     },
+    addOrUpdateEntityStatusInstanceCounts: (
+      state: EntitiesState,
+      action: PayloadAction<[string, Record<number, number>]>
+    ) => {
+      state.entityStatusInstanceCounts[action.payload[0]] = action.payload[1];
+    },
+    addOrUpdateEntityStatuses: (state: EntitiesState, action: PayloadAction<[string, Record<number, StatusState>]>) => {
+      state.entityStatuses[action.payload[0]] = action.payload[1];
+    },
+    addOrUpdateEntityStats: (state: EntitiesState, action: PayloadAction<[string, Record<number, EntityStat>]>) => {
+      state.entityStats[action.payload[0]] = action.payload[1];
+    },
+    addOrUpdateEntityResources: (
+      state: EntitiesState,
+      action: PayloadAction<[string, Record<string, EntityResource>]>
+    ) => {
+      state.entityResources[action.payload[0]] = action.payload[1];
+    },
     removeEntity: (state: EntitiesState, action: PayloadAction<string>) => {
       if (state.entities[action.payload]) {
         delete state.entities[action.payload];
       }
+      if (state.entityResources[action.payload]) {
+        delete state.entityResources[action.payload];
+      }
+      if (state.entityStats[action.payload]) {
+        delete state.entityStats[action.payload];
+      }
+      if (state.entityStatusInstanceCounts[action.payload]) {
+        delete state.entityStatusInstanceCounts[action.payload];
+      }
+      if (state.entityStatuses[action.payload]) {
+        delete state.entityStatuses[action.payload];
+      }
+
       if (state.selfID == action.payload) {
         // leave self intact between respawns
         state.selfID = null;
@@ -167,4 +193,12 @@ export const entitiesSlice = createSlice({
   }
 });
 
-export const { addOrUpdateEntity, removeEntity, setEntityContext } = entitiesSlice.actions;
+export const {
+  addOrUpdateEntity,
+  addOrUpdateEntityResources,
+  addOrUpdateEntityStats,
+  addOrUpdateEntityStatuses,
+  addOrUpdateEntityStatusInstanceCounts,
+  removeEntity,
+  setEntityContext
+} = entitiesSlice.actions;

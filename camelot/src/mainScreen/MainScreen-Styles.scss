@@ -714,6 +714,22 @@ $ResizingHandleSize: 5px;
   }
 }
 
+.HUD-HUDEditor-DecorButtons {
+  display: flex;
+  flex: 1;
+}
+
+.HUD-HUDEditor-DecorButton {
+  flex: 1;
+  margin-left: 0.5vmin;
+  font-family: 'Caudex', serif;
+  opacity: 0.35;
+
+  &.selected {
+    opacity: 1;
+  }
+}
+
 .HUD-HUDEditor-PartyLayoutIcon {
   width: 2vmin;
   height: 2vmin;
@@ -1024,7 +1040,7 @@ $ResizingHandleSize: 5px;
 .HUD-LoggingOut-CountdownNumber {
   position: relative;
   font-family: Caudex;
-  color: yellow;
+  color: var(--faction-border-color, yellow);
   font-size: 1.5rem;
   @extend .textWithShadowOutline;
 }
@@ -1219,6 +1235,31 @@ $ResizingHandleSize: 5px;
   }
 }
 
+// Nested in HitRegion so clicks still reach it, which makes these offsets relative to HitRegion
+// rather than FrameRoot.
+.HUD-PlayerUnitFrame-ClassIconHitRegion {
+  position: absolute;
+  top: 0.81vmin;
+  left: 0.28vmin;
+  width: 3.04vmin;
+  height: 2.736vmin;
+
+  // Simple layout: covers the whole icon diamond.
+  &.simple {
+    top: 0.5vmin;
+    left: 0.22vmin;
+    width: 3.7vmin;
+    height: 3.7vmin;
+  }
+}
+
+.HUD-ClassIconTooltip-Name {
+  color: white;
+  font-family: Caudex;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
 .HUD-PlayerUnitFrame-FrameBackground {
   @extend .absoluteFill;
 }
@@ -1234,8 +1275,18 @@ $ResizingHandleSize: 5px;
   background-color: #ffdada;
 }
 
-.HUD-PlayerUnitFrame-MarkerFactionlessHealth {
-  background-color: #ffddc3;
+$LockedHealthMarkerColor: #2a2a2a;
+.HUD-PlayerUnitFrame-MarkerLockedHealth {
+  background-color: $LockedHealthMarkerColor;
+}
+
+$ShieldMarkerColor: #d8fdff;
+$ShieldMarkerOutlineColor: #032a30;
+.HUD-PlayerUnitFrame-MarkerShield {
+  background-color: $ShieldMarkerColor;
+  border-style: solid;
+  border-width: 0 0.142vmin;
+  border-color: $ShieldMarkerOutlineColor;
 }
 
 .HUD-PlayerUnitFrame-MarkerCourage {
@@ -1290,6 +1341,24 @@ $ResizingHandleSize: 5px;
   object-position: top left;
 }
 
+.HUD-PlayerUnitFrame-LockedHealthBar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: top right;
+}
+
+.HUD-PlayerUnitFrame-ShieldBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+
 .HUD-PlayerUnitFrame-PrimaryResourceText {
   display: none;
 
@@ -1318,6 +1387,14 @@ $ResizingHandleSize: 5px;
 .HUD-PlayerUnitFrame-SimpleRealmIcon {
   position: absolute;
   height: 3.4vmin;
+}
+
+.HUD-PlayerUnitFrame-SimpleClassIcon {
+  left: 2.72vmin;
+  top: 5.6vmin;
+}
+
+.HUD-PlayerUnitFrame-SimpleRealmIcon {
   left: 2.8vmin;
   top: 5.5vmin;
 }
@@ -1569,67 +1646,27 @@ $ResizingHandleSize: 5px;
 .HUD-PlayerUnitFrame-TargetClassIcon {
   position: absolute;
   top: 5.09vmin;
-  left: 2.95vmin;
+  left: 2.93vmin;
   width: 3.04vmin;
   height: 2.736vmin;
   object-fit: contain;
 }
 
-.HUD-PlayerUnitFrame-DeterminationPips {
-  @extend .row;
-  position: absolute;
-  bottom: 3.96vmin;
-  right: 5vmin;
-}
-
-.HUD-PlayerUnitFrame-DeterminationPip {
-  position: relative;
-  margin-left: 0.3vmin;
-  width: 1.872vmin;
-  height: 1.872vmin;
-}
-
-.HUD-PlayerUnitFrame-DeterminationPipBackground {
-  position: absolute;
-  top: 8%;
-  left: 8%;
-  width: 87%;
-  height: 87%;
-  background-color: black;
-  overflow: hidden;
-}
-
-.HUD-PlayerUnitFrame-DeterminationPipBar {
-  @extend .absoluteFill;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.3s;
-
-  &.full {
-    opacity: 1;
-  }
-}
-
-.HUD-PlayerUnitFrame-DeterminationPipBorder {
-  @extend .absoluteFill;
-  object-fit: cover;
-}
-
-.HUD-PlayerUnitFrame-JudgementPips {
+.HUD-PlayerUnitFrame-ResourcePips {
   @extend .row;
   position: absolute;
   bottom: 3.78vmin;
   right: 5.5vmin;
 }
 
-.HUD-PlayerUnitFrame-JudgementPip {
+.HUD-PlayerUnitFrame-ResourcePip {
   position: relative;
   margin-left: -0.4vmin;
   width: 2.3vmin;
   height: 2.3vmin;
 }
 
-.HUD-PlayerUnitFrame-JudgementPipBackground {
+.HUD-PlayerUnitFrame-ResourcePipContent {
   position: absolute;
   top: 8%;
   left: 8%;
@@ -1638,7 +1675,7 @@ $ResizingHandleSize: 5px;
   overflow: hidden;
 }
 
-.HUD-PlayerUnitFrame-JudgementPipBar {
+.HUD-PlayerUnitFrame-ResourcePipFill {
   @extend .absoluteFill;
   object-fit: cover;
   opacity: 0;
@@ -1649,27 +1686,17 @@ $ResizingHandleSize: 5px;
   }
 }
 
-.HUD-PlayerUnitFrame-JudgementPipBorder {
+.HUD-PlayerUnitFrame-ResourcePipBackground {
   @extend .absoluteFill;
   object-fit: cover;
 }
 
-.HUD-PlayerUnitFrame-FrameRoot.simple .HUD-PlayerUnitFrame-DeterminationPips {
+.HUD-PlayerUnitFrame-FrameRoot.simple .HUD-PlayerUnitFrame-ResourcePips {
   bottom: 6.7vmin;
   right: 11.5vmin;
 }
 
-.HUD-PlayerUnitFrame-FrameRoot.simple .HUD-PlayerUnitFrame-DeterminationPip {
-  width: 1.31vmin;
-  height: 1.31vmin;
-}
-
-.HUD-PlayerUnitFrame-FrameRoot.simple .HUD-PlayerUnitFrame-JudgementPips {
-  bottom: 6.5vmin;
-  right: 11.5vmin;
-}
-
-.HUD-PlayerUnitFrame-FrameRoot.simple .HUD-PlayerUnitFrame-JudgementPip {
+.HUD-PlayerUnitFrame-FrameRoot.simple .HUD-PlayerUnitFrame-ResourcePip {
   width: 1.61vmin;
   height: 1.61vmin;
 }
@@ -2500,6 +2527,12 @@ $StatusEffectNeutralColor: white;
   margin: 0 2vmin 2vmin;
   align-items: center;
   justify-content: center;
+}
+
+.HUD-BuildMismatchModal-Root {
+  @extend .absoluteFill;
+  // Matches the loading screen header/footer z-index; DOM order then puts this above them.
+  z-index: 1;
 }
 
 .HUD-ToasterPane-Root {
@@ -3833,6 +3866,7 @@ $StatusEffectNeutralColor: white;
   cursor: pointer;
   pointer-events: all;
   flex-shrink: 0;
+  align-items: center;
 
   &.disabled {
     filter: grayscale(100%);
@@ -3858,7 +3892,7 @@ $StatusEffectNeutralColor: white;
 
 .HUD-FactionCheckbox-LabelText {
   position: relative;
-  margin-left: 0.5vmin;
+  margin: 0 0.5vmin;
   font-family: Caudex;
   font-size: 1.5rem;
   color: white;
@@ -4159,7 +4193,7 @@ $StatusEffectNeutralColor: white;
 }
 
 .HUD-FactionScrollArea-Wrapper::-webkit-scrollbar-thumb {
-  background-position: center;
+  background-position: center top;
   background-size: contain;
   background-repeat: no-repeat;
 }
@@ -4601,13 +4635,72 @@ $StatusEffectNeutralColor: white;
   margin-bottom: 1vmin;
 }
 
+$AbilityIconSize: 4.5vmin;
+// Matches the edge width of the secondary faction border framing each slot.
+$AbilitySlotBorderSize: 0.2vmin;
+// Mirrored by AbilitySlotSizeVmin in AbilityBar.tsx, which spaces the slots.
+$AbilitySlotSize: $AbilityIconSize + $AbilitySlotBorderSize * 2;
+
 .HUD-AbilityBar-Root {
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  padding: 1.25vmin 10vmin;
+  // Horizontal padding leaves room for the side ornaments between the slots and the page arrows.
+  padding: 0.8vmin 3.3vmin;
   pointer-events: none;
+}
+
+.HUD-AbilityBar-Slots {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+}
+
+.HUD-AbilityBar-SlotsArea {
+  position: relative;
+}
+
+.HUD-AbilityBar-SlotsOverlay {
+  @extend .absoluteFill;
+  pointer-events: none;
+}
+
+// The ornament images share one 256x300 canvas. The top and bottom offsets tuck each ornament's flat edge just
+// behind the slot panel.
+$AbilityBarDecorWidth: 11.92vmin;
+$AbilityBarDecorHeight: $AbilityBarDecorWidth * 300 / 256;
+
+.HUD-AbilityBar-DecorTop {
+  position: absolute;
+  top: -4.12vmin;
+  left: 50%;
+  margin-left: -$AbilityBarDecorWidth * 0.5;
+  width: $AbilityBarDecorWidth;
+}
+
+.HUD-AbilityBar-DecorBottom {
+  position: absolute;
+  bottom: -3.84vmin;
+  left: 50%;
+  margin-left: -$AbilityBarDecorWidth * 0.5;
+  width: $AbilityBarDecorWidth;
+}
+
+.HUD-AbilityBar-DecorLeft {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  margin-top: -$AbilityBarDecorHeight * 0.5;
+  width: $AbilityBarDecorWidth;
+}
+
+.HUD-AbilityBar-DecorRight {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -$AbilityBarDecorHeight * 0.5;
+  width: $AbilityBarDecorWidth;
 }
 
 .HUD-AbilityBar-Pagination {
@@ -4620,11 +4713,11 @@ $StatusEffectNeutralColor: white;
 }
 
 .HUD-AbilityBar-PaginationLeft {
-  left: 7.325vmin;
+  left: 0.9vmin;
 }
 
 .HUD-AbilityBar-PaginationRight {
-  right: 7.325vmin;
+  right: 0.9vmin;
 }
 
 .HUD-AbilityBar-PaginationUp {
@@ -4643,49 +4736,24 @@ $StatusEffectNeutralColor: white;
   text-shadow: 2px 3px 4px rgba(0, 0, 0, 0.76);
 }
 
-.HUD-AbilityBar-DecorationCenterTop {
-  width: 11.92vmin;
-  position: absolute;
-}
-
-.HUD-AbilityBar-DecorationCenterBottom {
-  width: 11.92vmin;
-  position: absolute;
-}
-
-.HUD-AbilityBar-DecorationLeft {
-  width: 11.92vmin;
-  position: absolute;
-  right: calc(100% - 9.8vmin);
-}
-
-.HUD-AbilityBar-DecorationRight {
-  width: 11.92vmin;
-  position: absolute;
-  left: calc(100% - 10.15vmin);
-}
-
 .HUD-AbilityBarSlot-Root {
   position: relative;
-  margin: 0 1.01vmin;
-  width: 4vmin;
-  height: 4vmin;
+  width: $AbilitySlotSize;
+  height: $AbilitySlotSize;
 }
 
-.HUD-AbilityBarSlot-EmptySlot {
-  position: absolute;
-  object-fit: contain;
-  width: 100%;
-  height: 100%;
-  margin-left: -0.25vmin;
+.HUD-AbilityBarSlot-Background {
+  @extend .absoluteFill;
+  pointer-events: none;
+}
+
+.HUD-AbilityBarSlot-Frame {
+  @extend .absoluteFill;
+  pointer-events: none;
 }
 
 .HUD-AbilityBarSlot-GoToAbilityBookButton {
-  position: absolute;
-  left: 6%;
-  top: 5%;
-  width: 80%;
-  height: 80%;
+  @extend .absoluteFill;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -4698,19 +4766,17 @@ $StatusEffectNeutralColor: white;
   }
 }
 
+// Same box and border width as the frame, so the button exactly fills the frame's opening
+// no matter how the border width rounds to pixels.
 .HUD-AbilityBarSlot-AbilityButtonWrapper {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  left: -0.25vmin;
+  @extend .absoluteFill;
+  box-sizing: border-box;
+  border: $AbilitySlotBorderSize solid transparent;
 }
 
 .HUD-AbilityBarSlot-EmptySlotHitArea {
   @extend .blankMouseTarget;
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  left: -0.25vmin;
+  @extend .absoluteFill;
 }
 
 // Generic flash to trigger any time an ability bar button is pressed
@@ -4734,34 +4800,15 @@ $StatusEffectNeutralColor: white;
 
 .HUD-AbilityBarSlot-PressFlash {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  left: -0.25vmin;
+  top: $AbilitySlotBorderSize;
+  left: $AbilitySlotBorderSize;
+  right: $AbilitySlotBorderSize;
+  bottom: $AbilitySlotBorderSize;
   box-sizing: border-box;
   border: 0.2vmin solid transparent;
   pointer-events: none;
   opacity: 0;
   animation: abilityBarSlotPressFlash 0.15s ease-out forwards;
-}
-
-.HUD-AbilityBarSlot-DecorationBack {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  margin: auto;
-  width: 6vmin;
-  left: -1.25vmin;
-  pointer-events: none;
-}
-
-.HUD-AbilityBarSlot-DecorationFront {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  margin: auto;
-  width: 6vmin;
-  left: -1.25vmin;
-  pointer-events: none;
 }
 
 .HUD-AbilityButton-Root {
@@ -4782,18 +4829,36 @@ $StatusEffectNeutralColor: white;
   box-shadow: 0 0 0.4vmin #ffc37e88, inset 0 0 0.3vmin #ffc37e66;
 }
 
-.HUD-AbilityButton-FaithRim {
+.HUD-AbilityButton-ResourceRim {
   @extend .absoluteFill;
   box-sizing: border-box;
-  border: 0.38vmin solid rgb(206, 191, 116);
+  border: 0.38vmin solid transparent;
   pointer-events: none;
 }
 
+// Rim colors roughly match each resource's unit frame bar.
+.HUD-AbilityButton-FaithRim {
+  border-color: rgb(206, 191, 116);
+}
+
 .HUD-AbilityButton-JudgmentRim {
-  @extend .absoluteFill;
-  box-sizing: border-box;
-  border: 0.38vmin solid rgb(20, 52, 141);
-  pointer-events: none;
+  border-color: rgb(20, 52, 141);
+}
+
+.HUD-AbilityButton-CourageRim {
+  border-color: rgb(166, 7, 160);
+}
+
+.HUD-AbilityButton-ManaRim {
+  border-color: #592480;
+}
+
+.HUD-AbilityButton-FocusRim {
+  border-color: #c36a11;
+}
+
+.HUD-AbilityButton-DeterminationRim {
+  border-color: #34a111;
 }
 
 @keyframes judgmentPulse {
@@ -4817,13 +4882,6 @@ $StatusEffectNeutralColor: white;
   border: 0.38vmin solid rgb(45, 86, 201);
   box-shadow: 0 0 2px rgb(45, 86, 201);
   animation: judgmentPulse 2s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.HUD-AbilityButton-CourageRim {
-  @extend .absoluteFill;
-  box-sizing: border-box;
-  border: 0.38vmin solid rgb(166, 7, 160);
   pointer-events: none;
 }
 
@@ -4862,19 +4920,37 @@ $StatusEffectNeutralColor: white;
 
 .HUD-AbilityButton-DraggingContainer {
   position: relative;
-  width: 4vmin;
-  height: 4vmin;
+  width: $AbilityIconSize;
+  height: $AbilityIconSize;
 }
 
 .HUD-AbilityButton-Icon {
   @extend .absoluteFill;
   object-fit: contain;
+
+  &.locked {
+    filter: grayscale(100%) brightness(50%);
+  }
+}
+
+// Bottom-right, matching the stack count on inventory item icons.
+.HUD-AbilityButton-ItemCount {
+  position: absolute;
+  right: 0.25vmin;
+  bottom: 0.25vmin;
+  font-family: 'OpenSans';
+  font-size: 1rem;
+  line-height: 1rem;
+  font-weight: bolder;
+  color: white;
+  -webkit-text-stroke: 0.25rem #000000;
+  pointer-events: none;
 }
 
 .HUD-AbilityButton-KeybindInfo {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
+  top: 0;
+  right: 0;
   line-height: 1;
   color: white;
   font-family: 'OpenSans';
@@ -4921,13 +4997,22 @@ $StatusEffectNeutralColor: white;
   }
 }
 
+$AbilityCooldownColor: #0f031a;
+
 .HUD-AbilityButton-OverlayCooldownProgress {
   @extend .absoluteFill;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba($AbilityCooldownColor, 0.85);
   transform-origin: bottom;
   animation-name: HUD-AbilityButton-CooldownDrain;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
+  pointer-events: none;
+}
+
+.HUD-AbilityButton-OverlayCooldownBorder {
+  @extend .absoluteFill;
+  box-sizing: border-box;
+  border: 0.3vmin solid $AbilityCooldownColor;
   pointer-events: none;
 }
 
@@ -4937,14 +5022,75 @@ $StatusEffectNeutralColor: white;
   left: 2px;
   width: calc(100% - 4px);
   height: calc(100% - 4px);
-  font-family: 'OpenSans';
-  font-size: 1.4rem;
-  font-weight: bolder;
+  font-family: 'CaudexBold', serif;
+  font-size: 1.8rem;
+  font-weight: bold;
   color: white;
   display: flex;
   justify-content: center;
   align-items: center;
-  -webkit-text-stroke: 0.375rem #000000;
+  text-shadow: 0.2vmin 0.2vmin 0.15vmin black, 0 0 0.5vmin black;
+  pointer-events: none;
+}
+
+.HUD-AbilityButton-OverlayCooldownValueGold {
+  color: #ffd800;
+}
+
+// One-shot flourish when an ability comes off cooldown: a light band rises up the icon while the rim pulses.
+// The band travels only within the icon's bounds, since clipping doesn't work reliably in Coherent.
+$ReadySheenHeight: 35%;
+// translateY percentages are relative to the band's own height, so this is the rest of the icon in band heights.
+$ReadySheenTravel: (100% - $ReadySheenHeight) / $ReadySheenHeight * 100%;
+
+@keyframes HUD-AbilityButton-ReadySheenRise {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  25%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-$ReadySheenTravel);
+  }
+}
+
+@keyframes HUD-AbilityButton-ReadyPulseFade {
+  0% {
+    opacity: 0;
+    transform: scale(1, 1);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12, 1.12);
+  }
+}
+
+.HUD-AbilityButton-ReadySheen {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: $ReadySheenHeight;
+  background: linear-gradient(to top, transparent, rgba(255, 255, 255, 0.8) 50%, transparent);
+  opacity: 0;
+  animation: HUD-AbilityButton-ReadySheenRise 0.45s ease-out forwards;
+  pointer-events: none;
+}
+
+.HUD-AbilityButton-ReadyPulse {
+  @extend .absoluteFill;
+  box-sizing: border-box;
+  border: 0.3vmin solid #fff3c4;
+  box-shadow: 0 0 1vmin #ffe9a0, inset 0 0 1vmin #ffe9a0;
+  opacity: 0;
+  animation: HUD-AbilityButton-ReadyPulseFade 0.5s ease-out forwards;
   pointer-events: none;
 }
 
@@ -5669,6 +5815,28 @@ $StatusEffectNeutralColor: white;
   height: 55.09vmin;
 }
 
+// Tucked under the large name banner: its open top hides behind the banner's bottom rim, and the top padding
+// keeps the text clear of it.
+.HUD-Equipped-ClassLevel {
+  position: absolute;
+  top: 0.9vmin;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 10vmin;
+  padding: 0.5vmin 1.6vmin 0.3vmin;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.HUD-Equipped-ClassLevelText {
+  // Without this, FactionBorder's background layer paints over the text.
+  position: relative;
+  font-family: Caudex;
+  font-size: 1.05rem;
+  color: white;
+}
+
 .HUD-Equipped-StatsSlider {
   position: absolute;
   top: 48%;
@@ -5725,6 +5893,14 @@ $StatusEffectNeutralColor: white;
   background-repeat: no-repeat;
   background-size: contain;
   pointer-events: none;
+
+  // Character name banner. Raised so it sits mostly above the body frame's top edge.
+  &.large {
+    top: -0.7vmin;
+    height: 5.6vmin;
+    min-width: 19.6vmin;
+    padding: 0 2.8vmin;
+  }
 }
 
 .HUD-Equipped-SectionHeaderLabel {
@@ -7010,6 +7186,46 @@ $StatusEffectNeutralColor: white;
   background-color: rgba(0, 0, 0, 0.55);
 }
 
+// closest-side keeps each blob inside its half, otherwise it's cut off in a hard seam down the middle.
+$VeilMistLightColor: rgb(235, 215, 255);
+$VeilMistDarkColor: rgb(70, 20, 140);
+
+.HUD-PartyMemberFrame-VeilOverlay {
+  @extend .absoluteFill;
+  background-color: rgba(150, 90, 230, 0.45);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+  }
+
+  &::before {
+    left: 0;
+    background-image: radial-gradient(
+        ellipse closest-side at 45% 40%,
+        rgba($VeilMistLightColor, 0.65),
+        rgba($VeilMistLightColor, 0.3) 50%,
+        rgba($VeilMistLightColor, 0)
+      ),
+      radial-gradient(ellipse closest-side at 60% 70%, rgba($VeilMistLightColor, 0.45), rgba($VeilMistLightColor, 0));
+  }
+
+  &::after {
+    left: 50%;
+    background-image: radial-gradient(
+        ellipse closest-side at 50% 50%,
+        rgba($VeilMistDarkColor, 0.55),
+        rgba($VeilMistDarkColor, 0.25) 50%,
+        rgba($VeilMistDarkColor, 0)
+      ),
+      radial-gradient(ellipse closest-side at 35% 35%, rgba($VeilMistLightColor, 0.45), rgba($VeilMistLightColor, 0));
+  }
+}
+
 .HUD-PartyMemberFrame-HealthBarContainer {
   position: absolute;
   left: 2.13vmin;
@@ -7019,6 +7235,24 @@ $StatusEffectNeutralColor: white;
 }
 
 .HUD-PartyMemberFrame-HealthResourceBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: left;
+}
+
+.HUD-PartyMemberFrame-LockedHealthResourceBar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: right;
+}
+
+.HUD-PartyMemberFrame-ShieldResourceBar {
   position: absolute;
   top: 0;
   left: 0;
@@ -7205,6 +7439,17 @@ $StatusEffectNeutralColor: white;
   background-color: white;
 }
 
+.HUD-PartyMemberFrame-LockedHealthMarker {
+  background-color: $LockedHealthMarkerColor;
+}
+
+.HUD-PartyMemberFrame-ShieldMarker {
+  background-color: $ShieldMarkerColor;
+  border-style: solid;
+  border-width: 0 0.1vmin;
+  border-color: $ShieldMarkerOutlineColor;
+}
+
 .HUD-PartyMemberFrame-SecondaryMarker {
   position: absolute;
   top: 0;
@@ -7213,61 +7458,21 @@ $StatusEffectNeutralColor: white;
   background-color: white;
 }
 
-.HUD-PartyMemberFrame-DeterminationPips {
+.HUD-PartyMemberFrame-ResourcePips {
   @extend .row;
   position: absolute;
   bottom: 0.75vmin;
   right: 0.34vmin;
 }
 
-.HUD-PartyMemberFrame-DeterminationPip {
-  position: relative;
-  margin-left: 0.09vmin;
-  width: 0.7vmin;
-  height: 0.7vmin;
-}
-
-.HUD-PartyMemberFrame-DeterminationPipBackground {
-  position: absolute;
-  top: 8%;
-  left: 8%;
-  width: 87%;
-  height: 87%;
-  background-color: black;
-  overflow: hidden;
-}
-
-.HUD-PartyMemberFrame-DeterminationPipBar {
-  @extend .absoluteFill;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.3s;
-
-  &.full {
-    opacity: 1;
-  }
-}
-
-.HUD-PartyMemberFrame-DeterminationPipBorder {
-  @extend .absoluteFill;
-  object-fit: cover;
-}
-
-.HUD-PartyMemberFrame-JudgementPips {
-  @extend .row;
-  position: absolute;
-  bottom: 0.75vmin;
-  right: 0.34vmin;
-}
-
-.HUD-PartyMemberFrame-JudgementPip {
+.HUD-PartyMemberFrame-ResourcePip {
   position: relative;
   margin-left: -0.09vmin;
   width: 0.93vmin;
   height: 0.93vmin;
 }
 
-.HUD-PartyMemberFrame-JudgementPipBackground {
+.HUD-PartyMemberFrame-ResourcePipContent {
   position: absolute;
   top: 8%;
   left: 8%;
@@ -7276,7 +7481,7 @@ $StatusEffectNeutralColor: white;
   overflow: hidden;
 }
 
-.HUD-PartyMemberFrame-JudgementPipBar {
+.HUD-PartyMemberFrame-ResourcePipFill {
   @extend .absoluteFill;
   object-fit: cover;
   opacity: 0;
@@ -7287,7 +7492,7 @@ $StatusEffectNeutralColor: white;
   }
 }
 
-.HUD-PartyMemberFrame-JudgementPipBorder {
+.HUD-PartyMemberFrame-ResourcePipBackground {
   @extend .absoluteFill;
   object-fit: cover;
 }
@@ -9374,15 +9579,61 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   text-align: center;
 }
 
-.HUD-CharacterList-CharacterListContainer {
+.HUD-CharacterList-ListFrame {
+  @extend .column;
   position: relative;
   flex-grow: 1;
+  // Half the height of the edge dividers, which overhang the frame by that much.
+  margin: 2.18vmin 0;
+}
+
+.HUD-CharacterList-EdgeFadeTop,
+.HUD-CharacterList-EdgeFadeBottom {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2.5vmin;
+  pointer-events: none;
+  opacity: 0.8;
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+
+.HUD-CharacterList-EdgeFadeTop {
+  top: 0;
+  background-image: linear-gradient(to bottom, black, transparent);
+}
+
+.HUD-CharacterList-EdgeFadeBottom {
+  bottom: 0;
+  background-image: linear-gradient(to top, black, transparent);
+}
+
+.HUD-CharacterList-Divider {
+  width: calc(100% + 4vmin);
+  margin-left: -2vmin;
+}
+
+.HUD-CharacterList-CharacterListContainer {
+  position: relative;
+  // Moves the clip edges from the top of the divider line into its opaque middle.
+  top: 0.15vmin;
+  flex-grow: 1;
   margin-right: -2.5vmin;
+
+  .HUD-FactionScrollArea-BarTrack {
+    top: 2.95vmin;
+    height: calc(100% - 5.9vmin);
+  }
 }
 
 .HUD-CharacterList-CharacterListContent {
   box-sizing: border-box;
   padding: 0.5vmin;
+
+  &::-webkit-scrollbar-track {
+    margin: 1.95vmin 0;
+  }
 }
 
 .HUD-CharacterList-Cell {
@@ -9393,6 +9644,14 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   background-color: #00000001;
   pointer-events: all;
   cursor: pointer;
+
+  &:first-child {
+    margin-top: 2.95vmin;
+  }
+
+  &:last-child {
+    margin-bottom: 2.95vmin;
+  }
 }
 
 .HUD-CharacterList-CharacterNameLabel {
@@ -10672,6 +10931,229 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   background-color: white;
 }
 
+.HUD-TradeskillTracker-Root {
+  @extend .column;
+  position: relative;
+  width: 32vmin;
+  min-height: 3vmin;
+  pointer-events: none;
+
+  &.filled {
+    min-height: 0;
+    padding: 0.75vmin 1vmin;
+    border-radius: 0.5vmin;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+}
+
+$tradeskill-tracker-row-slide-distance: 6vmin;
+
+// Widened by the slide distance on each side so the clip doesn't cut off the rows' horizontal
+// slide in and out. Coherent needs clip-path as well as overflow to clip the transformed rows.
+.HUD-TradeskillTracker-RowsDrawer {
+  margin: 0 -#{$tradeskill-tracker-row-slide-distance};
+  padding: 0 $tradeskill-tracker-row-slide-distance;
+  overflow: hidden;
+  clip-path: inset(0);
+  -webkit-clip-path: inset(0);
+}
+
+// Padding rather than a header margin so a minimized tracker has no gap under the header.
+.HUD-TradeskillTracker-Rows {
+  @extend .column;
+  position: relative;
+  padding-top: 0.5vmin;
+}
+
+.HUD-TradeskillTracker-Header {
+  @extend .row;
+  position: relative;
+  align-items: center;
+}
+
+.HUD-TradeskillTracker-HeaderTitle {
+  position: relative;
+  flex: 1;
+  font-family: CaudexBold;
+  font-size: 1.25rem;
+  white-space: nowrap;
+  color: white;
+  @extend .textWithShadowOutline;
+}
+
+.HUD-TradeskillTracker-MinimizeButton {
+  position: relative;
+  width: 2vmin;
+  // Fixed so the oversized glyph doesn't stretch the header row.
+  line-height: 2vmin;
+  font-family: CaudexBold;
+  font-size: 2.5rem;
+  text-align: center;
+  color: white;
+  @extend .textWithShadowOutline;
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.HUD-TradeskillTrackerRow-Root {
+  @extend .row;
+  position: relative;
+  align-items: center;
+  margin-bottom: 0.75vmin;
+  animation: htstr_slideIn 0.35s ease-out forwards;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &.exiting {
+    animation: htstr_slideOut 0.35s ease-in forwards;
+    pointer-events: none;
+  }
+
+  @keyframes htstr_slideIn {
+    0% {
+      opacity: 0;
+      transform: translateX(-$tradeskill-tracker-row-slide-distance);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes htstr_slideOut {
+    0% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX($tradeskill-tracker-row-slide-distance);
+    }
+  }
+}
+
+.HUD-TradeskillTrackerRow-IconContainer {
+  position: relative;
+  flex-shrink: 0;
+  width: 3.5vmin;
+  height: 3.5vmin;
+}
+
+.HUD-TradeskillTrackerRow-Icon {
+  @extend .absoluteFill;
+  object-fit: contain;
+}
+
+.HUD-TradeskillTrackerRow-Details {
+  @extend .column;
+  position: relative;
+  flex: 1;
+  margin-left: 0.75vmin;
+}
+
+.HUD-TradeskillTrackerRow-NameRow {
+  @extend .row;
+  position: relative;
+  align-items: center;
+}
+
+.HUD-TradeskillTrackerRow-NameLabel {
+  position: relative;
+  flex: 1;
+  font-family: Caudex;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: white;
+  @extend .textWithShadowOutline;
+}
+
+.HUD-TradeskillTrackerRow-LevelLabel {
+  position: relative;
+  margin-left: 0.5vmin;
+  font-family: Caudex;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  color: white;
+  @extend .textWithShadowOutline;
+}
+
+.HUD-TradeskillTrackerRow-BarContainer {
+  position: relative;
+  height: 1.75vmin;
+  margin-top: 0.25vmin;
+  @extend .withDropShadowFilter;
+}
+
+.HUD-TradeskillTrackerRow-BarClipper {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  overflow: hidden;
+}
+
+.HUD-TradeskillTrackerRow-BarContent {
+  @extend .row;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.HUD-TradeskillTrackerRow-BarFill {
+  position: relative;
+  object-fit: cover;
+  object-position: center left;
+  transition: width 0.5s ease;
+}
+
+.HUD-TradeskillTrackerRow-BarEnd {
+  position: relative;
+  height: 100%;
+  width: 0.284vmin;
+  background-color: white;
+}
+
+// Only mounted during a level-up, so the duration must match LEVEL_UP_BLING_DURATION_MS (3000).
+// 16.67% and 83.33% are 0.5s fades at each end.
+.HUD-TradeskillTrackerRow-BarBling {
+  @extend .absoluteFill;
+  object-fit: cover;
+  object-position: center left;
+  pointer-events: none;
+  filter: brightness(150%) blur(0.5vmin);
+  opacity: 0;
+  animation: htstrbb_levelUpGlow 3s ease forwards;
+
+  @keyframes htstrbb_levelUpGlow {
+    0% {
+      opacity: 0;
+    }
+    16.67% {
+      opacity: 0.9;
+    }
+    83.33% {
+      opacity: 0.9;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}
+
+.HUD-TradeskillTrackerRow-BarText {
+  @extend .absoluteCenter;
+  font-family: Caudex;
+  font-size: 1rem;
+  white-space: nowrap;
+  color: white;
+  @extend .textWithShadowOutline;
+}
+
 .HUD-Trade-Root {
   position: relative;
   width: 60vmin;
@@ -11601,10 +12083,30 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   pointer-events: none;
 
   &.filled {
+    min-height: 0;
     padding: 0.75vmin 1vmin;
     border-radius: 0.5vmin;
     background-color: rgba(0, 0, 0, 0.5);
   }
+}
+
+$quest-tracker-row-slide-distance: 6vmin;
+
+// Widened by the slide distance on each side so the clip doesn't cut off the rows' horizontal
+// slide in and out. Coherent needs clip-path as well as overflow to clip the transformed rows.
+.HUD-QuestTracker-RowsDrawer {
+  margin: 0 -#{$quest-tracker-row-slide-distance};
+  padding: 0 $quest-tracker-row-slide-distance;
+  overflow: hidden;
+  clip-path: inset(0);
+  -webkit-clip-path: inset(0);
+}
+
+// Padding rather than a header margin so a minimized tracker has no gap under the header.
+.HUD-QuestTracker-Rows {
+  @extend .column;
+  position: relative;
+  padding-top: 0.5vmin;
 }
 
 .HUD-QuestTracker-QuestRoot {
@@ -11625,7 +12127,7 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   @keyframes hqtqr_slideIn {
     0% {
       opacity: 0;
-      transform: translateX(-6vmin);
+      transform: translateX(-$quest-tracker-row-slide-distance);
     }
     100% {
       opacity: 1;
@@ -11640,7 +12142,7 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
     }
     100% {
       opacity: 0;
-      transform: translateX(6vmin);
+      transform: translateX($quest-tracker-row-slide-distance);
     }
   }
 }
@@ -11665,6 +12167,32 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   white-space: pre-wrap;
   color: #ffffff;
   @extend .textWithShadowOutline;
+}
+
+.HUD-QuestTracker-Header {
+  @extend .row;
+  position: relative;
+  align-items: center;
+}
+
+.HUD-QuestTracker-HeaderTitle {
+  @extend .HUD-QuestTracker-QuestText;
+  flex: 1;
+  font-family: CaudexBold;
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+.HUD-QuestTracker-MinimizeButton {
+  @extend .HUD-QuestTracker-QuestText;
+  width: 2vmin;
+  // Fixed so the oversized glyph doesn't stretch the header row.
+  line-height: 2vmin;
+  font-family: CaudexBold;
+  font-size: 2.5rem;
+  text-align: center;
+  cursor: pointer;
+  pointer-events: all;
 }
 
 .HUD-QuestTracker-QuestDescriptionLabel {
@@ -12100,8 +12628,15 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   margin-left: 1vmin;
 }
 
+.HUD-AbilityPageTradeskills-CellNameRow {
+  @extend .row;
+  position: relative;
+  align-items: center;
+}
+
 .HUD-AbilityPageTradeskills-CellNameLabel {
   position: relative;
+  flex: 1;
   font-family: Caudex;
   font-size: 1.5rem;
   color: white;
@@ -12110,6 +12645,10 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   &.small {
     font-size: 1.25rem;
   }
+}
+
+.HUD-AbilityPageTradeskills-CellTrackCheckbox {
+  margin-left: 1vmin;
 }
 
 .HUD-AbilityPageTradeskills-CellDivider {
@@ -12679,6 +13218,21 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   @extend .absoluteFill;
 }
 
+.HUD-Social-TabBadgeContainer {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.HUD-Social-TabBadgeLabel {
+  position: relative;
+  padding: 0.2vmin 0.5vmin;
+  font-family: Caudex;
+  font-size: 1rem;
+  color: white;
+  background-color: #550000;
+}
+
 .HUD-FriendFoeList-Root {
   @extend .absoluteFill;
   @extend .column;
@@ -12692,21 +13246,36 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
 
 .HUD-FriendFoeList-NavTab {
   position: relative;
-  margin: 0 1vmin;
+  margin: 0 0.5vmin;
 }
 
 .HUD-FriendFoeList-TabLabel {
   position: relative;
-  margin: 0.5vmin 1.5vmin;
+  margin: 0.5vmin 2.5vmin;
   font-family: Caudex;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
+  color: white;
+}
+
+.HUD-FriendFoeList-TabBadgeContainer {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.HUD-FriendFoeList-TabBadgeLabel {
+  position: relative;
+  margin: 0.35vmin 1vmin;
+  font-family: Caudex;
+  font-size: 1rem;
   color: white;
 }
 
 .HUD-FriendFoeList-Roster-MemberListSection {
   @extend .column;
   position: relative;
-  margin: 3vmin;
+  margin: 6vmin 3.5vmin 3vmin 3.5vmin;
   flex-grow: 1;
 }
 
@@ -12714,7 +13283,7 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   position: relative;
   width: 100%;
   height: 0.3vmin;
-  object-fit: contain;
+  margin-top: -0.2vmin;
 }
 
 .HUD-FriendFoeList-Roster-MemberList-TabNav {
@@ -12749,29 +13318,36 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
 .HUD-FriendFoeList-Roster-MemberList-MemberNameCell {
   position: relative;
   box-sizing: border-box;
-  width: 20.1vmin;
+  width: 21vmin;
   padding: 0.25vmin 1vmin;
 }
 
-.HUD-FriendFoeList-Roster-MemberList-MemberLevelCell {
-  position: relative;
-  box-sizing: border-box;
-  width: 7.5vmin;
-  padding: 0.25vmin 1vmin;
+.HUD-FriendFoeList-Roster-MemberList-MemberNameStack {
+  @extend .column;
 }
 
 .HUD-FriendFoeList-Roster-MemberList-MemberClassCell {
   position: relative;
   box-sizing: border-box;
-  width: 15vmin;
+  width: 6vmin;
   padding: 0.25vmin 1vmin;
+}
+
+.HUD-FriendFoeList-Roster-MemberList-MemberClassIcon {
+  position: relative;
+  width: 3vmin;
+  object-fit: contain;
 }
 
 .HUD-FriendFoeList-Roster-MemberList-MemberNoteCell {
   position: relative;
   box-sizing: border-box;
-  width: 15vmin;
+  width: 29vmin;
   padding: 0.25vmin 1vmin;
+
+  &.block {
+    width: 35vmin;
+  }
 }
 
 .HUD-FriendFoeList-Roster-MemberList-LegendText {
@@ -12807,12 +13383,11 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   flex-grow: 1;
 }
 
-.HUD-FriendFoeList-Roster-MemberList-ScrollArea {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(100% + 3vmin);
-  height: 100%;
+.HUD-FriendFoeList-Roster-MemberList-ScrollArea,
+.HUD-FriendFoeList-ReceivedInvitesSection,
+.HUD-FriendFoeList-SentInvitesSection {
+  @extend .absoluteFill;
+  width: calc(100% + 2.5vmin);
 }
 
 .HUD-FriendFoeList-Roster-MemberList-Content {
@@ -12825,12 +13400,16 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   position: relative;
   margin-right: 0.5vmin;
   padding: 0.5vmin 0;
-  align-items: baseline;
+  align-items: center;
   flex-shrink: 0;
   background-color: #ffffff20;
 
   &.odd {
     background-color: #00000080;
+  }
+
+  &.offline {
+    filter: grayscale(100%) brightness(50%);
   }
 }
 
@@ -12850,6 +13429,113 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   position: relative;
   margin-top: 2vmin;
   align-self: center;
+}
+
+.HUD-FriendFoeList-GlobalControlsSection {
+  @extend .column;
+  flex-direction: column-reverse;
+  position: absolute;
+  top: 2vmin;
+  right: 2vmin;
+}
+
+.HUD-FriendFoeList-PresenceComboBox {
+  position: relative;
+  width: 10vmin;
+  margin-right: 1vmin;
+  align-self: flex-end;
+}
+
+.HUD-FriendFoeList-BlockInvitesCheckbox {
+  position: relative;
+  margin-top: 1vmin;
+  margin-right: 0.5vmin;
+}
+
+.HUD-FriendFoeList-BlockInvitesCheckboxLabel {
+  font-size: 1rem;
+}
+
+.HUD-FriendFoeList-InvitesSectionContainer {
+  position: relative;
+  height: 21vmin;
+  margin-top: 3vmin;
+}
+
+.HUD-FriendFoeList-InvitesSectionContent {
+  @extend .column;
+  padding: 2vmin 0;
+}
+
+.HUD-FriendFoeList-InvitesSectionTitle {
+  @extend .column;
+  position: absolute;
+  top: -2.5vmin;
+  left: 50%;
+  width: 20.5vmin;
+  height: 5vmin;
+  transform: translateX(-50%);
+  align-items: center;
+  justify-content: center;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+  font-family: Caudex;
+  font-size: 1.5rem;
+  white-space: nowrap;
+  color: white;
+}
+
+.HUD-FriendFoeList-InviteRowContainer {
+  @extend .row;
+  position: relative;
+  align-items: center;
+  padding: 0.5vmin 0;
+  background-color: #ffffff20;
+
+  &.odd {
+    background-color: #00000080;
+  }
+}
+
+.HUD-FriendFoeList-InviteNumberLabel {
+  position: relative;
+  width: 5vmin;
+  font-family: Caudex;
+  font-size: 1.25rem;
+  color: white;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.HUD-FriendFoeList-InviteName {
+  position: relative;
+  margin-left: 5vmin;
+  flex-grow: 1;
+  font-family: Caudex;
+  font-size: 1.25rem;
+  color: white;
+}
+
+.HUD-FriendFoeList-InviteButtonSection {
+  @extend .row;
+  position: relative;
+  align-items: center;
+  position: relative;
+  width: 20vmin;
+  flex-shrink: 0;
+}
+
+.HUD-FriendFoeList-InviteActionButton {
+  position: relative;
+  margin: 0 0.5vmin;
+}
+
+.HUD-FriendFoeList-RejectAllButton {
+  position: relative;
+  align-self: flex-end;
+  margin: 0.8vmin 0;
 }
 
 .HUD-CharacterResetModal-RespecButton {
@@ -12923,6 +13609,7 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   position: relative;
   width: 29vmin;
   margin-top: 1vmin;
+  align-self: center;
 }
 
 .HUD-AddFriendFoeDialog-NameCharacterInput {
@@ -12932,6 +13619,7 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
 
 .HUD-AddFriendFoeDialog-InputStatus {
   position: relative;
+  margin-top: 0.5vmin;
   height: 1.1rem;
   color: #aaa;
   font-family: Caudex;
@@ -12943,7 +13631,7 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
 .HUD-AddFriendFoeDialog-ButtonSection {
   @extend .row;
   position: relative;
-  margin-top: 2vmin;
+  margin-top: 1vmin;
   align-self: center;
 }
 

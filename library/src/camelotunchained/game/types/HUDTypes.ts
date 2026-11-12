@@ -17,6 +17,11 @@ export enum AbilityBarDecor {
   Bottom = 'bottom'
 }
 
+export enum CompassHeadingSource {
+  Camera = 'camera',
+  Character = 'character'
+}
+
 export interface HUDResizableParams {
   widthVmin: number;
   heightVmin: number;
@@ -46,6 +51,10 @@ export interface HUDWidgetState {
   abilitySlotSpacing?: number;
   /** Ability bars only: which decorative ornaments are shown. Unset entries use the bar's default. */
   abilityBarDecor?: Partial<Record<AbilityBarDecor, boolean>>;
+  /** Compass-only: integer percentage (25 to 100, default 33) of the compass bar's full width. */
+  compassWidth?: number;
+  /** Compass-only: whether the compass follows the camera or the character's facing (default camera). */
+  compassHeadingSource?: CompassHeadingSource;
 }
 
 // These are pseudo-MapDataType entries, split off from MapDataType.Player.

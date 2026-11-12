@@ -47,6 +47,7 @@ export const camelotMocks: CamelotMockDataGenerators = {
       stats: {},
       progression: {},
       characterLevel: 0,
+      realmRank: 0,
       equipment: {},
       inventory: {},
       wallet: {},

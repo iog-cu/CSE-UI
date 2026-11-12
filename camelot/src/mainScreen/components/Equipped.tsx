@@ -17,7 +17,7 @@ import { getFactionData, RealmColorStyle } from '../gameData/factionData';
 import { getRaceData } from '../gameData/raceData';
 import { RaceDef } from '../dataSources/manifest/raceManifest';
 import { BodyTypeDef } from '../dataSources/manifest/bodyTypeManifest';
-import { getStringTableValue, StringIDGeneralBar } from '../helpers/stringTableHelpers';
+import { getStringTableValue, StringIDGeneralBar, StringIDGeneralLevel } from '../helpers/stringTableHelpers';
 import { buildEquippedItemsByGearSlot } from '../helpers/itemHelpers';
 import { Item, ItemLocationType } from '@csegames/library/dist/camelotunchained/game/types/Items';
 import { ItemDef } from '../dataSources/manifest/itemManifest';
@@ -72,7 +72,6 @@ const StringIDEquippedDefensiveStats = 'EquippedDefensiveStats';
 const StringIDEquippedUtility = 'EquippedUtility';
 const StringIDEquippedUsableWeaponTypes = 'EquippedUsableWeaponTypes';
 const StringIDEquippedUsableArmorTypes = 'EquippedUsableArmorTypes';
-const StringIDEquippedLevel = 'EquippedLevel';
 
 const LevelToken = '{LEVEL}';
 
@@ -424,7 +423,7 @@ class AEquipped extends React.Component<Props, State> {
   }
 
   private renderLevel(): React.ReactNode {
-    const [prefix, suffix] = getStringTableValue(StringIDEquippedLevel, this.props.stringTable).split(LevelToken);
+    const [prefix, suffix] = getStringTableValue(StringIDGeneralLevel, this.props.stringTable).split(LevelToken);
     return (
       <>
         {prefix}

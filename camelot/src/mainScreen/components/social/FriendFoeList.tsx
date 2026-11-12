@@ -13,7 +13,6 @@ import {
   StringIDGeneralAccept,
   StringIDGeneralCancel,
   StringIDGeneralIgnore,
-  StringIDGeneralOnline,
   StringIDGeneralRemove,
   StringIDGeneralUnknownClass
 } from '../../helpers/stringTableHelpers';
@@ -28,7 +27,7 @@ import { GameDefsState } from '../../redux/gameDefsSlice';
 import { FactionButton } from '../FactionButton';
 import { FactionBorderSelectable } from '../FactionBorderSelectable';
 import { Chat } from '../chat/Chat';
-import { AddFriendFoeDialog } from './AddFriendFoeDialog';
+import { showAddFriendFoeModal } from './AddFriendFoeDialog';
 import { AddEditFriendFoeNoteDialog } from './AddEditFriendFoeNoteDialog';
 import {
   Account,
@@ -41,8 +40,7 @@ import { UserInteractions } from '@csegames/library/dist/camelotunchained/webAPI
 import {
   callSocialSetPermissions,
   callSocialSetUserPermissions,
-  SocialSetPermissionsParams,
-  SocialSetUserPermissionsParams
+  SocialSetPermissionsParams
 } from '../../helpers/rest/socialRestCalls';
 import {
   AcceptFriendInviteParams,
@@ -52,9 +50,9 @@ import {
   callRemoveFriend,
   RejectFriendInviteParams
 } from '../../helpers/rest/friendsRestCalls';
-import { FactionComboBox } from '../FactionComboBox';
 import { FactionCheckbox } from '../FactionCheckbox';
 import { splitFriendInvites } from '../../dataSources/socialService';
+import { showCallErrorModalIfFailed } from '../../helpers/errorConversionHelpers';
 
 interface PlayerDisplayData {
   account: Account;
@@ -88,8 +86,6 @@ const MemberListContent = 'HUD-FriendFoeList-Roster-MemberList-Content';
 const MemberListRow = 'HUD-FriendFoeList-Roster-MemberList-Row';
 const MemberListDataText = 'HUD-FriendFoeList-Roster-MemberList-DataText';
 const AddButton = 'HUD-FriendFoeList-AddButton';
-const GlobalControlsSection = 'HUD-FriendFoeList-GlobalControlsSection';
-const PresenceComboBox = 'HUD-FriendFoeList-PresenceComboBox';
 const BlockInvitesCheckbox = 'HUD-FriendFoeList-BlockInvitesCheckbox';
 const BlockInvitesCheckboxLabel = 'HUD-FriendFoeList-BlockInvitesCheckboxLabel';
 const InvitesSectionContainer = 'HUD-FriendFoeList-InvitesSectionContainer';
@@ -113,14 +109,10 @@ const StringIDFriendFoeLegendMemberClass = 'FriendFoeLegendMemberClass';
 const StringIDFriendFoeLegendMemberNote = 'FriendFoeLegendMemberNote';
 const StringIDFriendFoeAddFriend = 'FriendFoeAddFriend';
 const StringIDFriendFoeAddFoe = 'FriendFoeAddFoe';
-const StringIDFriendFoeAddFriendToList = 'FriendFoeAddFriendToList';
-const StringIDFriendFoeAddFoeToList = 'FriendFoeAddFoeToList';
 const StringIDFriendFoeRemoveFriend = 'FriendFoeRemoveFriend';
 const StringIDFriendFoeRemoveFoe = 'FriendFoeRemoveFoe';
 const StringIDFriendFoeAddNote = 'FriendFoeAddNote';
 const StringIDChatScopeNameWhisper = 'ChatScopeNameWhisper';
-const StringIDFriendFoePresenceOnline = 'FriendFoePresenceOnline';
-const StringIDFriendFoePresenceOffline = 'FriendFoePresenceOffline';
 const StringIDFriendFoeReceivedInvitationsTitle = 'FriendFoeReceivedInvitationsTitle';
 const StringIDFriendFoeSentInvitationsTitle = 'FriendFoeSentInvitationsTitle';
 const StringIDFriendFoeBlockInvites = 'FriendFoeBlockInvites';
@@ -148,7 +140,6 @@ enum SortOrder {
 interface State {
   listType: ListType;
   sort: [SortCategory, SortOrder][];
-  selectedPresenceOption: string;
 }
 
 interface ReactProps {}
@@ -174,9 +165,7 @@ class AFriendFoeList extends React.Component<Props, State> {
 
     this.state = {
       listType: ListType.Friends,
-      sort: [],
-      // TODO: When we properly support this, read from wherever the data lives instead.
-      selectedPresenceOption: getStringTableValue(StringIDGeneralOnline, props.stringTable)
+      sort: []
     };
   }
 
@@ -191,22 +180,14 @@ class AFriendFoeList extends React.Component<Props, State> {
           {this.state.listType === ListType.Foes ? this.renderBlockList() : null}
           {this.state.listType === ListType.Invitations ? this.renderInvitations(invitesSent, invitesReceived) : null}
         </div>
-        <div className={GlobalControlsSection}>
-          <FactionCheckbox
-            className={BlockInvitesCheckbox}
-            labelClassName={BlockInvitesCheckboxLabel}
-            labelOnLeft
-            labelText={getStringTableValue(StringIDFriendFoeBlockInvites, this.props.stringTable)}
-            isChecked={this.getAreInvitesBlocked()}
-            onCheckedChanged={this.onInviteBlockingChanged.bind(this)}
-          />
-          <FactionComboBox
-            className={PresenceComboBox}
-            options={this.getPresenceOptions()}
-            selectedOption={this.getSelectedPresenceOption()}
-            onSelectionChanged={this.onPresenceChange.bind(this)}
-          />
-        </div>
+        <FactionCheckbox
+          className={BlockInvitesCheckbox}
+          labelClassName={BlockInvitesCheckboxLabel}
+          labelOnLeft
+          labelText={getStringTableValue(StringIDFriendFoeBlockInvites, this.props.stringTable)}
+          isChecked={this.getAreInvitesBlocked()}
+          onCheckedChanged={this.onInviteBlockingChanged.bind(this)}
+        />
       </div>
     );
   }
@@ -242,7 +223,9 @@ class AFriendFoeList extends React.Component<Props, State> {
             background={BorderBackground.Darken}
             includeBottom={false}
           >
-            <div className={TabBadgeLabel}>{badgeCount}</div>
+            <div className={TabBadgeLabel} style={{ color: getFactionData(this.props.uiFactionID).targetBorderColor }}>
+              {badgeCount}
+            </div>
           </FactionBorder>
         ) : null}
       </FactionBorderSelectable>
@@ -436,51 +419,40 @@ class AFriendFoeList extends React.Component<Props, State> {
     );
   }
 
-  private onInviteCancel(invite: FriendInvite): void {
+  private async onInviteCancel(invite: FriendInvite): Promise<void> {
     // You sent this invite, and you are retracting it.
     const params: RejectFriendInviteParams = {
       inviteID: invite.id,
       inviterID: invite.to!.id!
     };
-    this.props.dispatch(callRejectFriendInvite(params));
+    const result = await this.props.dispatch(callRejectFriendInvite(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
   }
 
-  private onInviteAccept(invite: FriendInvite): void {
+  private async onInviteAccept(invite: FriendInvite): Promise<void> {
     // You received this invite, and you are accepting it.
     const params: AcceptFriendInviteParams = {
       inviteID: invite.id,
       inviterID: invite.from!.id!
     };
-    this.props.dispatch(callAcceptFriendInvite(params));
+    const result = await this.props.dispatch(callAcceptFriendInvite(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
   }
 
-  private onInviteIgnore(invite: FriendInvite): void {
+  private async onInviteIgnore(invite: FriendInvite): Promise<void> {
     // You received this invite, and you are rejecting it.
     const params: RejectFriendInviteParams = {
       inviteID: invite.id,
       inviterID: invite.from!.id!
     };
-    this.props.dispatch(callRejectFriendInvite(params));
+    const result = await this.props.dispatch(callRejectFriendInvite(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
   }
 
   private onAddClicked(isFriend: boolean): void {
-    const model: ModalModel = {
-      title: getStringTableValue(
-        isFriend ? StringIDFriendFoeAddFriendToList : StringIDFriendFoeAddFoeToList,
-        this.props.stringTable
-      ),
-      message: '',
-      body: <AddFriendFoeDialog isFoe={!isFriend} />,
-      buttons: null
-    };
-
-    this.props.dispatch(
-      showModal({
-        id: 'AddFriendFoe',
-        content: model,
-        escapable: true
-      })
-    );
+    // A sent invite is listed under Invitations; a new block already shows in the Block List.
+    const onAdded = isFriend ? () => this.setState({ listType: ListType.Invitations }) : undefined;
+    showAddFriendFoeModal(this.props.dispatch, this.props.stringTable, { isFoe: !isFriend, onAdded });
   }
 
   private onAddEditNoteClicked(isFriend: boolean, player: PlayerDisplayData): void {
@@ -500,7 +472,7 @@ class AFriendFoeList extends React.Component<Props, State> {
 
     this.props.dispatch(
       showModal({
-        id: 'AddFriendFoe',
+        id: 'AddEditFriendFoeNote',
         content: model,
         escapable: true
       })
@@ -531,7 +503,7 @@ class AFriendFoeList extends React.Component<Props, State> {
           {player.character && (
             <img
               className={MemberClassIcon}
-              src={this.props.defs.classesByStringID[player.character!.classID!].abilityBookIconImage}
+              src={this.props.defs.classesByStringID[player.character!.classID!].unitFrameIconTransparencyImage}
             />
           )}
         </div>
@@ -602,26 +574,26 @@ class AFriendFoeList extends React.Component<Props, State> {
           message: player.character?.name ?? player.account.displayName ?? '',
           buttons: [
             {
-              text: getStringTableValue(StringIDGeneralCancel, this.props.stringTable),
-              onClick: () => {
+              text: getStringTableValue(StringIDGeneralRemove, this.props.stringTable),
+              onClick: async () => {
                 dispatch(hideModal());
+                const result = isFriend
+                  ? await this.props.dispatch(callRemoveFriend(player.account.id!))
+                  : // Remove from Block List. Sending both allowed and blocked resets the player to the defaults.
+                    await this.props.dispatch(
+                      callSocialSetUserPermissions({
+                        allowed: UserInteractions.All,
+                        blocked: UserInteractions.All,
+                        targetID: player.account.id
+                      })
+                    );
+                showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
               }
             },
             {
-              text: getStringTableValue(StringIDGeneralRemove, this.props.stringTable),
+              text: getStringTableValue(StringIDGeneralCancel, this.props.stringTable),
               onClick: () => {
                 dispatch(hideModal());
-                if (isFriend) {
-                  this.props.dispatch(callRemoveFriend(player.account.id!));
-                } else {
-                  // Remove from Block List.
-                  const perms: SocialSetUserPermissionsParams = {
-                    allowed: UserInteractions.All,
-                    blocked: UserInteractions.None,
-                    targetID: player.account.id
-                  };
-                  this.props.dispatch(callSocialSetUserPermissions(perms));
-                }
               }
             }
           ]
@@ -733,41 +705,23 @@ class AFriendFoeList extends React.Component<Props, State> {
     }`;
   }
 
-  private getPresenceOptions(): string[] {
-    return [
-      getStringTableValue(StringIDFriendFoePresenceOnline, this.props.stringTable),
-      getStringTableValue(StringIDFriendFoePresenceOffline, this.props.stringTable)
-    ];
-  }
-
-  private getSelectedPresenceOption(): string {
-    // TODO: When we properly support this, read from wherever the data lives instead.
-    return this.state.selectedPresenceOption;
-  }
-
-  private onPresenceChange(selectedPresenceOption: string): void {
-    // TODO: When we properly support this, write to wherever the data lives instead.
-    this.setState({ selectedPresenceOption });
-  }
-
   private getAreInvitesBlocked(): boolean {
     return !!(this.props.blockedInteractions & UserInteractions.FriendInvite);
   }
 
-  private onInviteBlockingChanged(isBlocked: boolean): void {
+  private async onInviteBlockingChanged(isBlocked: boolean): Promise<void> {
+    // we're either clearing (by setting both) or blocking the specific friend invite field
     const params: SocialSetPermissionsParams = {
-      allowed: isBlocked
-        ? this.props.allowedInteractions & ~UserInteractions.FriendInvite
-        : this.props.allowedInteractions | UserInteractions.FriendInvite,
-      blocked: isBlocked
-        ? this.props.blockedInteractions | UserInteractions.FriendInvite
-        : this.props.blockedInteractions & ~UserInteractions.FriendInvite
+      allowed: isBlocked ? UserInteractions.None : UserInteractions.FriendInvite,
+      blocked: UserInteractions.FriendInvite
     };
-    this.props.dispatch(callSocialSetPermissions(params));
+    const result = await this.props.dispatch(callSocialSetPermissions(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
   }
 
-  private onRejectAllClicked(): void {
-    this.props.dispatch(callRejectAllFriendInvites());
+  private async onRejectAllClicked(): Promise<void> {
+    const result = await this.props.dispatch(callRejectAllFriendInvites());
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
   }
 }
 
@@ -782,10 +736,9 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     friendInvites: (state.social.friends.friendInvites ?? []) as FriendInvite[],
     selfAccountID: state.entities.self.accountID,
     userOverrides: (state.social.settings?.overrides ?? []) as UserOverrides[],
-    allowedInteractions:
-      state.social.settings?.defaultAllowed === null ? UserInteractions.All : state.social.settings?.defaultAllowed,
-    blockedInteractions:
-      state.social.settings?.defaultBlocked === null ? UserInteractions.All : state.social.settings?.defaultBlocked
+    // Only null before the settings load; the server always sends both.
+    allowedInteractions: state.social.settings?.defaultAllowed ?? UserInteractions.All,
+    blockedInteractions: state.social.settings?.defaultBlocked ?? UserInteractions.None
   };
 };
 

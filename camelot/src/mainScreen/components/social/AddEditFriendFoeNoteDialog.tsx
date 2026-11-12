@@ -7,6 +7,7 @@ import { FactionButton } from '../FactionButton';
 import { getStringTableValue, StringIDGeneralCancel, StringIDGeneralSave } from '../../helpers/stringTableHelpers';
 import { hideModal } from '../../redux/modalsSlice';
 import { callSocialSetUserNote, SocialSetUserNoteParams } from '../../helpers/rest/socialRestCalls';
+import { showCallErrorModalIfFailed } from '../../helpers/errorConversionHelpers';
 import { Account, Character } from '@csegames/library/dist/camelotunchained/graphql/schema';
 
 // CSS classes
@@ -71,14 +72,15 @@ class AAddEditFriendFoeNoteDialog extends React.Component<Props, State> {
     );
   }
 
-  private onSaveClicked(): void {
+  private async onSaveClicked(): Promise<void> {
     const params: SocialSetUserNoteParams = {
       targetID: this.props.account.id!,
       name: this.props.character && this.props.character.name ? this.props.character.name : undefined,
       note: this.state.inputValue
     };
-    this.props.dispatch(callSocialSetUserNote(params));
     this.props.dispatch(hideModal());
+    const result = await this.props.dispatch(callSocialSetUserNote(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
   }
 
   private onCancelClicked(): void {

@@ -714,12 +714,12 @@ $ResizingHandleSize: 5px;
   }
 }
 
-.HUD-HUDEditor-DecorButtons {
+.HUD-HUDEditor-OptionButtons {
   display: flex;
   flex: 1;
 }
 
-.HUD-HUDEditor-DecorButton {
+.HUD-HUDEditor-OptionButton {
   flex: 1;
   margin-left: 0.5vmin;
   font-family: 'Caudex', serif;
@@ -4071,6 +4071,22 @@ $StatusEffectNeutralColor: white;
   }
 }
 
+.HUD-FactionTabBadge-Root {
+  position: absolute;
+  top: 0.2vmin;
+  right: 0.2vmin;
+  min-width: 1.8vmin;
+  height: 1.8vmin;
+  padding: 0 0.3vmin;
+  box-sizing: border-box;
+  font-family: Caudex;
+  font-size: 1rem;
+  line-height: 1.8vmin;
+  text-align: center;
+  pointer-events: none;
+  @extend .textWithShadowOutline;
+}
+
 .HUD-FactionNumberSelector-Root {
   display: flex;
   flex-direction: row;
@@ -5737,31 +5753,12 @@ $ReadySheenTravel: (100% - $ReadySheenHeight) / $ReadySheenHeight * 100%;
   @extend .absoluteFill;
 }
 
-.HUD-AbilityBook-ClassIconContainer {
+.HUD-AbilityBook-Page {
   position: absolute;
-  top: -2.3vmin;
-  left: 0.5vmin;
-  width: 5.12vmin;
-  height: 9.89vmin;
-
-  &.Arthurian {
-    top: -2.7vmin;
-    left: 0vmin;
-  }
-}
-
-.HUD-AbilityBook-ClassIconArrow {
-  position: absolute;
-  top: 7.2vmin;
-  left: 0.5vmin;
-  width: 5.12vmin;
-  object-fit: contain;
-  transform: rotate(-90deg);
-}
-
-.HUD-AbilityBook-ClassIcon {
-  @extend .absoluteFill;
-  object-fit: contain;
+  top: 1.2vmin;
+  left: 2.4vmin;
+  width: 67.63vmin;
+  height: 72.38vmin;
 }
 
 .HUD-AbilityBook-TooltipRoot {
@@ -5800,6 +5797,22 @@ $ReadySheenTravel: (100% - $ReadySheenHeight) / $ReadySheenHeight * 100%;
 }
 
 .HUD-AbilityBook-TabIcon {
+  @extend .absoluteFill;
+  // Centered on the tab's interior, which has a 0.2vmin border on the right but none on the left.
+  left: -0.1vmin;
+  object-fit: contain;
+  pointer-events: none;
+
+  // Some small class emblems fill their whole image height, so this box keeps them clear of the tab border.
+  &.emblem {
+    top: 0.45vmin;
+    left: 0.35vmin;
+    width: 5.1vmin;
+    height: 5.1vmin;
+  }
+}
+
+.HUD-AbilityBook-TabTooltipArea {
   @extend .absoluteFill;
 }
 
@@ -7657,6 +7670,23 @@ $VeilMistDarkColor: rgb(70, 20, 140);
   animation: hotSpotIconPulse 1.2s ease-in-out infinite;
 }
 
+.HUD-WorldMapIcons-PersonalMarker {
+  width: 3vmin;
+  height: 3vmin;
+  margin-left: -1.5vmin;
+  margin-bottom: -1.5vmin;
+}
+
+.HUD-WorldMapIcons-PersonalMarkerIcon {
+  object-fit: contain;
+  cursor: pointer;
+  transition: transform 0.1s ease-out;
+
+  &:hover {
+    transform: scale(1.15);
+  }
+}
+
 .HUD-WorldMapIcons-Pips {
   @extend .row;
   position: absolute;
@@ -7935,6 +7965,13 @@ $world-map-panel-height: 26vmin;
   }
 }
 
+.HUD-WorldMap-POILabelHint {
+  font-family: Caudex;
+  font-size: 0.7rem;
+  color: #999999;
+  margin-top: 0.3vmin;
+}
+
 .HUD-WorldMap-LegendSlider {
   position: absolute;
   top: 50%;
@@ -8045,7 +8082,7 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   left: 0;
   right: 0;
   margin: 0 auto;
-  top: 2.5vmin;
+  top: 1.75vmin;
 }
 
 .HUD-Minimap-Container {
@@ -8061,12 +8098,14 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
   position: relative;
 }
 
+// Lets mouse events through to the time of day circle beneath it.
 .HUD-MiniMap-Frame {
   width: 20vmin;
   height: 20vmin;
   position: absolute;
   top: 0;
   left: 0;
+  pointer-events: none;
 }
 
 // Shared styles for both zoom handle buttons
@@ -8106,15 +8145,48 @@ $minimap-circle-clip: circle(closest-side at 50% 50%);
 .HUD-MiniMap-ZoomIn {
   @include minimap-zoom-button;
   right: 0.45vmin;
-  bottom: 4vmin;
+  bottom: 4.95vmin;
 }
 
 // − button at ~5 o'clock on the frame arc
 .HUD-MiniMap-ZoomOut {
   @include minimap-zoom-button;
   right: 2vmin;
-  bottom: 1.55vmin;
+  bottom: 2.5vmin;
   padding-bottom: 0.5vmin;
+}
+
+// Rounded with border-radius; a clip-path circle renders a jagged edge.
+.HUD-MiniMapTimeOfDay-Root {
+  position: absolute;
+  left: -0.2vmin;
+  top: 1.6vmin;
+  width: 4.2vmin;
+  height: 4.2vmin;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 0.25vmin solid;
+  background-size: cover;
+}
+
+.HUD-MiniMapTimeOfDayTooltip-Root {
+  @extend .column;
+  position: relative;
+  min-width: 10vmin;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.HUD-MiniMapTimeOfDayTooltip-Phase {
+  font-family: Caudex;
+  font-size: 1.5rem;
+  color: white;
+}
+
+.HUD-MiniMapTimeOfDayTooltip-Clock {
+  font-family: Caudex;
+  font-size: 1.25rem;
+  color: #cccccc;
 }
 
 .HUD-InventorySearchBar-Root {
@@ -11053,30 +11125,13 @@ $tradeskill-tracker-row-slide-distance: 6vmin;
   margin-left: 0.75vmin;
 }
 
-.HUD-TradeskillTrackerRow-NameRow {
-  @extend .row;
-  position: relative;
-  align-items: center;
-}
-
 .HUD-TradeskillTrackerRow-NameLabel {
   position: relative;
-  flex: 1;
   font-family: Caudex;
   font-size: 1.1rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: white;
-  @extend .textWithShadowOutline;
-}
-
-.HUD-TradeskillTrackerRow-LevelLabel {
-  position: relative;
-  margin-left: 0.5vmin;
-  font-family: Caudex;
-  font-size: 1.1rem;
-  white-space: nowrap;
   color: white;
   @extend .textWithShadowOutline;
 }
@@ -12388,12 +12443,104 @@ $quest-tracker-row-slide-distance: 6vmin;
 }
 
 .HUD-AbilityPageTradeskills-Root {
+  @extend .absoluteFill;
   @extend .column;
-  position: absolute;
-  top: 7vmin;
-  left: 7.8vmin;
-  width: 58.8vmin;
-  height: 64vmin;
+}
+
+.HUD-AbilityPageTradeskills-Panel {
+  @extend .column;
+  position: relative;
+  flex-grow: 1;
+  justify-content: center;
+  // No name banner straddles this panel's top, so it starts higher into the header's bottom margin.
+  margin-top: -2vmin;
+}
+
+.HUD-AbilityPageTradeskills-TrackColumns {
+  @extend .row;
+  position: relative;
+  // Both columns start at the same top so their rows line up; the panel centers the whole block.
+  align-items: flex-start;
+  box-sizing: border-box;
+  padding: 0 2vmin;
+
+  > * + * {
+    margin-left: 1.5vmin;
+  }
+}
+
+.HUD-AbilityPageTradeskills-TrackColumn {
+  @extend .column;
+  position: relative;
+  flex: 1 1 0;
+
+  > * + * {
+    margin-top: 1.4vmin;
+  }
+}
+
+.HUD-AbilityPageTradeskills-CellRoot {
+  @extend .row;
+  position: relative;
+  flex-shrink: 0;
+  align-items: center;
+  height: 3.95vmin;
+}
+
+.HUD-AbilityPageTradeskills-CellIconContainer {
+  position: relative;
+  flex-shrink: 0;
+  width: 3.6vmin;
+  height: 3.6vmin;
+  @extend .withDropShadowFilter;
+}
+
+.HUD-AbilityPageTradeskills-CellIcon {
+  @extend .absoluteFill;
+}
+
+.HUD-AbilityPageTradeskills-CellDetailsSection {
+  @extend .column;
+  position: relative;
+  flex: 1 1 0;
+  max-width: 20vmin;
+  margin-left: 1vmin;
+}
+
+.HUD-AbilityPageTradeskills-CellNameRow {
+  @extend .row;
+  position: relative;
+  align-items: center;
+  height: 1.9vmin;
+}
+
+.HUD-AbilityPageTradeskills-CellNameLabel {
+  position: relative;
+  flex: 1 1 0;
+  font-family: Caudex;
+  font-size: 1rem;
+  color: white;
+  white-space: nowrap;
+  @extend .textWithShadowOutline;
+}
+
+.HUD-AbilityPageTradeskills-CellTrackCheckbox {
+  margin-right: 0.8vmin;
+}
+
+.HUD-AbilityPageTradeskills-ProgressBarContainer {
+  position: relative;
+  height: 1.35vmin;
+  margin-top: 0.25vmin;
+  pointer-events: all;
+  @extend .withDropShadowFilter;
+
+  // When you hover the progress bar, its text will appear.
+  &:hover {
+    .HUD-AbilityPageTradeskills-ProgressBarText {
+      opacity: 1;
+    }
+  }
 }
 
 .HUD-AbilityPageTradeskills-ProgressBarClipper {
@@ -12412,13 +12559,6 @@ $quest-tracker-row-slide-distance: 6vmin;
   width: 100%;
   height: 100%;
   background-color: #00000001;
-
-  // When you hover the progress bar, its text will appear.
-  &:hover {
-    .HUD-AbilityPageTradeskills-ProgressBarText {
-      opacity: 1;
-    }
-  }
 }
 
 .HUD-AbilityPageTradeskills-ProgressBar {
@@ -12437,231 +12577,25 @@ $quest-tracker-row-slide-distance: 6vmin;
 .HUD-AbilityPageTradeskills-ProgressBarText {
   @extend .absoluteCenter;
   font-family: Caudex;
-  font-size: 2rem;
+  font-size: 0.9rem;
   color: white;
+  white-space: nowrap;
+  pointer-events: none;
   @extend .textWithShadowOutline;
 
   transition: opacity 0.25s;
-  opacity: 0; // Displayed via hover style on .HUD-AbilityPageTradeskills-ProgressBarContent.
-
-  &.small {
-    font-size: 1.3rem;
-  }
-
-  &.multi {
-    font-size: 1.3rem;
-  }
-}
-
-.HUD-AbilityPageTradeskills-TotalLevelRow {
-  @extend .row;
-  position: relative;
-  margin-top: 5vmin;
-}
-
-.HUD-AbilityPageTradeskills-TotalLevelDecoration {
-  position: relative;
-  width: 50%;
-  height: 6vmin;
-  background-size: 36vmin 4vmin;
-  background-position: -28% 50%;
-  background-repeat: no-repeat;
-
-  &.right {
-    background-position: 129% 50%;
-  }
-}
-
-.HUD-AbilityPageTradeskills-TotalLevelContainer {
-  @extend .absoluteCenter;
-  width: 6vmin;
-  height: 6vmin;
-  @extend .withDropShadowFilter;
-}
-
-.HUD-AbilityPageTradeskills-TotalLevelLabel {
-  @extend .absoluteCenter;
-  font-family: Caudex;
-  font-size: 3rem;
-  color: white;
-  @extend .textWithShadowOutline;
-}
-
-.HUD-AbilityPageTradeskills-CategoryRow {
-  @extend .row;
-  position: relative;
-  margin-top: 2vmin;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.HUD-AbilityPageTradeskills-CategoryTabContainer {
-  @extend .column;
-  position: relative;
-  margin: 0 1.5vmin;
-  align-items: center;
-  cursor: pointer;
-  @extend .withDropShadowFilter;
-}
-
-.HUD-AbilityPageTradeskills-CategoryTabLevelContainer {
-  position: relative;
-  width: 4vmin;
-  height: 2.5vmin;
-}
-
-.HUD-AbilityPageTradeskills-CategoryTabLevelLabel {
-  @extend .absoluteCenter;
-  top: 55%;
-  font-family: Caudex;
-  font-size: 1.25rem;
-  color: white;
-  @extend .textWithShadowOutline;
-}
-
-.HUD-AbilityPageTradeskills-CategoryTabNameContainer {
-  position: relative;
-  width: 10vmin;
-  height: 4vmin;
-}
-
-.HUD-AbilityPageTradeskills-CategoryTabNameLabel {
-  @extend .absoluteCenter;
-  font-family: Caudex;
-  font-size: 1.5rem;
-  color: white;
-  @extend .textWithShadowOutline;
-}
-
-.HUD-AbilityPageTradeskills-ListContainer {
-  position: relative;
-  margin: 0 2.5vmin 3vmin 2.5vmin;
-  flex-grow: 1;
-}
-
-.HUD-AbilityPageTradeskills-ListScrollArea {
-  @extend .absoluteFill;
-  width: calc(100% + 2.5vmin);
-}
-
-.HUD-AbilityPageTradeskills-ListContent {
-  @extend .column;
-  position: relative;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 3vmin;
-
-  &.small {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-}
-
-.HUD-AbilityPageTradeskills-ProgressBarContainer {
-  position: relative;
-  width: 39vmin;
-  height: 3vmin;
-  margin: 0.5vmin 0 0 0.25vmin;
-  @extend .withDropShadowFilter;
-
-  &.small {
-    width: 14vmin;
-    height: 2vmin;
-  }
-}
-
-.HUD-AbilityPageTradeskills-ListBorder {
-  @extend .absoluteFill;
-  pointer-events: none;
-  box-shadow: inset 0 0 3vmin 0.5vmin black;
-}
-
-.HUD-AbilityPageTradeskills-CellRoot {
-  @extend .row;
-  position: relative;
-  width: 100%;
-
-  &.small {
-    width: 50%;
-    margin-bottom: 3vmin;
-
-    &.last {
-      margin-bottom: 0;
-    }
-  }
-}
-
-.HUD-AbilityPageTradeskills-CellIconSection {
-  @extend .column;
-  position: relative;
-  align-items: center;
-}
-
-.HUD-AbilityPageTradeskills-CellIconContainer {
-  position: relative;
-  width: 6vmin;
-  height: 6vmin;
-  @extend .withDropShadowFilter;
-}
-
-.HUD-AbilityPageTradeskills-CellIcon {
-  @extend .absoluteFill;
-}
-
-.HUD-AbilityPageTradeskills-CellLevelContainer {
-  position: relative;
-  width: 4vmin;
-  height: 2.5vmin;
-}
-
-.HUD-AbilityPageTradeskills-CellLevelLabel {
-  @extend .absoluteCenter;
-  font-family: Caudex;
-  font-size: 1.25rem;
-  color: white;
-  @extend .textWithShadowOutline;
-}
-
-.HUD-AbilityPageTradeskills-CellDetailsSection {
-  @extend .column;
-  position: relative;
-  margin-left: 1vmin;
-}
-
-.HUD-AbilityPageTradeskills-CellNameRow {
-  @extend .row;
-  position: relative;
-  align-items: center;
-}
-
-.HUD-AbilityPageTradeskills-CellNameLabel {
-  position: relative;
-  flex: 1;
-  font-family: Caudex;
-  font-size: 1.5rem;
-  color: white;
-  @extend .textWithShadowOutline;
-
-  &.small {
-    font-size: 1.25rem;
-  }
-}
-
-.HUD-AbilityPageTradeskills-CellTrackCheckbox {
-  margin-left: 1vmin;
-}
-
-.HUD-AbilityPageTradeskills-CellDivider {
-  position: relative;
-  align-self: center;
-  width: 95%;
-  margin: -0.75vmin 0;
+  opacity: 0; // Displayed via hover style on .HUD-AbilityPageTradeskills-ProgressBarContainer.
 }
 
 .HUD-AbilityPageTradeskills-AbilitiesContainer {
   @extend .row;
   position: relative;
-  flex-wrap: wrap;
+  flex-shrink: 0;
+  margin-left: 0.5vmin;
+
+  > * + * {
+    margin-left: 0.3vmin;
+  }
 }
 
 .HUD-AbilityPageTradeskills-AbilitiesListEntry {
@@ -12672,8 +12606,8 @@ $quest-tracker-row-slide-distance: 6vmin;
 
 .HUD-AbilityPageTradeskills-AbilityIconContainer {
   position: relative;
-  width: 3.2vmin;
-  height: 3.2vmin;
+  width: 1.8vmin;
+  height: 1.8vmin;
   background-color: black;
 }
 
@@ -12681,13 +12615,13 @@ $quest-tracker-row-slide-distance: 6vmin;
   position: absolute;
   top: 0;
   left: 0;
-  width: 3.2vmin;
-  height: 3.2vmin;
+  width: 1.8vmin;
+  height: 1.8vmin;
 }
 
 .HUD-AbilityPageTradeskills-AbilitiesListEntryDraggableHandle {
-  width: 3.2vmin;
-  height: 3.2vmin;
+  width: 1.8vmin;
+  height: 1.8vmin;
   cursor: move;
 
   &.disabled {
@@ -12696,8 +12630,8 @@ $quest-tracker-row-slide-distance: 6vmin;
 }
 
 .HUD-AbilityPageTradeskills-AbilitiesListEntryIcon {
-  width: 3.2vmin;
-  height: 3.2vmin;
+  width: 1.8vmin;
+  height: 1.8vmin;
 }
 
 .HUD-AbilityPageTradeskills-AbilitiesListEntryIconDraggable {
@@ -12705,123 +12639,80 @@ $quest-tracker-row-slide-distance: 6vmin;
   height: 3.2vmin;
 }
 
-.HUD-AbilityPageClass-Root {
-  @extend .row;
-  align-items: center;
-  position: absolute;
-  top: 3.67vmin;
-  left: 7.74vmin;
-  width: 59.52vmin;
-  height: 67.86vmin;
-}
-
-.HUD-AbilityPageClass-ArchetypeColumn {
+.HUD-AbilityBookHeader-Root {
   @extend .column;
   position: relative;
-  height: calc(100% - 6vmin);
-  width: 14.88vmin;
-  flex-shrink: 0;
   align-items: center;
+  flex-shrink: 0;
+  // Centers the banner between the book frame and the name banners below, which straddle their panels' top borders.
+  // Content below starts 8.22vmin down (0.05 + the 5.8vmin banner + 2.37).
+  margin-top: 0.05vmin;
+  margin-bottom: 2.37vmin;
 }
 
-.HUD-AbilityPageClass-SpecsColumn {
-  display: flex;
-  flex-direction: column-reverse;
-  position: relative;
-  height: 100%;
-  width: 44.64vmin;
+.HUD-AbilityBookHeader-Divider {
+  position: absolute;
+  top: 0;
+  // Same height as the banner, so object-fit centers the line on it.
+  height: 5.8vmin;
+  width: 20vmin;
+  object-fit: contain;
+  // Overlaps the banner frame edge (9.98vmin from center) by 0.1vmin so the ornament butts against it.
+  right: calc(50% + 9.88vmin);
+
+  &.right {
+    right: auto;
+    left: calc(50% + 9.88vmin);
+    transform: scaleX(-1);
+  }
 }
 
-.HUD-AbilityPageClass-PointsHeader {
-  @extend .row;
+.HUD-AbilityBookHeader-Banner {
+  @extend .column;
   position: relative;
-  height: 0;
-  width: 100%;
+  width: 24vmin;
+  height: 5.8vmin;
   align-items: center;
   justify-content: center;
-  flex-grow: 0;
-  margin-bottom: 0.6vmin;
-}
-
-.HUD-AbilityPageClass-PointsBorder {
-  position: relative;
-  top: 0.3vmin;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
   flex-shrink: 0;
 }
 
-.HUD-AbilityPageClass-PointsLabel {
+.HUD-AbilityBookHeader-Label {
   position: relative;
   font-family: Caudex;
-  font-size: 0.85rem;
+  font-size: 1.3rem;
   color: white;
-  flex-shrink: 0;
-  margin: 0.25vmin 1vmin;
 }
 
-.HUD-AbilityPageClass-SpecsSection {
-  @extend .row;
-  position: relative;
-  flex-grow: 1;
-}
-
-.HUD-AbilityPageClass-SpecColumn {
+.HUD-AbilityBookNameBanner-Banner {
   @extend .column;
   position: relative;
-  width: 14.88vmin;
+  width: 100%;
+  height: 4vmin;
   align-items: center;
+  justify-content: center;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  // Centered on the panel's top border.
+  margin-top: -2vmin;
+  margin-bottom: -0.65vmin;
+  // We usually try to avoid z-index, but this is the easiest way to ensure the name banner appears over the level border below it.
+  z-index: 1;
+  flex-shrink: 0;
 }
 
-.HUD-AbilityPageClass-SpecLabel {
+.HUD-AbilityBookNameBanner-Label {
   position: relative;
   font-family: Caudex;
   font-size: 1.1rem;
   color: white;
 }
 
-.HUD-AbilityPageClass-LevelLabel {
-  position: relative;
-  font-family: Caudex;
-  font-size: 0.85rem;
-  color: white;
-  margin: 0.2vmin 0.5vmin;
-  text-align: center;
-}
-
-.HUD-AbilityPageClass-ArchetypeNameBorder {
-  @extend .column;
-  position: relative;
-  width: 110%;
-  height: 4vmin;
-  align-items: center;
-  justify-content: center;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  margin-top: -1.75vmin;
-  margin-bottom: -0.8vmin;
-  // We usually try to avoid z-index, but this is the easiest way to ensure the name banner appears over the level border below it.
-  z-index: 1;
-  flex-shrink: 0;
-}
-
-.HUD-AbilityPageClass-SpecNameBorder {
-  @extend .column;
-  position: relative;
-  width: 110%;
-  height: 4vmin;
-  align-items: center;
-  justify-content: center;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  margin-top: 0.75vmin;
-  margin-bottom: -0.8vmin;
-  // We usually try to avoid z-index, but this is the easiest way to ensure the name banner appears over the level border below it.
-  z-index: 1;
-  flex-shrink: 0;
-}
-
-.HUD-AbilityPageClass-LevelBorder {
+.HUD-AbilityBookNameBanner-LevelBorder {
   @extend .row;
   position: relative;
   min-width: 60%;
@@ -12830,11 +12721,42 @@ $quest-tracker-row-slide-distance: 6vmin;
   flex-shrink: 0;
 }
 
+.HUD-AbilityBookNameBanner-LevelLabel {
+  position: relative;
+  font-family: Caudex;
+  font-size: 0.85rem;
+  color: white;
+  margin: 0.2vmin 0.5vmin;
+  text-align: center;
+}
+
+.HUD-AbilityPageClass-Root {
+  @extend .absoluteFill;
+  @extend .column;
+}
+
+.HUD-AbilityPageClass-TracksRow {
+  @extend .row;
+  position: relative;
+  flex-grow: 1;
+
+  > * + * {
+    margin-left: 1vmin;
+  }
+}
+
+.HUD-AbilityPageClass-TrackColumn {
+  @extend .column;
+  position: relative;
+  flex: 1 1 0;
+  align-items: center;
+}
+
 .HUD-AbilityPageClass-AbilityTrackColumn {
   @extend .column;
   position: relative;
   align-items: center;
-  margin-top: 1vmin;
+  margin-top: 1.75vmin;
 }
 
 .HUD-AbilityPageClass-AbilityContainer {
@@ -12842,7 +12764,8 @@ $quest-tracker-row-slide-distance: 6vmin;
   align-items: center;
   position: relative;
   width: 5vmin;
-  height: 7vmin;
+  // The 5vmin icon plus its 2.4vmin connection line.
+  height: 7.4vmin;
   @extend .withDropShadowFilter;
 
   &.last {
@@ -12851,18 +12774,16 @@ $quest-tracker-row-slide-distance: 6vmin;
   }
 }
 
-.HUD-AbilityPageClass-TrainButton {
-  position: relative;
-  margin: 0.5vmin;
-  transition: transform 0.1s ease;
+.HUD-AbilityPageClass-StagedGlow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 5vmin;
+  pointer-events: none;
 
-  &:active {
-    transform: scale(0.9);
-  }
-
-  &.max {
-    opacity: 0;
-    pointer-events: none;
+  &.last {
+    height: 6vmin;
   }
 }
 
@@ -12973,17 +12894,27 @@ $quest-tracker-row-slide-distance: 6vmin;
   }
 }
 
+.HUD-AbilityPageClass-PassiveDivider {
+  width: 12vmin;
+  // Stretched taller than its aspect ratio, since the line is only a few pixels of the image.
+  height: 1.2vmin;
+  object-fit: fill;
+  // Centered in the 2.4vmin line space under the last passive cell. The margins net out its height,
+  // so the rows below stay aligned with the spec trees.
+  margin: -1.8vmin 0 0.6vmin;
+}
+
 .HUD-AbilityPageClass-ConnectionLine {
   position: relative;
   width: 1vmin;
-  height: 2vmin;
+  height: 2.4vmin;
   border-left: 0.15vmin solid #222222;
   border-right: 0.15vmin solid #222222;
   background-color: #555555;
 
   &.levelUp {
     position: absolute;
-    top: calc(100% - 2vmin);
+    top: calc(100% - 2.4vmin);
     border-color: white;
     animation: hapcclGrow 0.7s forwards;
   }
@@ -12993,8 +12924,44 @@ $quest-tracker-row-slide-distance: 6vmin;
       height: 0vmin;
     }
     100% {
-      height: 2vmin;
+      height: 2.4vmin;
     }
+  }
+}
+
+.HUD-AbilityBookTrainingBar-Root {
+  @extend .row;
+  position: relative;
+  flex-shrink: 0;
+  align-items: center;
+  height: 5.5vmin;
+  margin-top: 1.5vmin;
+  padding: 0 2vmin;
+}
+
+.HUD-AbilityBookTrainingBar-Label {
+  position: relative;
+  flex-grow: 1;
+  font-family: Caudex;
+  font-size: 1.25rem;
+  color: white;
+
+  &.disabled {
+    filter: grayscale(100%) brightness(50%);
+  }
+}
+
+.HUD-AbilityBookTrainingBar-Separator {
+  margin: 0 1vmin;
+}
+
+.HUD-AbilityBookTrainingBar-Button {
+  position: relative;
+  margin-left: 1.5vmin;
+  transition: transform 0.1s ease;
+
+  &:active {
+    transform: scale(0.9);
   }
 }
 
@@ -13218,21 +13185,6 @@ $quest-tracker-row-slide-distance: 6vmin;
   @extend .absoluteFill;
 }
 
-.HUD-Social-TabBadgeContainer {
-  position: absolute;
-  top: 0;
-  right: 0;
-}
-
-.HUD-Social-TabBadgeLabel {
-  position: relative;
-  padding: 0.2vmin 0.5vmin;
-  font-family: Caudex;
-  font-size: 1rem;
-  color: white;
-  background-color: #550000;
-}
-
 .HUD-FriendFoeList-Root {
   @extend .absoluteFill;
   @extend .column;
@@ -13269,7 +13221,6 @@ $quest-tracker-row-slide-distance: 6vmin;
   margin: 0.35vmin 1vmin;
   font-family: Caudex;
   font-size: 1rem;
-  color: white;
 }
 
 .HUD-FriendFoeList-Roster-MemberListSection {
@@ -13431,25 +13382,10 @@ $quest-tracker-row-slide-distance: 6vmin;
   align-self: center;
 }
 
-.HUD-FriendFoeList-GlobalControlsSection {
-  @extend .column;
-  flex-direction: column-reverse;
+.HUD-FriendFoeList-BlockInvitesCheckbox {
   position: absolute;
   top: 2vmin;
-  right: 2vmin;
-}
-
-.HUD-FriendFoeList-PresenceComboBox {
-  position: relative;
-  width: 10vmin;
-  margin-right: 1vmin;
-  align-self: flex-end;
-}
-
-.HUD-FriendFoeList-BlockInvitesCheckbox {
-  position: relative;
-  margin-top: 1vmin;
-  margin-right: 0.5vmin;
+  right: 2.5vmin;
 }
 
 .HUD-FriendFoeList-BlockInvitesCheckboxLabel {
@@ -13522,8 +13458,9 @@ $quest-tracker-row-slide-distance: 6vmin;
   @extend .row;
   position: relative;
   align-items: center;
-  position: relative;
-  width: 20vmin;
+  justify-content: flex-end;
+  width: 18vmin;
+  margin-right: 2vmin;
   flex-shrink: 0;
 }
 
@@ -13626,6 +13563,10 @@ $quest-tracker-row-slide-distance: 6vmin;
   font-style: italic;
   font-size: 1.1rem;
   text-align: center;
+
+  &.error {
+    color: red;
+  }
 }
 
 .HUD-AddFriendFoeDialog-ButtonSection {
@@ -13670,4 +13611,121 @@ $quest-tracker-row-slide-distance: 6vmin;
 .HUD-AddEditFriendFoeNoteDialog-ActionButton {
   position: relative;
   margin: 0 1vmin;
+}
+
+$compass-bar-height: 2vmin;
+
+// Width is set inline from the HUD Editor's compass width setting.
+.HUD-Compass-Root {
+  position: relative;
+  height: $compass-bar-height;
+}
+
+.HUD-Compass-Frame {
+  @extend .absoluteFill;
+}
+
+.HUD-Compass-Window {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  // Clips left/right only; markers overflow the top and bottom on purpose.
+  clip-path: inset(-100vmin 0 -100vmin 0);
+  -webkit-clip-path: inset(-100vmin 0 -100vmin 0);
+}
+
+.HUD-Compass-TickDot {
+  position: absolute;
+  top: 50%;
+  width: 0.4vmin;
+  height: 0.4vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background-color: white;
+}
+
+.HUD-Compass-TickLabel {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-family: 'Caudex', serif;
+  font-size: 1.3vmin;
+  color: white;
+  @extend .textWithShadowOutline;
+}
+
+.HUD-Compass-CenterIndicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0.2vmin;
+  transform: translateX(-50%);
+}
+
+.HUD-Compass-Marker {
+  position: absolute;
+  top: 50%;
+  width: 2.4vmin;
+  height: 2.4vmin;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+.HUD-Compass-MarkerBackground {
+  @extend .absoluteFill;
+  object-fit: contain;
+}
+
+.HUD-Compass-MarkerInnerIcon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 60%;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+}
+
+.HUD-Compass-EndCap {
+  position: absolute;
+
+  &.left,
+  &.right {
+    height: $compass-bar-height;
+    width: auto;
+  }
+
+  // Top/bottom are rotated 90deg, so their width sets their on-screen height.
+  &.top,
+  &.bottom {
+    width: $compass-bar-height;
+    height: auto;
+  }
+
+  // The art points left; each cap is turned to point outward and sits fully past its edge.
+  &.left {
+    left: 0;
+    top: 50%;
+    transform: translate(-100%, -50%);
+  }
+
+  &.right {
+    right: 0;
+    top: 50%;
+    transform: translate(100%, -50%) scaleX(-1);
+  }
+
+  &.top {
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, -100%) rotate(90deg);
+  }
+
+  &.bottom {
+    left: 50%;
+    bottom: 0;
+    transform: translate(-50%, 100%) rotate(-90deg) scaleY(-1);
+  }
 }

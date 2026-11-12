@@ -10,11 +10,19 @@ import { updateProgressionTracks } from '../../redux/gameDefsSlice';
 
 export const progressionTrackManifestID = 'progressiontracks';
 
+export interface ProgressionTierValueDef {
+  key: string;
+  descriptionKey: string;
+  decimals: number; // max decimals shown
+  values: number[]; // Index 0 = tier 1
+}
+
 export interface ProgressionPoolUnlockDef {
   unlockID: string; // Ability or status string ID
   isStatus: boolean;
   maxTier: number;
   costByTier: number[]; // Index 0 = tier 1
+  tierValues: ProgressionTierValueDef[]; // Empty when the unlock defines none
 }
 
 export interface ProgressionPoolDef {
@@ -57,6 +65,7 @@ export function processProgressionTracks(dispatch: Dispatch, json: any, version:
         };
         break;
       case 2:
+      case 3:
         tracks[componentJson.id] = {
           id: componentJson.id,
           nameKey: componentJson.nameKey,
@@ -65,7 +74,7 @@ export function processProgressionTracks(dispatch: Dispatch, json: any, version:
           tags: componentJson.tags,
           abilityUnlocks: componentJson.abilityUnlocks,
           statusUnlocks: componentJson.statusUnlocks,
-          poolsByCategory: componentJson.poolsByCategory
+          poolsByCategory: normalizePoolsByCategory(componentJson.poolsByCategory)
         };
         break;
     }
@@ -91,7 +100,8 @@ function isProgressionTrackData(obj: any, version: number): boolean {
       }
       return isCorrectType;
     }
-    case 2: {
+    case 2:
+    case 3: {
       const isCorrectType =
         Object.keys(obj).length === 8 &&
         'id' in obj &&
@@ -101,7 +111,8 @@ function isProgressionTrackData(obj: any, version: number): boolean {
         'tags' in obj &&
         'abilityUnlocks' in obj &&
         'statusUnlocks' in obj &&
-        'poolsByCategory' in obj;
+        'poolsByCategory' in obj &&
+        (version < 3 || hasValidTierValues(obj.poolsByCategory));
       if (!isCorrectType) {
         console.error(`Found invalid ProgressionTrack object`, obj);
       }
@@ -111,4 +122,39 @@ function isProgressionTrackData(obj: any, version: number): boolean {
       console.error(`Found invalid ProgressionTrack version ${version}`);
       return false;
   }
+}
+
+function normalizePoolsByCategory(poolsByCategory: Record<string, ProgressionPoolDef[]>): Record<string, ProgressionPoolDef[]> {
+  const result: Record<string, ProgressionPoolDef[]> = {};
+  for (const [categoryID, pools] of Object.entries(poolsByCategory ?? {})) {
+    result[categoryID] = pools.map((pool) => ({
+      ...pool,
+      unlocks: pool.unlocks.map((unlock) => ({
+        ...unlock,
+        tierValues: unlock.tierValues ?? []
+      }))
+    }));
+  }
+  return result;
+}
+
+function hasValidTierValues(poolsByCategory: any): boolean {
+  for (const pools of Object.values(poolsByCategory ?? {}) as any[]) {
+    for (const pool of pools ?? []) {
+      for (const unlock of pool?.unlocks ?? []) {
+        if (!Array.isArray(unlock.tierValues)) {
+          return false;
+        }
+        for (const tv of unlock.tierValues) {
+          if (typeof tv.key !== 'string' ||
+              typeof tv.descriptionKey !== 'string' ||
+              typeof tv.decimals !== 'number' ||
+              !Array.isArray(tv.values)) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
 }

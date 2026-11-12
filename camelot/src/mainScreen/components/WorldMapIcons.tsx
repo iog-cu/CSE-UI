@@ -12,20 +12,40 @@ import { FactionDef } from '../dataSources/manifest/factionManifest';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { ListenerHandle } from '@csegames/library/dist/_baseGame/listenerHandle';
 import { AnimationData, MapDataType } from '@csegames/library/dist/_baseGame/GameClientModels/AnimationData';
-import { getMapDetails, getMapIconXPercent, getMapIconYPercent, parseZoneBounds } from '../helpers/mapHelpers';
+import {
+  getMapDetails,
+  getMapIconXPercent,
+  getMapIconYPercent,
+  parseZoneBounds,
+  yawToCompassBearing
+} from '../helpers/mapHelpers';
 import { PartyMember } from '@csegames/library/dist/camelotunchained/game/GameClientModels/PartySnapshot';
 import { WarbandSubgroup } from '@csegames/library/dist/camelotunchained/game/GameClientModels/WarbandSnapshot';
 import { getFactionData } from '../gameData/factionData';
 import { StringTableEntryDef } from '../dataSources/manifest/stringTableManifest';
 import { GroupPOIType } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
+import { PersonalMapMarker } from '@csegames/library/dist/camelotunchained/clientFunctions/HUDFunctions';
 import { MapElementIcon } from './MapElementIcon';
 import { WorldMapIcon } from './WorldMapIcon';
+import { TooltipSource } from './TooltipSource';
+import ContextMenuSource from './ContextMenuSource';
+import { ContextMenuItem } from '../redux/contextMenuSlice';
+import { StringIDMapPersonalMarkerName } from './WorldMap';
+import { getStringTableValue } from '../helpers/stringTableHelpers';
+
+const StringIDMapMarkerRemove = 'MapMarkerRemove';
 
 // CSS classes
 const Root = 'HUD-WorldMapIcons-Root';
 const WorldMapPoint = 'HUD-WorldMapIcons-Point';
+const Icon = 'HUD-WorldMapIcons-Icon';
+const PersonalMarker = 'HUD-WorldMapIcons-PersonalMarker';
+const PersonalMarkerIcon = 'HUD-WorldMapIcons-PersonalMarkerIcon';
 const PingRing = 'HUD-WorldMapIcons-PingRing';
 const PingContainer = 'HUD-WorldMapIcons-PingContainer';
+
+const POITooltip = 'HUD-WorldMapIcons-POITooltip';
+const POITooltipName = 'HUD-WorldMapIcons-POITooltipName';
 
 interface ReactProps {
   zone: ZoneInfo;
@@ -40,6 +60,8 @@ interface InjectedProps {
   stringTable: Record<string, StringTableEntryDef>;
   partyMembers: PartyMember[];
   warbandSubgroups: WarbandSubgroup[];
+  personalMarker: PersonalMapMarker | null;
+  personalMapMarkerVisible: boolean;
 }
 
 interface State {
@@ -88,6 +110,7 @@ class AWorldMapIcons extends React.Component<Props, State> {
             stringTable={this.props.stringTable}
           />
         ))}
+        {this.renderPersonalMarker()}
         {this.renderPlayerIcon()}
       </div>
     );
@@ -142,6 +165,52 @@ class AWorldMapIcons extends React.Component<Props, State> {
     );
   }
 
+  private renderPersonalMarker(): React.ReactNode {
+    const marker = this.props.personalMarker;
+    if (!marker || !this.props.personalMapMarkerVisible) {
+      return null;
+    }
+
+    const factionData = getFactionData(this.props.uiFactionID);
+    const zoneID = this.props.zone.ID;
+    const zoneBounds = parseZoneBounds(this.props.zone.Bounds);
+    const markerID = `PersonalMapMarker_${zoneID}`;
+
+    const contextMenuItems: ContextMenuItem[] = [
+      {
+        title: getStringTableValue(StringIDMapMarkerRemove, this.props.stringTable),
+        onClick: () => clientAPI.setPersonalMapMarker(zoneID, null)
+      }
+    ];
+
+    return (
+      <TooltipSource
+        style={{
+          left: `${getMapIconXPercent(marker.x, zoneBounds)}%`,
+          bottom: `${getMapIconYPercent(marker.y, zoneBounds)}%`
+        }}
+        className={`${WorldMapPoint} ${PersonalMarker}`}
+        tooltipID={markerID}
+        positionType='mouse'
+        content={this.renderPersonalMarkerTooltip.bind(this)}
+      >
+        <ContextMenuSource menuParams={{ id: markerID, content: contextMenuItems }}>
+          <img className={`${Icon} ${PersonalMarkerIcon}`} src={factionData.personalMapMarkerImage} />
+        </ContextMenuSource>
+      </TooltipSource>
+    );
+  }
+
+  private renderPersonalMarkerTooltip(): React.ReactNode {
+    return (
+      <div className={POITooltip}>
+        <div className={POITooltipName}>
+          {getStringTableValue(StringIDMapPersonalMarkerName, this.props.stringTable)}
+        </div>
+      </div>
+    );
+  }
+
   private writePlayerPosition(): void {
     if (this.playerPingRef) {
       this.playerPingRef.style.left = `${this.playerX}%`;
@@ -173,7 +242,7 @@ class AWorldMapIcons extends React.Component<Props, State> {
     const bounds = parseZoneBounds(zone.Bounds);
     this.playerX = getMapIconXPercent(playerX, bounds);
     this.playerY = getMapIconYPercent(playerY, bounds);
-    this.playerRotation = playerYaw ? -playerYaw + 90 : 0;
+    this.playerRotation = playerYaw ? yawToCompassBearing(playerYaw) : 0;
     this.writePlayerPosition();
     if (!this.state.hasPlayerPosition) {
       this.setState({ hasPlayerPosition: true });
@@ -241,7 +310,9 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     isCurrentZone: ownProps.zone.ID === state.loading.zoneID,
     stringTable: stringTable,
     partyMembers: partyMembers,
-    warbandSubgroups: warbandSubgroups
+    warbandSubgroups: warbandSubgroups,
+    personalMarker: state.hud.personalMapMarkers[ownProps.zone.ID] ?? null,
+    personalMapMarkerVisible: state.hud.personalMapMarkerVisible
   };
 };
 

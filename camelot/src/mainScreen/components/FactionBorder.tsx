@@ -194,7 +194,6 @@ interface ReactProps extends React.HTMLAttributes<HTMLDivElement> {
   includeBottom?: boolean;
   background?: BorderBackground | string;
   titleText?: string;
-  titleCenterOverride?: string;
   cornerButtons?: React.ReactNode[];
   small?: boolean;
   /** If set, <ResizingHandles> will be rendered. */
@@ -310,13 +309,7 @@ class AFactionBorder extends React.Component<Props> {
         const bookendHeight = `calc(${cornerSize} * 0.11)`;
         const titleFontSize = `calc(${cornerSize} * 0.05)`;
         return (
-          <div
-            className={FancyHeaderContainer}
-            style={{
-              top: `calc(${cornerSize} * -0.13)`,
-              ...(this.props.titleCenterOverride ? { left: this.props.titleCenterOverride } : {})
-            }}
-          >
+          <div className={FancyHeaderContainer} style={{ top: `calc(${cornerSize} * -0.13)` }}>
             <img
               className={`${FancyHeaderBookend} left`}
               style={{ height: bookendHeight }}

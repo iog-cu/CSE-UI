@@ -59,6 +59,7 @@ export const StringIDGeneralOnline = 'GeneralOnline';
 export const StringIDGeneralOffline = 'GeneralOffline';
 export const StringIDGeneralDiscard = 'GeneralDiscard';
 export const StringIDGeneralNetworkError = 'GeneralNetworkError';
+export const StringIDGeneralRequestFailed = 'GeneralRequestFailed';
 export const StringIDGeneralComingSoon = 'GeneralComingSoon';
 export const StringIDGeneralDaysRemaining = 'GeneralDaysRemaining';
 export const StringIDGeneralHoursRemaining = 'GeneralHoursRemaining';
@@ -75,6 +76,8 @@ export const StringIDGeneralReassign = 'GeneralReassign';
 export const StringIDGeneralNotEnoughGold = 'GeneralNotEnoughGold';
 export const StringIDGeneralRemove = 'GeneralRemove';
 export const StringIDGeneralIgnore = 'GeneralIgnore';
+export const StringIDGeneralLevel = 'GeneralLevel';
+export const StringIDGeneralLevelShort = 'GeneralLevelShort';
 
 const reported = new Set<string>();
 

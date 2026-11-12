@@ -138,6 +138,7 @@ export interface PlayerEntityStateModel extends BaseEntityStateModel {
   stats: Record<number, EntityStat>;
   progression: Record<string, ProgressState>;
   characterLevel: number;
+  realmRank: number;
   equipment: Record<number, Item>;
   inventory: Record<number, Item>;
   wallet: Record<number, Item>;

@@ -50,6 +50,7 @@ import {
 import { WarbandState } from '../../redux/warbandSlice';
 import { PartyState } from '../../redux/partySlice';
 import { GuildSnapshot } from '@csegames/library/dist/camelotunchained/game/GameClientModels/GuildSnapshot';
+import { Friend } from '@csegames/library/dist/camelotunchained/graphql/schema';
 import { Faction } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
 import { StatusState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/StatusState';
 import { getTagFromString, tagsMatch } from '../../helpers/tagHelpers';
@@ -121,6 +122,7 @@ interface InjectedProps {
   selfGroupID: string;
   selfGuildID: string;
   guild: GuildSnapshot;
+  friends: (Friend | null)[] | null;
   isTargeted: boolean;
   classIconSize: ClassIconSize;
 }
@@ -378,6 +380,7 @@ class APartyMemberFrame extends React.Component<Props> {
       this.props.selfFaction,
       this.props.selfGuildID,
       this.props.guild,
+      this.props.friends,
       this.props.entity?.entityID ?? '',
       this.props.entity?.accountID ?? '',
       this.props.memberData.characterID,
@@ -433,6 +436,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
     selfGroupID: state.entities.self?.groupID ?? '',
     selfGuildID: state.entities.self?.guildID ?? '',
     guild: state.guild,
+    friends: state.social.friends.friends,
     isTargeted: !!state.entities.friendlyTargetID && ownProps.memberData.entityID === state.entities.friendlyTargetID,
     classIconSize: getClassIconSize(state.hud.vminPx)
   };

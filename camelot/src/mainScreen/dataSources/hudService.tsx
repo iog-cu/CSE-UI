@@ -13,6 +13,9 @@ import {
   setUIScale,
   updateGroupPOIsToHide,
   updatePOIsToHide,
+  updatePersonalMapMarkers,
+  setPersonalMapMarker,
+  setPersonalMapMarkerVisible,
   updateWidgetStates
 } from '../redux/hudSlice';
 import { setPartyLayoutHorizontal } from '../redux/partySlice';
@@ -23,6 +26,7 @@ import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenCli
 import { abilityBookRegistry } from '../components/abilityBook/AbilityBook';
 import { abilityCastingRegistry } from '../components/AbilityCasting';
 import { chatRegistry } from '../components/chat/Chat';
+import { compassRegistry } from '../components/compass/Compass';
 import { equippedRegistry } from '../components/Equipped';
 import {
   enemyTargetUnitFrameRegistry,
@@ -93,6 +97,11 @@ export class HUDService extends ExternalDataSource {
     const groupPOIsToHide = clientAPI.getGroupPOIsToHide();
     this.dispatch(updateGroupPOIsToHide(groupPOIsToHide));
 
+    const personalMapMarkers = clientAPI.getPersonalMapMarkers();
+    this.dispatch(updatePersonalMapMarkers(personalMapMarkers));
+
+    this.dispatch(setPersonalMapMarkerVisible(clientAPI.getPersonalMapMarkerVisibility()));
+
     this.dispatch(setNameplateStyle(clientAPI.getNameplateStyle()));
     this.dispatch(setPartyLayoutHorizontal(clientAPI.getPartyLayout() === 'horizontal'));
     this.dispatch(setUIScale(clientAPI.getUIScale()));
@@ -105,6 +114,12 @@ export class HUDService extends ExternalDataSource {
       }),
       clientAPI.bindUIScaleChangedListener((scale) => {
         this.dispatch(setUIScale(scale));
+      }),
+      clientAPI.bindPersonalMapMarkerChangedListener((zoneID, marker) => {
+        this.dispatch(setPersonalMapMarker({ zoneID, marker }));
+      }),
+      clientAPI.bindPersonalMapMarkerVisibilityChangedListener((visible) => {
+        this.dispatch(setPersonalMapMarkerVisible(visible));
       })
     ]);
   }
@@ -114,6 +129,7 @@ export class HUDService extends ExternalDataSource {
     registerHUDWidget(abilityCastingRegistry);
     registerHUDWidget(bankRegistry);
     registerHUDWidget(chatRegistry);
+    registerHUDWidget(compassRegistry);
     registerHUDWidget(craftingRegistry);
     registerHUDWidget(enemyTargetUnitFrameRegistry);
     registerHUDWidget(equippedRegistry);

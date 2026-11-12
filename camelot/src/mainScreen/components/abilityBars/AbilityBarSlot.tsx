@@ -19,7 +19,6 @@ import { Keybind } from '@csegames/library/dist/_baseGame/types/Keybind';
 import { KeybindSequencer } from '../input/KeybindSequencer';
 import { WIDGET_ID_ABILITY_BOOK } from '../abilityBook/AbilityBook';
 import { toggleConditionalWidget } from '../../redux/hudSlice';
-import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { getStringTableValue, StringIDGeneralPlus } from '../../helpers/stringTableHelpers';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
@@ -174,7 +173,6 @@ class AAbilityBarSlot extends React.Component<Props> {
 
   private navigateToAbilityBook(): void {
     if (!this.props.activeConditionalWidgetIDs.includes(WIDGET_ID_ABILITY_BOOK)) {
-      clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_WINDOW_CLOSED);
       this.props.dispatch(toggleConditionalWidget(WIDGET_ID_ABILITY_BOOK));
     }
   }

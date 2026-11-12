@@ -54,6 +54,7 @@ export const DefaultSelf: PlayerEntityStateModel = {
   stats: {},
   progression: {},
   characterLevel: 0,
+  realmRank: 0,
   equipment: {},
   inventory: {},
   wallet: {},

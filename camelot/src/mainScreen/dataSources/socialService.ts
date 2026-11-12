@@ -17,19 +17,28 @@ import {
 import { updateFriends, updateSocialSettings, updateSocialState } from '../redux/socialSlice';
 import { FriendInvite } from '@csegames/library/dist/camelotunchained/graphql/schema';
 
+function isReceivedFriendInvite(invite: FriendInvite, selfAccountID: string): boolean {
+  return invite.from?.id !== selfAccountID;
+}
+
 export function splitFriendInvites(invites: FriendInvite[], selfAccountID: string): [FriendInvite[], FriendInvite[]] {
   const invitesSent: FriendInvite[] = [];
   const invitesReceived: FriendInvite[] = [];
 
   invites.forEach((invite) => {
-    if (invite!.from?.id === selfAccountID) {
-      invitesSent.push(invite!);
-    } else {
+    if (isReceivedFriendInvite(invite!, selfAccountID)) {
       invitesReceived.push(invite!);
+    } else {
+      invitesSent.push(invite!);
     }
   });
 
   return [invitesSent, invitesReceived];
+}
+
+// Doesn't allocate, since the nav menu checks this on every store update.
+export function hasReceivedFriendInvites(invites: (FriendInvite | null)[] | null, selfAccountID: string): boolean {
+  return invites?.some((invite) => !!invite && isReceivedFriendInvite(invite, selfAccountID)) ?? false;
 }
 
 export class SocialService extends WithWebInterface(ExternalDataSource) {

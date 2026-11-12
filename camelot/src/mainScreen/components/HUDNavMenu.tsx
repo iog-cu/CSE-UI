@@ -33,6 +33,7 @@ import { WIDGET_ID_MAIL } from './mail/Mail';
 import { WIDGET_ID_QUESTLOG } from './quests/QuestLog';
 import { getAvailableAbilityPoints } from '../helpers/abilityBookHelpers';
 import { WIDGET_ID_SOCIAL } from './social/Social';
+import { hasReceivedFriendInvites } from '../dataSources/socialService';
 
 // CSS classes
 const Root = 'HUD-NavMenu-Root';
@@ -78,6 +79,7 @@ interface InjectedProps {
   stringTable: Record<string, StringTableEntryDef>;
   keybinds: Record<string, Keybind>;
   hasAvailableAbilityPoints: boolean;
+  hasReceivedFriendInvites: boolean;
 }
 
 type Props = ReactProps & InjectedProps;
@@ -167,6 +169,7 @@ class AHUDNavMenu extends React.Component<Props & DispatchProp, State> {
                 tooltipContent={getStringTableValue(StringIDHUDEditorWidgetNameSocial, this.props.stringTable)}
                 tooltipID={'HUDNav-Social'}
                 icon={factionData.hudnavIconSocialImage}
+                glow={this.props.hasReceivedFriendInvites}
                 onClick={this.onSocialClicked.bind(this)}
               />
               <HUDNavMenuButton
@@ -295,7 +298,11 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
     uiFactionID: state.hud.uiFactionID,
     stringTable: state.stringTable.stringTable,
     keybinds: state.keybinds,
-    hasAvailableAbilityPoints: getAvailableAbilityPoints(myClass, state.gameDefs, state.entities.self) > 0
+    hasAvailableAbilityPoints: getAvailableAbilityPoints(myClass, state.gameDefs, state.entities.self) > 0,
+    hasReceivedFriendInvites: hasReceivedFriendInvites(
+      state.social.friends.friendInvites,
+      state.entities.self.accountID
+    )
   };
 }
 

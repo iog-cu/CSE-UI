@@ -16,7 +16,7 @@ import {
   getTokenizedStringTableValue,
   StringIDGeneralUnlocked
 } from '../helpers/stringTableHelpers';
-import { TAG_PREFIX_ARCHETYPE_CLASS, TAG_PREFIX_TRADESKILL } from '../helpers/abilityBookHelpers';
+import { isTradeskillTrack, TAG_PREFIX_ARCHETYPE_CLASS } from '../helpers/abilityBookHelpers';
 import { isNotificationWidgetHidden } from '../components/NotificationToasts';
 
 const StringIDProgressionNewLevelMessage = 'ProgressionNewLevelMessage';
@@ -78,8 +78,7 @@ export class ProgressionService extends ExternalDataSource {
       // Only the archetype/character track grants a new ability point; spending one on a
       // specialization track also raises its level, but isn't a gain.
       const isArchetypeTrack = track.tags.some((tag) => tag.startsWith(TAG_PREFIX_ARCHETYPE_CLASS));
-      const isTradeskillTrack = track.tags.some((tag) => tag.startsWith(TAG_PREFIX_TRADESKILL));
-      const displayLevel = isTradeskillTrack ? prog.level : prog.level + 1;
+      const displayLevel = isTradeskillTrack(track) ? prog.level : prog.level + 1;
       this.dispatch(
         showToaster({
           id: `LevelUp${prog.id}`,

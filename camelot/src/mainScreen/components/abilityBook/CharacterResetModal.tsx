@@ -18,6 +18,7 @@ import {
   getTokenizedStringTableValue,
   StringIDGeneralCancel,
   StringIDGeneralConfirmation,
+  StringIDGeneralLevelShort,
   StringIDGeneralNotEnoughGold,
   StringIDGeneralReassign,
   StringIDGeneralReset
@@ -91,7 +92,6 @@ const StringIDCharacterResetModalNoAttributeChanges = 'CharacterResetModalNoAttr
 const StringIDCharacterResetModalUnassignedAttributes = 'CharacterResetModalUnassignedAttributes';
 const StringIDCharacterResetModalAbilityResetFeeLabel = 'CharacterResetModalAbilityResetFeeLabel';
 const StringIDCharacterResetModalAttributeReassignFeeLabel = 'CharacterResetModalAttributeReassignFeeLabel';
-const StringIDAbilityBookTrackLevel = 'AbilityBookTrackLevel';
 
 interface State {
   pendingStats: Record<string, number>;
@@ -292,7 +292,7 @@ class ACharacterResetModal extends React.Component<Props, State> {
           includeTop={false}
         >
           <div className={LevelLabel}>
-            {getTokenizedStringTableValue(StringIDAbilityBookTrackLevel, this.props.stringTable, {
+            {getTokenizedStringTableValue(StringIDGeneralLevelShort, this.props.stringTable, {
               LEVEL: displayLevel.toFixed()
             })}
           </div>

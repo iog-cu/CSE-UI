@@ -9,13 +9,15 @@ import { connect } from 'react-redux';
 import { AddDispatch, RootState } from '../../redux/store';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
+import { ProgressionTrackDelta } from '@csegames/library/dist/_baseGame/clientFunctions/ProgressionFunctions';
 import { ClassDef } from '../../dataSources/manifest/classManifest';
 import { Dictionary } from '@csegames/library/dist/_baseGame/types/ObjectMap';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import {
   getStringTableValue,
   getTokenizedStringTableValue,
-  replaceStringTokens
+  replaceStringTokens,
+  StringIDGeneralLevelShort
 } from '../../helpers/stringTableHelpers';
 import { AbilityWithActivation } from '../../redux/abilitiesSlice';
 import { AbilityGroup } from '@csegames/library/dist/_baseGame/types/AbilityTypes';
@@ -26,42 +28,40 @@ import { DropTypeAbilityButton } from '../abilityBars/AbilityButtonShared';
 import { AbilityBarSlotDropTargetData } from '../abilityBars/AbilityBarSlot';
 import { getFactionData } from '../../gameData/factionData';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
+import { FactionDivider } from '../FactionDivider';
 import {
   PlayerEntityStateModel,
   ProgressState
 } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { AbilityTooltip } from '../abilityBars/AbilityTooltip';
-import { FactionButton } from '../FactionButton';
 import { AbilityBookAbilityDisplayData } from './AbilityBook';
+import { AbilityBookHeader } from './AbilityBookHeader';
+import { AbilityBookNameBanner } from './AbilityBookNameBanner';
+import { AbilityBookTrainingBar } from './AbilityBookTrainingBar';
 import { GameDefsState } from '../../redux/gameDefsSlice';
 import {
   getAbilityByDisplayDefID,
+  getAbilityIconBorderProps,
   getAvailableAbilityPoints,
+  isSpecializationTrack,
+  StringIDAbilityBookClassProgression,
   TAG_PREFIX_ARCHETYPE_CLASS,
-  TAG_PREFIX_PASSIVE,
-  TAG_PREFIX_SPECIALIZATION
+  TAG_PREFIX_PASSIVE
 } from '../../helpers/abilityBookHelpers';
 import { ProgressionTrackDef } from '../../dataSources/manifest/progressionTrackManifest';
 
 const LEVEL_UP_ANIMATION_DURATION_MS = 1500;
+const STAGED_GLOW_BOX_SHADOW = '0 0 1.2vmin 0.4vmin';
+// Capstones are larger but keep the same corners as the other ability icons.
+const ABILITY_ICON_SIZE_VMIN = 5;
 
 // CSS classes
 const Root = 'HUD-AbilityPageClass-Root';
-const ArchetypeColumn = 'HUD-AbilityPageClass-ArchetypeColumn';
-const SpecsColumn = 'HUD-AbilityPageClass-SpecsColumn';
-const PointsHeader = 'HUD-AbilityPageClass-PointsHeader';
-const PointsBorder = 'HUD-AbilityPageClass-PointsBorder';
-const PointsLabel = 'HUD-AbilityPageClass-PointsLabel';
-const SpecsSection = 'HUD-AbilityPageClass-SpecsSection';
-const SpecColumn = 'HUD-AbilityPageClass-SpecColumn';
-const SpecLabel = 'HUD-AbilityPageClass-SpecLabel';
-const LevelLabel = 'HUD-AbilityPageClass-LevelLabel';
-const ArchetypeNameBorder = 'HUD-AbilityPageClass-ArchetypeNameBorder';
-const SpecNameBorder = 'HUD-AbilityPageClass-SpecNameBorder';
-const LevelBorder = 'HUD-AbilityPageClass-LevelBorder';
+const TracksRow = 'HUD-AbilityPageClass-TracksRow';
+const TrackColumn = 'HUD-AbilityPageClass-TrackColumn';
 const AbilityTrackColumn = 'HUD-AbilityPageClass-AbilityTrackColumn';
 const AbilityContainer = 'HUD-AbilityPageClass-AbilityContainer';
-const TrainButton = 'HUD-AbilityPageClass-TrainButton';
+const StagedGlow = 'HUD-AbilityPageClass-StagedGlow';
 const AbilitiesListEntry = 'HUD-AbilityPageClass-AbilitiesListEntry';
 const AbilityIconContainer = 'HUD-AbilityPageClass-AbilityIconContainer';
 const AbilitiesListEntryDraggable = 'HUD-AbilityPageClass-AbilitiesListEntryDraggable';
@@ -70,6 +70,7 @@ const AbilitiesListEntryIcon = 'HUD-AbilityPageClass-AbilitiesListEntryIcon';
 const AbilitiesListEntryIconDraggable = 'HUD-AbilityPageClass-AbilitiesListEntryIconDraggable';
 const LastAbilityDecoration = 'HUD-AbilityPageClass-LastAbilityDecoration';
 const ConnectionLine = 'HUD-AbilityPageClass-ConnectionLine';
+const PassiveDivider = 'HUD-AbilityPageClass-PassiveDivider';
 const TooltipRoot = 'HUD-AbilityBook-TooltipRoot';
 const TooltipHeader = 'HUD-AbilityBook-TooltipHeader';
 const TooltipDescription = 'HUD-AbilityBook-TooltipDescription';
@@ -78,15 +79,14 @@ const TooltipDescription = 'HUD-AbilityBook-TooltipDescription';
 const StringIDAbilityBookUnlockLevel = 'AbilityBookUnlockLevel';
 const StringIDAbilityBookAvailablePoints = 'AbilityBookAvailablePoints';
 const StringIDAbilityBookCharacterLevel = 'AbilityBookCharacterLevel';
-const StringIDAbilityBookTrackLevel = 'AbilityBookTrackLevel';
-const StringIDAbilityBookNotEnoughPoints = 'AbilityBookNotEnoughPoints';
-const StringIDAbilityBookTrain = 'AbilityBookTrain';
 
 interface State {
   // This caches the previous state so we can compare it to detect level ups that need animation.
   progression: Record<string, ProgressState>;
-  // When detected, we mark the track here.
-  levelUpTrackID: string;
+  // Each track that just leveled up, mapped to its level before the level up.
+  levelUpFromLevels: Record<string, number>;
+  // Levels staged per spec track. Train sends them all in one allocation.
+  stagedLevelsByTrackID: Record<string, number>;
 }
 
 interface ReactProps {}
@@ -105,13 +105,12 @@ interface InjectedProps {
 type Props = ReactProps & InjectedProps & AddDispatch;
 
 class AAbilityPageClass extends React.Component<Props, State> {
-  private availablePoints: number = 0;
   private levelUpTimeout: number = 0;
 
   constructor(props: Props) {
     super(props);
 
-    this.state = { progression: {}, levelUpTrackID: '' };
+    this.state = { progression: {}, levelUpFromLevels: {}, stagedLevelsByTrackID: {} };
   }
 
   render(): React.ReactNode {
@@ -126,62 +125,23 @@ class AAbilityPageClass extends React.Component<Props, State> {
     });
 
     const specializationTracks = classDef.progressionTracks.filter((ptID) => {
-      const progressionTrack = this.props.defs.progressionTracks[ptID];
-      return progressionTrack.tags.some((tag) => tag.startsWith(TAG_PREFIX_SPECIALIZATION));
+      return isSpecializationTrack(this.props.defs.progressionTracks[ptID]);
     });
-
-    const characterLevel = this.props.self.characterLevel ?? 0;
-    const displayCharacterLevel = characterLevel + 1;
-
-    this.availablePoints = getAvailableAbilityPoints(classDef, this.props.defs, this.props.self);
 
     return (
       <div className={Root}>
-        <FactionBorder
-          className={ArchetypeColumn}
-          type={BorderType.Primary}
-          background={BorderBackground.Darken}
-          includeRight={false}
-        >
-          <div
-            className={ArchetypeNameBorder}
-            style={{ backgroundImage: `url(${getFactionData(this.props.uiFactionID).headerBorderSecondaryImage})` }}
-          >
-            <div className={SpecLabel}>{getStringTableValue(classDef.name, this.props.stringTable)}</div>
-          </div>
-          <FactionBorder
-            className={LevelBorder}
-            type={BorderType.Secondary}
-            background={BorderBackground.PatternSmall}
-            includeTop={false}
-          >
-            <div className={LevelLabel}>
-              {getTokenizedStringTableValue(StringIDAbilityBookCharacterLevel, this.props.stringTable, {
-                LEVEL: displayCharacterLevel.toFixed()
-              })}
-            </div>
-          </FactionBorder>
-          <FactionButton className={`${TrainButton} max`} size={'m'} widthOverrideVmin={6.5} />
-          {this.renderAbilityTrack(archetypeTracks[0], false, this.renderPassive())}
-        </FactionBorder>
-        <div className={SpecsColumn}>
-          <FactionBorder className={SpecsSection} type={BorderType.Primary} background={BorderBackground.PatternLarge}>
-            {specializationTracks.map(this.renderSpecColumn.bind(this))}
-          </FactionBorder>
-          <div className={PointsHeader}>
-            <FactionBorder
-              className={PointsBorder}
-              type={BorderType.Secondary}
-              background={BorderBackground.PatternSmall}
-            >
-              <div className={PointsLabel}>
-                {getTokenizedStringTableValue(StringIDAbilityBookAvailablePoints, this.props.stringTable, {
-                  POINTS: this.availablePoints.toFixed(0)
-                })}
-              </div>
-            </FactionBorder>
-          </div>
+        <AbilityBookHeader title={getStringTableValue(StringIDAbilityBookClassProgression, this.props.stringTable)} />
+        <div className={TracksRow}>
+          {this.renderArchetypeColumn(archetypeTracks[0])}
+          {specializationTracks.map(this.renderSpecColumn.bind(this))}
         </div>
+        <AbilityBookTrainingBar
+          availableTemplate={getStringTableValue(StringIDAbilityBookAvailablePoints, this.props.stringTable)}
+          availablePoints={this.getAvailablePoints()}
+          stagedPoints={this.getStagedPointsTotal()}
+          onReset={this.onResetClicked.bind(this)}
+          onTrain={this.onTrainClicked.bind(this)}
+        />
       </div>
     );
   }
@@ -190,27 +150,35 @@ class AAbilityPageClass extends React.Component<Props, State> {
     // Because we detect level ups in a static function, we have to capture that in the widget instance
     // so we can mark the specific level ups as complete.
 
-    if (this.state.levelUpTrackID !== '' && this.levelUpTimeout === 0) {
-      // After the animation finishes, clear the levelUpTrackID so the views can transition back to a non-anim state.
+    if (Object.keys(this.state.levelUpFromLevels).length > 0 && this.levelUpTimeout === 0) {
+      if (this.hasTrainedLevelUp()) {
+        clientAPI.playGameSound(SoundEvents.PLAY_CP_ABILITY_TRAINING_COMPLETE);
+      }
+
+      // After the animation finishes, clear the level ups so the views can transition back to a non-anim state.
       this.levelUpTimeout = window.setTimeout(() => {
         this.levelUpTimeout = 0;
-        this.setState({ levelUpTrackID: '' });
+        this.setState({ levelUpFromLevels: {} });
       }, LEVEL_UP_ANIMATION_DURATION_MS);
     }
+  }
+
+  // Only spec tracks level up from training; the archetype track levels up from experience.
+  private hasTrainedLevelUp(): boolean {
+    return Object.keys(this.state.levelUpFromLevels).some((ptID) => {
+      return isSpecializationTrack(this.props.defs.progressionTracks[ptID]);
+    });
   }
 
   public static getDerivedStateFromProps(props: Props, state: State): State {
     // If there is no self, then there is no progression or progress to compare.
     if (!props.self) {
-      return { progression: {}, levelUpTrackID: '' };
+      return { progression: {}, levelUpFromLevels: {}, stagedLevelsByTrackID: {} };
     }
 
     if (props.self.progression !== state.progression) {
       // Progression changed, so at a minimum we will update the cached version.
-      let newState: State = {
-        progression: props.self.progression,
-        levelUpTrackID: ''
-      };
+      const levelUpFromLevels: Record<string, number> = {};
       // Empty progression would mean that this is the first login update for a character, and thus
       // wouldn't animate anything.
       if (Object.keys(state.progression).length > 0) {
@@ -219,17 +187,52 @@ class AAbilityPageClass extends React.Component<Props, State> {
           const newProgress = props.self.progression[ptID];
           const oldProgress = state.progression[ptID];
           if (newProgress && oldProgress && newProgress.level > oldProgress.level) {
-            newState.levelUpTrackID = ptID;
+            levelUpFromLevels[ptID] = oldProgress.level;
           }
         });
       }
       // This is a static function, but the timeout for the animation has to be specific to the widget instance,
       // so we set it up in animateLevelUps() during render().
-      return newState;
+      return { ...state, progression: props.self.progression, levelUpFromLevels };
     }
 
     // If no level ups detected, pass along the state unaltered.
     return state;
+  }
+
+  private isUnlockAnimating(ptID: string, unlockedAtLevel: number, trackLevel: number): boolean {
+    const levelBeforeLevelUp = this.state.levelUpFromLevels[ptID];
+    return levelBeforeLevelUp !== undefined && unlockedAtLevel > levelBeforeLevelUp && unlockedAtLevel <= trackLevel;
+  }
+
+  private getStagedTrackLevel(ptID: string, trackLevel: number): number {
+    return trackLevel + (this.state.stagedLevelsByTrackID[ptID] ?? 0);
+  }
+
+  private getStagedPointsTotal(): number {
+    return Object.values(this.state.stagedLevelsByTrackID).reduce((total, levels) => total + levels, 0);
+  }
+
+  private getAvailablePoints(): number {
+    return (
+      getAvailableAbilityPoints(this.props.myClass, this.props.defs, this.props.self) - this.getStagedPointsTotal()
+    );
+  }
+
+  private renderArchetypeColumn(ptID: string): React.ReactNode {
+    const displayCharacterLevel = (this.props.self.characterLevel ?? 0) + 1;
+
+    return (
+      <FactionBorder className={TrackColumn} type={BorderType.Primary} background={BorderBackground.PatternLarge}>
+        <AbilityBookNameBanner
+          name={getStringTableValue(this.props.myClass.name, this.props.stringTable)}
+          details={getTokenizedStringTableValue(StringIDAbilityBookCharacterLevel, this.props.stringTable, {
+            LEVEL: displayCharacterLevel.toFixed()
+          })}
+        />
+        {this.renderAbilityTrack(ptID, false, this.renderPassive())}
+      </FactionBorder>
+    );
   }
 
   private renderAbilityTrack(ptID: string, isSpec: boolean, leadingCells?: React.ReactNode): React.ReactNode {
@@ -246,64 +249,23 @@ class AAbilityPageClass extends React.Component<Props, State> {
     );
   }
 
-  private getMaxLevelForTrack(ptID: string): number {
+  private renderSpecColumn(ptID: string): React.ReactNode {
     const track = this.props.defs.progressionTracks[ptID];
-    if (!track) {
-      return 0;
-    }
-    const unlockLevels = Object.values(track.abilityUnlocks).sort();
-    return unlockLevels[unlockLevels.length - 1];
-  }
-
-  private renderSpecColumn(ptID: string, index: number): React.ReactNode {
-    const track = this.props.defs.progressionTracks[ptID];
-    const state = this.props.self.progression[ptID];
-
-    const level = state?.level ?? 0;
-    const displayLevel = level + 1;
-    const odd = index % 2 === 1;
-    const isMaxLevel = level >= this.getMaxLevelForTrack(ptID);
-    const canTrain = !isMaxLevel && this.availablePoints > 0;
+    const displayLevel = (this.props.self.progression[ptID]?.level ?? 0) + 1;
 
     return (
       <FactionBorder
-        className={SpecColumn}
+        key={ptID}
+        className={TrackColumn}
         type={BorderType.Primary}
-        background={odd ? BorderBackground.Darken : BorderBackground.None}
-        includeTop={false}
-        includeBottom={false}
-        includeLeft={odd}
-        includeRight={odd}
+        background={BorderBackground.PatternLarge}
       >
-        <div
-          className={SpecNameBorder}
-          style={{ backgroundImage: `url(${getFactionData(this.props.uiFactionID).headerBorderSecondaryImage})` }}
-        >
-          <div className={SpecLabel}>{getStringTableValue(track.nameKey, this.props.stringTable)}</div>
-        </div>
-        <FactionBorder
-          className={LevelBorder}
-          type={BorderType.Secondary}
-          background={BorderBackground.PatternSmall}
-          includeTop={false}
-        >
-          <div className={LevelLabel}>
-            {getTokenizedStringTableValue(StringIDAbilityBookTrackLevel, this.props.stringTable, {
-              LEVEL: displayLevel.toFixed()
-            })}
-          </div>
-        </FactionBorder>
-        <FactionButton
-          className={`${TrainButton}${!canTrain ? ' max' : ''}`}
-          size={'m'}
-          widthOverrideVmin={6.5}
-          fontScale={1.3}
-          disabled={!canTrain}
-          disabledTooltip={getStringTableValue(StringIDAbilityBookNotEnoughPoints, this.props.stringTable)}
-          onClick={this.onTrainClicked.bind(this, ptID)}
-        >
-          {getStringTableValue(StringIDAbilityBookTrain, this.props.stringTable)}
-        </FactionButton>
+        <AbilityBookNameBanner
+          name={getStringTableValue(track.nameKey, this.props.stringTable)}
+          details={getTokenizedStringTableValue(StringIDGeneralLevelShort, this.props.stringTable, {
+            LEVEL: displayLevel.toFixed()
+          })}
+        />
         {this.renderAbilityTrack(ptID, true)}
       </FactionBorder>
     );
@@ -320,14 +282,16 @@ class AAbilityPageClass extends React.Component<Props, State> {
     const progress = this.props.self.progression[data.progressionTrackID];
     const trackLevel = progress?.level ?? 0;
     const isLocked = trackLevel < data.unlockedAtLevel;
+    const isStaged = isLocked && data.unlockedAtLevel <= this.getStagedTrackLevel(data.progressionTrackID, trackLevel);
     const isLast = index === all.length - 1;
     // Only spec tracks end in a capstone ability.
     const lastClass = isLast && isSpec ? ' last' : '';
+    const hasConnectionLine = isSpec && !isLast;
 
-    const isLevelUpTrack = this.state.levelUpTrackID === data.progressionTrackID;
-    const shouldAnimateCell = isLevelUpTrack && data.unlockedAtLevel === trackLevel;
+    const shouldAnimateCell = this.isUnlockAnimating(data.progressionTrackID, data.unlockedAtLevel, trackLevel);
     // Lines are drawn after cells, so if the NEXT cell should animate, then this LINE should animate.
-    const shouldAnimateLine = isLevelUpTrack && (all[index + 1]?.unlockedAtLevel ?? 0) === trackLevel;
+    const shouldAnimateLine =
+      hasConnectionLine && this.isUnlockAnimating(data.progressionTrackID, all[index + 1].unlockedAtLevel, trackLevel);
 
     return (
       <div className={`${AbilityContainer}${lastClass}`}>
@@ -340,17 +304,28 @@ class AAbilityPageClass extends React.Component<Props, State> {
           positionType='mouse'
           key={data.displayDef.id}
           style={shouldAnimateCell ? { opacity: 0.2 } : {}}
+          onMouseDown={isSpec && isLocked ? this.onLockedAbilityMouseDown.bind(this, data) : undefined}
         >
           {isLast && isSpec && <img className={LastAbilityDecoration} src={factionData.hudnavEndImage} />}
-          {this.renderDraggableAbilityIcon(data, lastClass)}
+          {this.renderDraggableAbilityIcon(data, lastClass, isLocked)}
           {isLast && isSpec && <img className={`${LastAbilityDecoration} right`} src={factionData.hudnavEndImage} />}
         </TooltipSource>
-        {!isLast && this.renderConnectionLine(trackLevel, data, index, all, shouldAnimateLine)}
+        {isStaged && (
+          <div
+            className={`${StagedGlow}${lastClass}`}
+            style={{ boxShadow: `${STAGED_GLOW_BOX_SHADOW} ${factionData.selectionGlowColor}` }}
+          />
+        )}
+        {hasConnectionLine && this.renderConnectionLine(trackLevel, data, index, all, shouldAnimateLine)}
       </div>
     );
   }
 
-  private renderDraggableAbilityIcon(data: AbilityBookAbilityDisplayData, lastClass: string): React.ReactNode {
+  private renderDraggableAbilityIcon(
+    data: AbilityBookAbilityDisplayData,
+    lastClass: string,
+    isLocked: boolean
+  ): React.ReactNode {
     const draggableId = `AbilityBook${data.ability?.id}`;
 
     // Swaps change the ability's displayDefID in place, so derive the icon from the live ability
@@ -360,7 +335,10 @@ class AAbilityPageClass extends React.Component<Props, State> {
       : data.displayDef;
 
     return (
-      <FactionBorder className={`${AbilityIconContainer}${lastClass}`} type={BorderType.Secondary}>
+      <FactionBorder
+        className={`${AbilityIconContainer}${lastClass}`}
+        {...getAbilityIconBorderProps(!isLocked, ABILITY_ICON_SIZE_VMIN)}
+      >
         <Draggable
           className={`${AbilitiesListEntryDraggable}${lastClass}`}
           draggableID={draggableId}
@@ -423,7 +401,6 @@ class AAbilityPageClass extends React.Component<Props, State> {
     }
 
     const track = this.props.defs.progressionTracks[passiveTrackID];
-    const trackLevel = this.props.self.progression[passiveTrackID]?.level ?? 0;
     const grantedAbilities = this.getFilteredAbilities([passiveTrackID]);
 
     // Uses ability cells so the passive lines up with the spec rows.
@@ -436,18 +413,16 @@ class AAbilityPageClass extends React.Component<Props, State> {
             content={this.renderPassiveTooltip.bind(this, track)}
             positionType='mouse'
           >
-            <FactionBorder className={AbilityIconContainer} type={BorderType.Secondary}>
+            <FactionBorder
+              className={AbilityIconContainer}
+              {...getAbilityIconBorderProps(true, ABILITY_ICON_SIZE_VMIN)}
+            >
               <img className={AbilitiesListEntryIcon} src={track.iconURL} />
             </FactionBorder>
           </TooltipSource>
-          {grantedAbilities.length > 0 && (
-            <div
-              className={ConnectionLine}
-              style={grantedAbilities[0].unlockedAtLevel <= trackLevel ? this.getUnlockedConnectionLineStyle() : {}}
-            />
-          )}
         </div>
         {grantedAbilities.map(this.renderAbilityCell.bind(this, false))}
+        <FactionDivider simple className={PassiveDivider} />
       </>
     );
   }
@@ -461,9 +436,48 @@ class AAbilityPageClass extends React.Component<Props, State> {
     );
   }
 
-  private onTrainClicked(progressionTrackID: string): void {
-    // Request an increment to the track.
-    clientAPI.applySpecAllocation([{ trackID: progressionTrackID, delta: 1 }]);
+  private onLockedAbilityMouseDown(data: AbilityBookAbilityDisplayData, e: React.MouseEvent): void {
+    if (e.button !== 0) {
+      return;
+    }
+
+    const ptID = data.progressionTrackID;
+    const trackLevel = this.props.self.progression[ptID]?.level ?? 0;
+    const stagedTrackLevel = this.getStagedTrackLevel(ptID, trackLevel);
+    // Clicking a staged ability unstages it along with everything after it on the track.
+    const newStagedTrackLevel =
+      data.unlockedAtLevel <= stagedTrackLevel ? data.unlockedAtLevel - 1 : data.unlockedAtLevel;
+
+    const stagedLevelChange = newStagedTrackLevel - stagedTrackLevel;
+    if (stagedLevelChange > this.getAvailablePoints()) {
+      return;
+    }
+
+    if (stagedLevelChange > 1) {
+      clientAPI.playGameSound(SoundEvents.PLAY_CP_ABILITY_MULTI_SELECT);
+    } else if (stagedLevelChange === 1) {
+      clientAPI.playGameSound(SoundEvents.PLAY_CP_UI_ABILITY_STAGING);
+    } else {
+      clientAPI.playGameSound(SoundEvents.PLAY_CP_ABILITY_DESELECT);
+    }
+
+    this.setState({
+      stagedLevelsByTrackID: { ...this.state.stagedLevelsByTrackID, [ptID]: newStagedTrackLevel - trackLevel }
+    });
+  }
+
+  private onTrainClicked(): void {
+    const deltas: ProgressionTrackDelta[] = Object.entries(this.state.stagedLevelsByTrackID)
+      .filter(([, levels]) => levels > 0)
+      .map(([trackID, levels]) => ({ trackID, delta: levels }));
+    clientAPI.playGameSound(SoundEvents.PLAY_CP_ABILITY_TRAIN);
+    clientAPI.applySpecAllocation(deltas);
+    this.setState({ stagedLevelsByTrackID: {} });
+  }
+
+  private onResetClicked(): void {
+    clientAPI.playGameSound(SoundEvents.PLAY_CP_ABILITY_RESET);
+    this.setState({ stagedLevelsByTrackID: {} });
   }
 
   private renderAbilityTooltip(data: AbilityBookAbilityDisplayData): JSX.Element {

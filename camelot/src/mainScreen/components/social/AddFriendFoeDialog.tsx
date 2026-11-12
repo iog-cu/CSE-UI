@@ -1,18 +1,20 @@
 import * as React from 'react';
-import { AddDispatch, RootState } from '../../redux/store';
+import { AddDispatch, AppDispatch, RootState } from '../../redux/store';
 import { connect } from 'react-redux';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { TextInput, TextInputType } from '../input/TextInput';
 import { FactionButton } from '../FactionButton';
 import {
   getStringTableValue,
+  getStringTableValueOrFallback,
   getTokenizedStringTableValue,
   StringIDGeneralCancel
 } from '../../helpers/stringTableHelpers';
 import { StringIDGeneralConfirm } from '../../helpers/stringTableHelpers';
-import { hideModal } from '../../redux/modalsSlice';
+import { hideModal, hideModalById, showModal } from '../../redux/modalsSlice';
 import { callCreateFriendInvite } from '../../helpers/rest/friendsRestCalls';
-import { callSocialSetUserPermissions, SocialSetUserPermissionsParams } from '../../helpers/rest/socialRestCalls';
+import { callSocialSetUserPermissions } from '../../helpers/rest/socialRestCalls';
+import { getCallErrorText } from '../../helpers/errorConversionHelpers';
 import { UserInteractions } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
 
 // CSS classes
@@ -24,16 +26,28 @@ const ButtonSection = 'HUD-AddFriendFoeDialog-ButtonSection';
 const ActionButton = 'HUD-AddFriendFoeDialog-ActionButton';
 
 // String IDs
+export const StringIDFriendFoeAddFriendToList = 'FriendFoeAddFriendToList';
+const StringIDFriendFoeAddFoeToList = 'FriendFoeAddFoeToList';
 const StringIDFriendFoeInvitationSent = 'FriendFoeInvitationSent';
 const StringIDFriendFoePlayerBlocked = 'FriendFoePlayerBlocked';
+const StringIDFriendFoeInvitationFailed = 'FriendFoeInvitationFailed';
+const StringIDFriendFoeBlockFailed = 'FriendFoeBlockFailed';
+
+const ModalIDAddFriendFoe = 'AddFriendFoe';
+const SENT_MESSAGE_DURATION_MS = 1000;
+
+type SendStatus = 'idle' | 'sending' | 'sent' | 'failed';
 
 interface State {
   inputValue: string;
-  lastInput: string;
+  sendStatus: SendStatus;
+  errorText: string;
 }
 
-interface ReactProps {
+interface AddFriendFoeDialogProps {
   isFoe?: boolean;
+  initialName?: string;
+  onAdded?: () => void;
 }
 
 interface InjectedProps {
@@ -41,15 +55,16 @@ interface InjectedProps {
   minCharacterNameLength: number;
 }
 
-type Props = ReactProps & InjectedProps & AddDispatch;
+type Props = AddFriendFoeDialogProps & InjectedProps & AddDispatch;
 
 class AAddFriendFoeDialog extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
 
     this.state = {
-      inputValue: '',
-      lastInput: ''
+      inputValue: props.initialName ?? '',
+      sendStatus: 'idle',
+      errorText: ''
     };
   }
 
@@ -66,23 +81,19 @@ class AAddFriendFoeDialog extends React.Component<Props, State> {
           }}
         />
 
-        <div className={InputStatus}>
-          {this.state.lastInput.length > 0
-            ? getTokenizedStringTableValue(
-                this.props.isFoe ? StringIDFriendFoePlayerBlocked : StringIDFriendFoeInvitationSent,
-                this.props.stringTable,
-                {
-                  NAME: this.state.lastInput
-                }
-              )
-            : ''}
+        <div className={`${InputStatus}${this.state.sendStatus === 'failed' ? ' error' : ''}`}>
+          {this.getStatusText()}
         </div>
 
         <div className={ButtonSection}>
           <FactionButton
             className={ActionButton}
             onClick={this.onAddClicked.bind(this)}
-            disabled={this.state.inputValue.trim().length < this.props.minCharacterNameLength}
+            disabled={
+              this.state.sendStatus === 'sending' ||
+              this.state.sendStatus === 'sent' ||
+              this.state.inputValue.trim().length < this.props.minCharacterNameLength
+            }
           >
             {getStringTableValue(StringIDGeneralConfirm, this.props.stringTable)}
           </FactionButton>
@@ -94,20 +105,59 @@ class AAddFriendFoeDialog extends React.Component<Props, State> {
     );
   }
 
-  private onAddClicked(): void {
-    const name = this.state.inputValue.trim();
-
-    if (this.props.isFoe) {
-      const perms: SocialSetUserPermissionsParams = {
-        allowed: UserInteractions.None,
-        blocked: UserInteractions.All,
-        name
-      };
-      this.props.dispatch(callSocialSetUserPermissions(perms));
-    } else {
-      this.props.dispatch(callCreateFriendInvite({ name }));
+  private getStatusText(): string {
+    switch (this.state.sendStatus) {
+      case 'sent': {
+        return getTokenizedStringTableValue(
+          this.props.isFoe ? StringIDFriendFoePlayerBlocked : StringIDFriendFoeInvitationSent,
+          this.props.stringTable,
+          { NAME: this.state.inputValue.trim() }
+        );
+      }
+      case 'failed': {
+        return this.state.errorText;
+      }
+      default: {
+        return '';
+      }
     }
-    this.setState({ lastInput: this.state.inputValue.trim() });
+  }
+
+  private async onAddClicked(): Promise<void> {
+    const name = this.state.inputValue.trim();
+    this.setState({ sendStatus: 'sending' });
+
+    const result = this.props.isFoe
+      ? await this.props.dispatch(
+          callSocialSetUserPermissions({ allowed: UserInteractions.None, blocked: UserInteractions.All, name })
+        )
+      : await this.props.dispatch(callCreateFriendInvite({ name }));
+
+    if (result.meta.requestStatus !== 'fulfilled') {
+      const fallbackText = this.props.isFoe
+        ? getStringTableValueOrFallback(
+            StringIDFriendFoeBlockFailed,
+            this.props.stringTable,
+            'Unable to block that player.'
+          )
+        : getStringTableValueOrFallback(
+            StringIDFriendFoeInvitationFailed,
+            this.props.stringTable,
+            'Unable to send the invitation.'
+          );
+      this.setState({
+        sendStatus: 'failed',
+        errorText: getCallErrorText(result.payload, this.props.stringTable, fallbackText)
+      });
+      return;
+    }
+
+    this.setState({ sendStatus: 'sent' });
+    window.setTimeout(() => {
+      // By ID, since the player may have already closed the modal themselves.
+      this.props.dispatch(hideModalById(ModalIDAddFriendFoe));
+      this.props.onAdded?.();
+    }, SENT_MESSAGE_DURATION_MS);
   }
 
   private onCancelClicked(): void {
@@ -115,7 +165,10 @@ class AAddFriendFoeDialog extends React.Component<Props, State> {
   }
 }
 
-const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & InjectedProps => {
+const mapStateToProps = (
+  state: RootState,
+  ownProps: AddFriendFoeDialogProps
+): AddFriendFoeDialogProps & InjectedProps => {
   return {
     ...ownProps,
     stringTable: state.stringTable.stringTable,
@@ -123,4 +176,26 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
   };
 };
 
-export const AddFriendFoeDialog = connect(mapStateToProps)(AAddFriendFoeDialog);
+const AddFriendFoeDialog = connect(mapStateToProps)(AAddFriendFoeDialog);
+
+export function showAddFriendFoeModal(
+  dispatch: AppDispatch,
+  stringTable: Record<string, StringTableEntryDef>,
+  dialogProps: AddFriendFoeDialogProps
+): void {
+  dispatch(
+    showModal({
+      id: ModalIDAddFriendFoe,
+      content: {
+        title: getStringTableValue(
+          dialogProps.isFoe ? StringIDFriendFoeAddFoeToList : StringIDFriendFoeAddFriendToList,
+          stringTable
+        ),
+        message: '',
+        body: <AddFriendFoeDialog {...dialogProps} />,
+        buttons: null
+      },
+      escapable: true
+    })
+  );
+}

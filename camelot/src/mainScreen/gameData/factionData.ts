@@ -6,9 +6,7 @@ const HOT_SPOT_ICON_URL = '/dynamic/factions/assets/map-icon-hotspot-factionless
 
 export interface FactionData {
   id: string;
-  backgroundBookImage: string;
   backgroundCharacterImage: string;
-  backgroundClassIconImage: string;
   backgroundFullscreenImage: string;
   backgroundLeatherImage: string;
   backgroundProgressBarImage: string;
@@ -46,6 +44,10 @@ export interface FactionData {
   windowUnlockImage: string;
   windowWindowedImage: string;
   compassNeedleImage: string;
+  compassIconImage: string;
+  compassEndImage: string;
+  personalMapMarkerImage: string;
+  personalMarkerCompassImage: string;
   mapIconImages: Record<MapDataType, string>;
   mapPipImage: string;
   scrollbarImage: string;
@@ -149,9 +151,7 @@ export interface FactionData {
 export const allFactionData: FactionData[] = [
   {
     id: 'Factionless',
-    backgroundBookImage: '/images/MissingAsset.png',
     backgroundCharacterImage: '/images/MissingAsset.png',
-    backgroundClassIconImage: '/images/MissingAsset.png',
     backgroundFullscreenImage: 'dynamic/factions/assets/background-fullscreen-factionless.png',
     backgroundLeatherImage: '/dynamic/factions/assets/background-leather-factionless.png',
     backgroundProgressBarImage: '/images/MissingAsset.png',
@@ -188,6 +188,10 @@ export const allFactionData: FactionData[] = [
     windowUnlockImage: '/images/MissingAsset.png',
     windowWindowedImage: '/images/MissingAsset.png',
     compassNeedleImage: '/dynamic/factions/assets/compass-needle-factionless.png',
+    compassIconImage: '/dynamic/factions/assets/compass-icon-factionless.png',
+    compassEndImage: '/images/MissingAsset.png',
+    personalMapMarkerImage: '/images/MissingAsset.png',
+    personalMarkerCompassImage: '/images/MissingAsset.png',
     mapIconImages: {
       [MapDataType.INVALID]: '/images/MissingAsset.png',
       [MapDataType.CraftingAlchemy]: '/dynamic/factions/assets/map-icon-alchemy-station-factionless.png',
@@ -314,9 +318,7 @@ export const allFactionData: FactionData[] = [
   },
   {
     id: 'TDD',
-    backgroundBookImage: '/dynamic/factions/assets/ability-book-background-tdd.png',
     backgroundCharacterImage: '/dynamic/factions/assets/background-character-tdd.png',
-    backgroundClassIconImage: '/dynamic/factions/assets/ability-book-class-icon-background-tdd.png',
     backgroundFullscreenImage: 'dynamic/factions/assets/background-fullscreen-tdd.png',
     backgroundLeatherImage: '/dynamic/factions/assets/background-leather-tdd.png',
     backgroundProgressBarImage: '/dynamic/factions/assets/background-progress-bar-tdd.png',
@@ -354,6 +356,10 @@ export const allFactionData: FactionData[] = [
     windowUnlockImage: '/dynamic/factions/assets/window-unlock-tdd.png',
     windowWindowedImage: '/dynamic/factions/assets/window-windowed-tdd.png',
     compassNeedleImage: '/dynamic/factions/assets/compass-needle-tdd.png',
+    compassIconImage: '/dynamic/factions/assets/compass-icon-tdd.png',
+    compassEndImage: '/dynamic/factions/assets/compass-end-tdd.png',
+    personalMapMarkerImage: '/dynamic/factions/assets/personal-mark-map-tdd.png',
+    personalMarkerCompassImage: '/dynamic/factions/assets/personal-mark-tdd.png',
     mapIconImages: {
       [MapDataType.INVALID]: '/images/MissingAsset.png',
       [MapDataType.CraftingAlchemy]: '/dynamic/factions/assets/map-icon-alchemy-station-tdd.png',
@@ -496,9 +502,7 @@ export const allFactionData: FactionData[] = [
   },
   {
     id: 'Viking',
-    backgroundBookImage: '/dynamic/factions/assets/ability-book-background-viking.png',
     backgroundCharacterImage: '/dynamic/factions/assets/background-character-viking.png',
-    backgroundClassIconImage: '/dynamic/factions/assets/ability-book-class-icon-background-viking.png',
     backgroundFullscreenImage: 'dynamic/factions/assets/background-fullscreen-viking.png',
     backgroundLeatherImage: '/dynamic/factions/assets/background-leather-viking.png',
     backgroundProgressBarImage: '/dynamic/factions/assets/background-progress-bar-viking.png',
@@ -536,6 +540,10 @@ export const allFactionData: FactionData[] = [
     windowUnlockImage: '/dynamic/factions/assets/window-unlock-viking.png',
     windowWindowedImage: '/dynamic/factions/assets/window-windowed-viking.png',
     compassNeedleImage: '/dynamic/factions/assets/compass-needle-viking.png',
+    compassIconImage: '/dynamic/factions/assets/compass-icon-viking.png',
+    compassEndImage: '/dynamic/factions/assets/compass-end-viking.png',
+    personalMapMarkerImage: '/dynamic/factions/assets/personal-mark-map-viking.png',
+    personalMarkerCompassImage: '/dynamic/factions/assets/personal-mark-viking.png',
     mapIconImages: {
       [MapDataType.INVALID]: '/images/MissingAsset.png',
       [MapDataType.CraftingAlchemy]: '/dynamic/factions/assets/map-icon-alchemy-station-viking.png',
@@ -678,9 +686,7 @@ export const allFactionData: FactionData[] = [
   },
   {
     id: 'Arthurian',
-    backgroundBookImage: '/dynamic/factions/assets/ability-book-background-arthurian.png',
     backgroundCharacterImage: '/dynamic/factions/assets/background-character-arthurian.png',
-    backgroundClassIconImage: '/dynamic/factions/assets/ability-book-class-icon-background-arthurian.png',
     backgroundFullscreenImage: 'dynamic/factions/assets/background-fullscreen-arthurian.png',
     backgroundLeatherImage: '/dynamic/factions/assets/background-leather-arthurian.png',
     backgroundProgressBarImage: '/dynamic/factions/assets/background-progress-bar-arthurian.png',
@@ -718,6 +724,10 @@ export const allFactionData: FactionData[] = [
     windowUnlockImage: '/dynamic/factions/assets/window-unlock-arthurian.png',
     windowWindowedImage: '/dynamic/factions/assets/window-windowed-arthurian.png',
     compassNeedleImage: '/dynamic/factions/assets/compass-needle-arthurian.png',
+    compassIconImage: '/dynamic/factions/assets/compass-icon-arthurian.png',
+    compassEndImage: '/dynamic/factions/assets/compass-end-arthurian.png',
+    personalMapMarkerImage: '/dynamic/factions/assets/personal-mark-map-arthurian.png',
+    personalMarkerCompassImage: '/dynamic/factions/assets/personal-mark-arthurian.png',
     mapIconImages: {
       [MapDataType.INVALID]: '/images/MissingAsset.png',
       [MapDataType.CraftingAlchemy]: '/dynamic/factions/assets/map-icon-alchemy-station-arthurian.png',

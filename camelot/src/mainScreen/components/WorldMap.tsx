@@ -45,6 +45,7 @@ import {
   getMapNamesByRegion,
   getMapPOICategories,
   getMapRegionNames,
+  getWorldPositionFromMapImagePosition,
   isMapVisibleToFaction,
   MAP_REGION_WORLD,
   StringIDPrefixMapPOIName
@@ -82,6 +83,8 @@ const ERROR_ZONE: ZoneInfo = {
 const StringIDPrefixMapGroupPOIName = 'MapGroupPOIName_';
 const StringIDMapLegendSliderButton = 'MapLegendSliderButton';
 const StringIDWidgetNameWorldMap = 'HUDEditorWidgetNameWorldMap';
+export const StringIDMapPersonalMarkerName = 'MapPersonalMarkerName';
+const StringIDMapPersonalMarkerHint = 'MapPersonalMarkerHint';
 
 // CSS classes
 const Root = 'HUD-WorldMap-Root';
@@ -99,6 +102,7 @@ const CheckboxContainer = 'HUD-WorldMap-CheckboxContainer';
 const POICheckbox = 'HUD-WorldMap-POICheckbox';
 const POIIcon = 'HUD-WorldMap-POIIcon';
 const POILabel = 'HUD-WorldMap-POILabel';
+const POILabelHint = 'HUD-WorldMap-POILabelHint';
 const LegendSlider = 'HUD-WorldMap-LegendSlider';
 const LegendSliderContent = 'HUD-WorldMap-LegendSliderContent';
 const LegendSliderSection = 'HUD-WorldMap-LegendSliderSection';
@@ -121,6 +125,7 @@ interface InjectedProps {
   vminPx: number;
   poisToHide: MapDataType[];
   groupPOIsToHide: GroupPOIType[];
+  personalMapMarkerVisible: boolean;
   uiFactionID: string;
   stringTable: Record<string, StringTableEntryDef>;
   worldMapSelection: WorldMapSelection;
@@ -250,6 +255,8 @@ class AWorldMap extends React.Component<Props, State> {
                 {this.renderGroupPOIRow(GroupPOIType.WarbandLeader)}
                 {this.renderGroupPOIRow(GroupPOIType.WarbandDeputy)}
                 <FactionDivider />
+                {this.renderPersonalMarkerRow()}
+                <FactionDivider />
                 {poisStructures.map(this.renderPOIRow.bind(this))}
                 {poisStructures.length > 0 && <FactionDivider />}
               </FactionBorder>
@@ -265,6 +272,7 @@ class AWorldMap extends React.Component<Props, State> {
                       map={<img className={WorldMapImage} src={allMapDetails[selection.mapID]?.mapURL ?? getMapDetails(zone).mapURL} />}
                       overlays={<WorldMapIcons zone={zone} />}
                       onMouseDown={(e) => { if (e.button === 2) this.props.dispatch(updateWorldMapSelection({ isWorldView: true, regionID: MAP_REGION_WORLD })); }}
+                      onShiftLeftClick={this.handlePlaceMarker.bind(this)}
                     />
                     <TooltipSource
                       className={GlobeButton}
@@ -413,10 +421,24 @@ class AWorldMap extends React.Component<Props, State> {
     }
   }
 
+  private handlePlaceMarker(mapImageLeftPercent: number, mapImageTopPercent: number): void {
+    const zone = this.getDisplayedZone();
+    if (!zone.ID) {
+      return;
+    }
+    clientAPI.setPersonalMapMarker(
+      zone.ID,
+      getWorldPositionFromMapImagePosition(mapImageLeftPercent, mapImageTopPercent, zone)
+    );
+  }
+
+  private getLegendSizeClass(): string {
+    const isMaximized = !!this.props.widgets[WIDGET_ID_WORLD_MAP]?.state?.resizable?.isMaximized;
+    return isMaximized ? '' : ' small';
+  }
+
   private renderSelfPOIRow(): React.ReactNode {
-    const selfWidget = this.props.widgets[WIDGET_ID_WORLD_MAP];
-    const isMaximized = !!selfWidget?.state?.resizable?.isMaximized;
-    const sizeClass = isMaximized ? '' : ' small';
+    const sizeClass = this.getLegendSizeClass();
     const factionData = getFactionData(this.props.uiFactionID);
     return (
       <div className={POIRow}>
@@ -424,6 +446,29 @@ class AWorldMap extends React.Component<Props, State> {
         <img className={`${POIIcon}${sizeClass}`} src={factionData.mapIconImages[MapDataType.Self]} />
         <div className={`${POILabel}${sizeClass}`}>
           {getStringTableValue(StringIDPrefixMapPOIName + MapDataType[MapDataType.Self], this.props.stringTable)}
+        </div>
+      </div>
+    );
+  }
+
+  private renderPersonalMarkerRow(): React.ReactNode {
+    const sizeClass = this.getLegendSizeClass();
+    const factionData = getFactionData(this.props.uiFactionID);
+    return (
+      <div className={POIRow}>
+        <div className={CheckboxContainer}>
+          <FactionCheckbox
+            className={POICheckbox}
+            isChecked={this.props.personalMapMarkerVisible}
+            onCheckedChanged={(isChecked) => clientAPI.setPersonalMapMarkerVisibility(isChecked)}
+          />
+        </div>
+        <img className={`${POIIcon}${sizeClass}`} src={factionData.personalMapMarkerImage} />
+        <div className={`${POILabel}${sizeClass}`}>
+          <div>{getStringTableValue(StringIDMapPersonalMarkerName, this.props.stringTable)}</div>
+          <div className={POILabelHint}>
+            {getStringTableValue(StringIDMapPersonalMarkerHint, this.props.stringTable)}
+          </div>
         </div>
       </div>
     );
@@ -463,6 +508,12 @@ class AWorldMap extends React.Component<Props, State> {
         </div>
         <FactionDivider className={LegendSliderDivider} />
         <div className={LegendSliderSection}>
+          <div className={LegendSliderColumn}>{this.renderPersonalMarkerRow()}</div>
+          {/* Empty column keeps this section as wide as the 2-column ones, so it doesn't drift off-center. */}
+          <div className={LegendSliderColumn} />
+        </div>
+        <FactionDivider className={LegendSliderDivider} />
+        <div className={LegendSliderSection}>
           <div className={LegendSliderColumn}>{structuresLeft.map(this.renderPOIRow.bind(this))}</div>
           <div className={LegendSliderColumn}>{structuresRight.map(this.renderPOIRow.bind(this))}</div>
         </div>
@@ -484,9 +535,7 @@ class AWorldMap extends React.Component<Props, State> {
     if (type === MapDataType.Self) {
       return null;
     }
-    const selfWidget = this.props.widgets[WIDGET_ID_WORLD_MAP];
-    const isMaximized = !!selfWidget?.state?.resizable?.isMaximized;
-    const sizeClass = isMaximized ? '' : ' small';
+    const sizeClass = this.getLegendSizeClass();
     const factionData = getFactionData(this.props.uiFactionID);
 
     return (
@@ -512,9 +561,7 @@ class AWorldMap extends React.Component<Props, State> {
   }
 
   private renderGroupPOIRow(type: GroupPOIType): React.ReactNode {
-    const selfWidget = this.props.widgets[WIDGET_ID_WORLD_MAP];
-    const isMaximized = !!selfWidget?.state?.resizable?.isMaximized;
-    const sizeClass = isMaximized ? '' : ' small';
+    const sizeClass = this.getLegendSizeClass();
 
     return (
       <div className={POIRow} key={`POI_${GroupPOIType[type]}`}>
@@ -579,6 +626,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     vminPx: state.hud.vminPx,
     poisToHide: state.hud.poisToHide,
     groupPOIsToHide: state.hud.groupPOIsToHide,
+    personalMapMarkerVisible: state.hud.personalMapMarkerVisible,
     uiFactionID: state.hud.uiFactionID,
     stringTable: state.stringTable.stringTable,
     worldMapSelection: state.hud.worldMapSelection

@@ -9,7 +9,8 @@ import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { ProgressionTrackDef } from '../../dataSources/manifest/progressionTrackManifest';
-import { getStringTableValue, getTokenizedStringTableValue } from '../../helpers/stringTableHelpers';
+import { getStringTableValue } from '../../helpers/stringTableHelpers';
+import { getTradeskillTitle } from '../../helpers/abilityBookHelpers';
 import { getFactionData } from '../../gameData/factionData';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
 import ContextMenuSource from '../ContextMenuSource';
@@ -22,9 +23,7 @@ const Root = 'HUD-TradeskillTrackerRow-Root';
 const IconContainer = 'HUD-TradeskillTrackerRow-IconContainer';
 const Icon = 'HUD-TradeskillTrackerRow-Icon';
 const Details = 'HUD-TradeskillTrackerRow-Details';
-const NameRow = 'HUD-TradeskillTrackerRow-NameRow';
 const NameLabel = 'HUD-TradeskillTrackerRow-NameLabel';
-const LevelLabel = 'HUD-TradeskillTrackerRow-LevelLabel';
 const BarContainer = 'HUD-TradeskillTrackerRow-BarContainer';
 const BarClipper = 'HUD-TradeskillTrackerRow-BarClipper';
 const BarContent = 'HUD-TradeskillTrackerRow-BarContent';
@@ -35,7 +34,6 @@ const BarText = 'HUD-TradeskillTrackerRow-BarText';
 
 const CONTEXT_MENU_ID_PREFIX = 'TradeskillTrackerRow_';
 
-const StringIDAbilityBookTrackLevel = 'AbilityBookTrackLevel';
 const StringIDVendorUntrack = 'VendorUntrack';
 
 interface State {
@@ -90,14 +88,7 @@ class ATradeskillTrackerRow extends React.Component<Props, State> {
           <img className={Icon} src={trackDef.iconURL} />
         </FactionBorder>
         <div className={Details}>
-          <div className={NameRow}>
-            <div className={NameLabel}>{getStringTableValue(trackDef.nameKey, this.props.stringTable)}</div>
-            <div className={LevelLabel}>
-              {getTokenizedStringTableValue(StringIDAbilityBookTrackLevel, this.props.stringTable, {
-                LEVEL: `${this.props.level}`
-              })}
-            </div>
-          </div>
+          <div className={NameLabel}>{getTradeskillTitle(trackDef, this.props.level, this.props.stringTable)}</div>
           <FactionBorder className={BarContainer} type={BorderType.Secondary} background={BorderBackground.ProgressBar}>
             <div className={BarClipper}>
               <div className={BarContent}>

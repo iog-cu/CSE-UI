@@ -16,6 +16,7 @@ import { FactionBorder, BorderType, BorderBackground } from '../FactionBorder';
 import { CornerButtonType, FactionCornerButton } from '../FactionCornerButton';
 import { FactionBorderSelectable } from '../FactionBorderSelectable';
 import { TooltipSource } from '../TooltipSource';
+import { FactionTabBadge } from '../FactionTabBadge';
 import { FactionData, getFactionData } from '../../gameData/factionData';
 import { BaseHUDWidgetDraggableHandle } from '../BaseHUDWidgetDraggableHandle';
 import { Guild } from './Guild';
@@ -30,8 +31,6 @@ const Tabs = 'HUD-Social-Tabs';
 const TabButton = 'HUD-Social-TabButton';
 const TabIcon = 'HUD-Social-TabIcon';
 const TabContent = 'HUD-Social-TabContent';
-const TabBadgeContainer = 'HUD-Social-TabBadgeContainer';
-const TabBadgeLabel = 'HUD-Social-TabBadgeLabel';
 
 const Handle = 'HUD-FancyBorder-HeaderHandle';
 
@@ -101,8 +100,6 @@ class ASocial extends React.Component<Props & DispatchProp, State> {
   private renderTabButton(tab: SocialTab): React.ReactNode {
     const factionData = getFactionData(this.props.uiFactionID);
 
-    const badgeCount = this.getTabBadgeCount(tab);
-
     return (
       <FactionBorderSelectable
         key={tab}
@@ -115,11 +112,7 @@ class ASocial extends React.Component<Props & DispatchProp, State> {
         background={BorderBackground.Leather}
       >
         <img className={TabIcon} src={factionData[tabIconKeys[tab] as keyof FactionData] as string} />
-        {badgeCount > 0 && (
-          <FactionBorder className={TabBadgeContainer} type={BorderType.Secondary} background={BorderBackground.Darken}>
-            <div className={TabBadgeLabel}>{badgeCount}</div>
-          </FactionBorder>
-        )}
+        <FactionTabBadge count={this.getTabBadgeCount(tab)} />
         <TooltipSource
           className={TabIcon}
           tooltipID={tab}

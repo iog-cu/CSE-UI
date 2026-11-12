@@ -6,6 +6,16 @@
 
 import { Dictionary } from '@csegames/library/dist/_baseGame/types/ObjectMap';
 import { RequestResult } from '@csegames/library/dist/_baseGame/types/Request';
+import { AppDispatch } from '../redux/store';
+import { showModal } from '../redux/modalsSlice';
+import { StringTableEntryDef } from '../dataSources/manifest/stringTableManifest';
+import {
+  getStringTableValue,
+  getStringTableValueOrFallback,
+  StringIDGeneralError,
+  StringIDGeneralRequestFailed
+} from './stringTableHelpers';
+import { getCallErrorStringID, isCallError } from './rest/CallError';
 
 // This is the target format used for our error dialogs
 
@@ -221,4 +231,43 @@ export function convertRequestResult(res: RequestResult, overrides: messageOverr
     message: res.statusText,
     code: res.status.toString(10)
   };
+}
+
+export function getCallErrorText(
+  error: unknown,
+  stringTable: Record<string, StringTableEntryDef>,
+  fallbackText: string
+): string {
+  return getStringTableValueOrFallback(
+    isCallError(error) ? getCallErrorStringID(error) : '',
+    stringTable,
+    fallbackText
+  );
+}
+
+export function showCallErrorModalIfFailed(
+  dispatch: AppDispatch,
+  stringTable: Record<string, StringTableEntryDef>,
+  result: { meta: { requestStatus: string }; payload?: unknown }
+): void {
+  if (result.meta.requestStatus === 'fulfilled') {
+    return;
+  }
+
+  const fallbackText = getStringTableValueOrFallback(
+    StringIDGeneralRequestFailed,
+    stringTable,
+    'Something went wrong. Please try again later.'
+  );
+  dispatch(
+    showModal({
+      id: 'CallError',
+      content: {
+        title: getStringTableValue(StringIDGeneralError, stringTable),
+        message: getCallErrorText(result.payload, stringTable, fallbackText)
+      },
+      escapable: true,
+      maxWidth: '40vmin'
+    })
+  );
 }

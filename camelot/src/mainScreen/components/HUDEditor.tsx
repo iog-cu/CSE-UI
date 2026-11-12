@@ -33,6 +33,7 @@ import { AbilityEditStatus, AbilityGroup, ButtonLayout } from '@csegames/library
 import Escapable from './Escapable';
 import {
   AbilityBarDecor,
+  CompassHeadingSource,
   HUDHorizontalAnchor,
   HUDVerticalAnchor,
   HUDWidgetState
@@ -64,6 +65,7 @@ import { WIDGET_ID_WARBAND } from './warband/Warband';
 import { WIDGET_ID_CHAT } from './chat/Chat';
 import { WIDGET_ID_SOCIAL } from './social/Social';
 import { WIDGET_ID_ZONENAME } from './zoneName/ZoneName';
+import { CompassHeadingSourceDefault, CompassWidthDefault, WIDGET_ID_COMPASS } from './compass/Compass';
 import { WIDGET_ID_QUESTLOG } from './quests/QuestLog';
 import { WIDGET_ID_QUESTTRACKER } from './quests/QuestTracker';
 import { WIDGET_ID_LEVEL_NOTIFICATIONS, WIDGET_ID_QUEST_NOTIFICATIONS } from './NotificationToasts';
@@ -181,8 +183,8 @@ const SnapToggleContainer = 'HUD-HUDEditor-SnapToggleContainer';
 const SnapToggleRow = 'HUD-HUDEditor-SnapToggleRow';
 const SnapToggleDivider = 'HUD-HUDEditor-SnapToggleDivider';
 const PartyLayoutIconHorizontal = 'HUD-HUDEditor-PartyLayoutIcon--horizontal';
-const DecorButtons = 'HUD-HUDEditor-DecorButtons';
-const DecorButton = 'HUD-HUDEditor-DecorButton';
+const OptionButtons = 'HUD-HUDEditor-OptionButtons';
+const OptionButton = 'HUD-HUDEditor-OptionButton';
 
 // CSS state modifier classes
 const ModSelected = 'selected';
@@ -247,6 +249,10 @@ const StringIDHUDEditorAbilityBarDecorLeft = 'HUDEditorAbilityBarDecorLeft';
 const StringIDHUDEditorAbilityBarDecorRight = 'HUDEditorAbilityBarDecorRight';
 const StringIDHUDEditorAbilityBarDecorTop = 'HUDEditorAbilityBarDecorTop';
 const StringIDHUDEditorAbilityBarDecorBottom = 'HUDEditorAbilityBarDecorBottom';
+const StringIDHUDEditorCompassWidth = 'HUDEditorCompassWidth';
+const StringIDHUDEditorCompassHeading = 'HUDEditorCompassHeading';
+const StringIDHUDEditorCompassHeadingCamera = 'HUDEditorCompassHeadingCamera';
+const StringIDHUDEditorCompassHeadingCharacter = 'HUDEditorCompassHeadingCharacter';
 const StringIDHUDEditorExpandAll = 'HUDEditorExpandAll';
 const StringIDHUDEditorCollapseAll = 'HUDEditorCollapseAll';
 const StringIDHUDEditorSelectedWidgetOpacity = 'HUDEditorSelectedWidgetOpacity';
@@ -266,11 +272,19 @@ const ToastDurationSecondsDefault = 5;
 const AbilitySlotSpacingMin = 0;
 const AbilitySlotSpacingMax = 15;
 
+const CompassWidthMin = 25;
+const CompassWidthMax = 100;
+
 const AbilityBarDecorButtons: { decor: AbilityBarDecor; labelStringID: string; fallbackLabel: string }[] = [
   { decor: AbilityBarDecor.Left, labelStringID: StringIDHUDEditorAbilityBarDecorLeft, fallbackLabel: 'Left' },
   { decor: AbilityBarDecor.Right, labelStringID: StringIDHUDEditorAbilityBarDecorRight, fallbackLabel: 'Right' },
   { decor: AbilityBarDecor.Top, labelStringID: StringIDHUDEditorAbilityBarDecorTop, fallbackLabel: 'Top' },
   { decor: AbilityBarDecor.Bottom, labelStringID: StringIDHUDEditorAbilityBarDecorBottom, fallbackLabel: 'Bottom' }
+];
+
+const CompassHeadingButtons: { source: CompassHeadingSource; labelStringID: string }[] = [
+  { source: CompassHeadingSource.Camera, labelStringID: StringIDHUDEditorCompassHeadingCamera },
+  { source: CompassHeadingSource.Character, labelStringID: StringIDHUDEditorCompassHeadingCharacter }
 ];
 
 const DraggableID = 'HUDEditor';
@@ -321,7 +335,7 @@ const HUDEditorWidgetGroups: HUDEditorWidgetGroup[] = [
     key: 'maps-group',
     labelStringID: StringIDHUDEditorMapsGroupName,
     fallbackLabel: 'Maps',
-    match: (id) => [WIDGET_ID_WORLD_MAP, WIDGET_ID_MINI_MAP, WIDGET_ID_ZONENAME].includes(id)
+    match: (id) => [WIDGET_ID_WORLD_MAP, WIDGET_ID_MINI_MAP, WIDGET_ID_ZONENAME, WIDGET_ID_COMPASS].includes(id)
   },
   {
     key: 'social-group',
@@ -1086,6 +1100,14 @@ class AHUDEditor extends React.Component<Props, State> {
               {this.renderAbilityBarDecorControls()}
             </>
           )}
+          {this.props.selectedWidgetID === WIDGET_ID_COMPASS && (
+            <>
+              <div className={SelectedWidgetDivider} style={{ backgroundColor: factionData.borderColor }} />
+              {this.renderCompassWidthControls()}
+              <div className={SelectedWidgetDivider} style={{ backgroundColor: factionData.borderColor }} />
+              {this.renderCompassHeadingControls()}
+            </>
+          )}
         </>
       );
     } else {
@@ -1351,6 +1373,67 @@ class AHUDEditor extends React.Component<Props, State> {
     this.saveSelectedWidgetState(state);
   }
 
+  private renderCompassWidthControls(): JSX.Element {
+    const widget = this.props.widgets[this.props.selectedWidgetID!];
+    const value = widget.state.compassWidth ?? CompassWidthDefault;
+    return (
+      <div className={OptionRow}>
+        <div className={OptionLabel}>{getStringTableValue(StringIDHUDEditorCompassWidth, this.props.stringTable)}</div>
+        <div className={SliderRow}>
+          <input
+            className={SliderInput}
+            type='range'
+            min={CompassWidthMin}
+            max={CompassWidthMax}
+            step={1}
+            value={value}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => this.setCompassWidth(Number(e.target.value))}
+          />
+          <div className={ToolbarText}>
+            {getTokenizedStringTableValue(StringIDGeneralPercent, this.props.stringTable, {
+              VALUE: String(value)
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  private setCompassWidth(value: number): void {
+    const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
+    state.compassWidth = Math.max(CompassWidthMin, Math.min(value, CompassWidthMax));
+    this.saveSelectedWidgetState(state);
+  }
+
+  private renderCompassHeadingControls(): JSX.Element {
+    const widget = this.props.widgets[this.props.selectedWidgetID!];
+    const selectedSource = widget.state.compassHeadingSource ?? CompassHeadingSourceDefault;
+    return (
+      <div className={OptionRow}>
+        <div className={OptionLabel}>
+          {getStringTableValue(StringIDHUDEditorCompassHeading, this.props.stringTable)}
+        </div>
+        <div className={OptionButtons}>
+          {CompassHeadingButtons.map(({ source, labelStringID }) => (
+            <FlatButton
+              key={source}
+              className={source === selectedSource ? `${OptionButton} ${ModSelected}` : OptionButton}
+              onClick={this.setCompassHeadingSource.bind(this, source)}
+            >
+              {getStringTableValue(labelStringID, this.props.stringTable)}
+            </FlatButton>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  private setCompassHeadingSource(source: CompassHeadingSource): void {
+    const state = { ...this.props.widgets[this.props.selectedWidgetID!].state };
+    state.compassHeadingSource = source;
+    this.saveSelectedWidgetState(state);
+  }
+
   private renderAbilityBarDecorControls(): JSX.Element {
     const widgetID = this.props.selectedWidgetID!;
     const widgetState = this.props.widgets[widgetID].state;
@@ -1362,7 +1445,7 @@ class AHUDEditor extends React.Component<Props, State> {
         <div className={OptionLabel}>
           {getStringTableValueOrFallback(StringIDHUDEditorAbilityBarDecor, this.props.stringTable, 'Decor')}
         </div>
-        <div className={DecorButtons}>
+        <div className={OptionButtons}>
           {AbilityBarDecorButtons.map(({ decor, labelStringID, fallbackLabel }) => {
             const isShown =
               layoutID !== undefined &&
@@ -1370,7 +1453,7 @@ class AHUDEditor extends React.Component<Props, State> {
             return (
               <FlatButton
                 key={decor}
-                className={isShown ? `${DecorButton} ${ModSelected}` : DecorButton}
+                className={isShown ? `${OptionButton} ${ModSelected}` : OptionButton}
                 onClick={this.setAbilityBarDecor.bind(this, decor, !isShown)}
               >
                 {getStringTableValueOrFallback(labelStringID, this.props.stringTable, fallbackLabel)}

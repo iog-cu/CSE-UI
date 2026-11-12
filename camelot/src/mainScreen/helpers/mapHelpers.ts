@@ -372,6 +372,40 @@ export const getMapIconYPercent = (entityY: number, bounds: SimpleBounds): numbe
   return ((entityY - bounds.y) / bounds.height) * 100.0;
 };
 
+export interface WorldPosition {
+  x: number;
+  y: number;
+}
+
+// Game yaw has east at 0 and turns counterclockwise; compass bearings have north at 0 and turn clockwise.
+export function yawToCompassBearing(yaw: number): number {
+  return -yaw + 90;
+}
+
+// Undoes WorldMapIcons's buildRootStyle and getMapIconXPercent/getMapIconYPercent.
+export function getWorldPositionFromMapImagePosition(
+  mapImageLeftPercent: number,
+  mapImageTopPercent: number,
+  zone: ZoneInfo
+): WorldPosition {
+  const mapBounds = getMapDetails(zone).bounds;
+  const zoneBounds = parseZoneBounds(zone.Bounds);
+
+  const rootLeftPercent = ((zoneBounds.x - mapBounds.x) / mapBounds.width) * 100;
+  const rootTopPercent = ((zoneBounds.y - mapBounds.y) / mapBounds.height) * 100;
+  const rootWidthPercent = (zoneBounds.width / mapBounds.width) * 100;
+  const rootHeightPercent = (zoneBounds.height / mapBounds.height) * 100;
+
+  const zoneLeftFraction = (mapImageLeftPercent - rootLeftPercent) / rootWidthPercent;
+  // The root is placed with `top`, but icons inside it use `bottom`, so the Y axis flips.
+  const zoneBottomFraction = 1 - (mapImageTopPercent - rootTopPercent) / rootHeightPercent;
+
+  return {
+    x: zoneBounds.x + zoneLeftFraction * zoneBounds.width,
+    y: zoneBounds.y + zoneBottomFraction * zoneBounds.height
+  };
+}
+
 export const getElementIconSize = (type: MapDataType): number => {
   switch (type) {
     // Note that this is OTHER players, not the local player.

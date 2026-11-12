@@ -28,6 +28,7 @@ import { hideModal, ModalModel, ModalParams, showModal } from '../redux/modalsSl
 import { PartyInviteDialog } from '../components/party/PartyInviteDialog';
 import { Faction } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
 import { GuildSnapshot } from '@csegames/library/dist/camelotunchained/game/GameClientModels/GuildSnapshot';
+import { Friend } from '@csegames/library/dist/camelotunchained/graphql/schema';
 import { GroupPermission } from '@csegames/library/dist/_baseGame/types/GroupPermission';
 import { callCreateGuildInvitation, callGuildKick, callLeaveGuild } from './rest/guildsRestCalls';
 import { showConditionalWidget } from '../redux/hudSlice';
@@ -41,6 +42,7 @@ import {
 import { CharacterKind } from '@csegames/library/dist/camelotunchained/game/types/CharacterKind';
 import { WIDGET_ID_SOCIAL } from '../components/social/Social';
 import { Chat } from '../components/chat/Chat';
+import { showAddFriendFoeModal, StringIDFriendFoeAddFriendToList } from '../components/social/AddFriendFoeDialog';
 import { store } from '../redux/store';
 
 // String IDs
@@ -74,6 +76,7 @@ export function getUnitFrameContextMenuItems(
   selfFaction: Faction,
   selfGuildID: string,
   selfGuild: GuildSnapshot,
+  selfFriends: (Friend | null)[] | null,
   // Much though I'd like to just pass in EntityStateModels, we have to cover some cases where
   // we need to display a context menu for entities that aren't in our local data.  By passing
   // in just the data that we DO have access to, we can still appropriately pick what to show.
@@ -102,6 +105,7 @@ export function getUnitFrameContextMenuItems(
       selfCharacterID,
       selfGuildID,
       selfGuild,
+      selfFriends,
       targetEntityID,
       targetAccountID,
       targetCharacterID,
@@ -223,6 +227,7 @@ function getOtherUnitFrameContextMenuItems(
   selfCharacterID: string,
   selfGuildID: string,
   selfGuild: GuildSnapshot,
+  selfFriends: (Friend | null)[] | null,
   targetEntityID: string,
   targetAccountID: string,
   targetCharacterID: string,
@@ -260,6 +265,20 @@ function getOtherUnitFrameContextMenuItems(
       }
     }
   });
+
+  const isAlreadyFriend =
+    (targetAccountID?.length ?? 0) > 0 &&
+    (selfFriends?.some((friend) => friend?.account?.id === targetAccountID) ?? false);
+  if (!isAlreadyFriend) {
+    menuItems.push({
+      title: getStringTableValue(StringIDFriendFoeAddFriendToList, stringTable),
+      onClick: (dispatch) => {
+        showAddFriendFoeModal(dispatch, stringTable, {
+          initialName: store.getState().entities.entities[targetEntityID]?.name
+        });
+      }
+    });
+  }
 
   // There is also a distance check on the server, but we don't have access to that data so we can't check it here.
   const canTradeInvite = targetEntityID?.length > 0;

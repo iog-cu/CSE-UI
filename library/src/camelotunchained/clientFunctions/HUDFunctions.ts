@@ -25,6 +25,8 @@ const keyPartyLayout = 'PartyLayout';
 const keyUIScale = 'UIScale';
 const keyShowGameInfoAtStartup = 'ShowGameInfoAtStartup';
 const keyMinimapState = 'MinimapState';
+const keyPersonalMapMarkers = 'PersonalMapMarkers';
+const keyPersonalMapMarkerVisible = 'PersonalMapMarkerVisible';
 const keyQuestTrackerMinimized = 'QuestTrackerMinimized';
 const keyTrackedProgressionTrackIDs = 'TrackedProgressionTrackIDs';
 const keyTradeskillTrackerMinimized = 'TradeskillTrackerMinimized';
@@ -66,6 +68,12 @@ export interface MinimapState {
   zoom: number;
 }
 
+/** World position. */
+export interface PersonalMapMarker {
+  x: number;
+  y: number;
+}
+
 export type AnchorVisibilityChangedListener = (anchorID: number, visible: boolean) => void;
 export type KeyActionsUpdateListener = (keyActions: KeyActionsModel) => void;
 export type PartyLayoutChangedListener = (layout: PartyLayout) => void;
@@ -73,6 +81,8 @@ export type UIScaleChangedListener = (scale: number) => void;
 export type QuestTrackerMinimizedChangedListener = (isMinimized: boolean) => void;
 export type TrackedProgressionTracksChangedListener = (characterID: string, trackIDs: string[]) => void;
 export type TradeskillTrackerMinimizedChangedListener = (isMinimized: boolean) => void;
+export type PersonalMapMarkerChangedListener = (zoneID: string, marker: PersonalMapMarker | null) => void;
+export type PersonalMapMarkerVisibilityChangedListener = (visible: boolean) => void;
 
 export interface HUDFunctions {
   bindAnchorVisibilityChangedListener(listener: AnchorVisibilityChangedListener): ListenerHandle;
@@ -83,6 +93,8 @@ export interface HUDFunctions {
   bindQuestTrackerMinimizedChangedListener(listener: QuestTrackerMinimizedChangedListener): ListenerHandle;
   bindTrackedProgressionTracksChangedListener(listener: TrackedProgressionTracksChangedListener): ListenerHandle;
   bindTradeskillTrackerMinimizedChangedListener(listener: TradeskillTrackerMinimizedChangedListener): ListenerHandle;
+  bindPersonalMapMarkerChangedListener(listener: PersonalMapMarkerChangedListener): ListenerHandle;
+  bindPersonalMapMarkerVisibilityChangedListener(listener: PersonalMapMarkerVisibilityChangedListener): ListenerHandle;
 
   getWidgets(): Dictionary<HUDWidgetState>;
   updateWidgetState(widgetID: string, widget: HUDWidgetState): void;
@@ -110,6 +122,12 @@ export interface HUDFunctions {
   getMinimapState(): MinimapState;
   setMinimapState(state: MinimapState): void;
 
+  /** Keyed by zoneID. */
+  getPersonalMapMarkers(): Record<string, PersonalMapMarker>;
+  setPersonalMapMarker(zoneID: string, marker: PersonalMapMarker | null): void;
+  getPersonalMapMarkerVisibility(): boolean;
+  setPersonalMapMarkerVisibility(visible: boolean): void;
+
   getQuestTrackerMinimized(): boolean;
   setQuestTrackerMinimized(value: boolean): void;
 
@@ -131,6 +149,8 @@ class CoherentHUDFunctions implements HUDFunctions {
   private questTrackerMinimizedListeners: QuestTrackerMinimizedChangedListener[] = [];
   private trackedProgressionTracksListeners: TrackedProgressionTracksChangedListener[] = [];
   private tradeskillTrackerMinimizedListeners: TradeskillTrackerMinimizedChangedListener[] = [];
+  private personalMapMarkerListeners: PersonalMapMarkerChangedListener[] = [];
+  private personalMapMarkerVisibilityListeners: PersonalMapMarkerVisibilityChangedListener[] = [];
 
   bindAnchorVisibilityChangedListener(listener: AnchorVisibilityChangedListener): ListenerHandle {
     const innerHandle = engine.on('anchorVisibilityChanged', listener);
@@ -200,6 +220,26 @@ class CoherentHUDFunctions implements HUDFunctions {
     return {
       close: () => {
         this.tradeskillTrackerMinimizedListeners = this.tradeskillTrackerMinimizedListeners.filter(
+          (l) => l !== listener
+        );
+      }
+    };
+  }
+
+  bindPersonalMapMarkerChangedListener(listener: PersonalMapMarkerChangedListener): ListenerHandle {
+    this.personalMapMarkerListeners.push(listener);
+    return {
+      close: () => {
+        this.personalMapMarkerListeners = this.personalMapMarkerListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindPersonalMapMarkerVisibilityChangedListener(listener: PersonalMapMarkerVisibilityChangedListener): ListenerHandle {
+    this.personalMapMarkerVisibilityListeners.push(listener);
+    return {
+      close: () => {
+        this.personalMapMarkerVisibilityListeners = this.personalMapMarkerVisibilityListeners.filter(
           (l) => l !== listener
         );
       }
@@ -321,6 +361,30 @@ class CoherentHUDFunctions implements HUDFunctions {
     this.store.set(keyMinimapState, state);
   }
 
+  getPersonalMapMarkers(): Record<string, PersonalMapMarker> {
+    return this.store.get<Record<string, PersonalMapMarker>>(keyPersonalMapMarkers) ?? {};
+  }
+
+  setPersonalMapMarker(zoneID: string, marker: PersonalMapMarker | null): void {
+    const markers = this.getPersonalMapMarkers();
+    if (marker) {
+      markers[zoneID] = marker;
+    } else {
+      delete markers[zoneID];
+    }
+    this.store.set(keyPersonalMapMarkers, markers);
+    this.personalMapMarkerListeners.forEach((l) => l(zoneID, marker));
+  }
+
+  getPersonalMapMarkerVisibility(): boolean {
+    return this.store.get<boolean>(keyPersonalMapMarkerVisible) ?? true;
+  }
+
+  setPersonalMapMarkerVisibility(visible: boolean): void {
+    this.store.set(keyPersonalMapMarkerVisible, visible);
+    this.personalMapMarkerVisibilityListeners.forEach((l) => l(visible));
+  }
+
   getQuestTrackerMinimized(): boolean {
     return this.store.get<boolean>(keyQuestTrackerMinimized) ?? false;
   }
@@ -362,6 +426,8 @@ class BrowserHUDFunctions implements HUDFunctions {
   private questTrackerMinimizedListeners: QuestTrackerMinimizedChangedListener[] = [];
   private trackedProgressionTracksListeners: TrackedProgressionTracksChangedListener[] = [];
   private tradeskillTrackerMinimizedListeners: TradeskillTrackerMinimizedChangedListener[] = [];
+  private personalMapMarkerListeners: PersonalMapMarkerChangedListener[] = [];
+  private personalMapMarkerVisibilityListeners: PersonalMapMarkerVisibilityChangedListener[] = [];
 
   bindAnchorVisibilityChangedListener(listener: AnchorVisibilityChangedListener): ListenerHandle {
     return { close() {} };
@@ -416,6 +482,26 @@ class BrowserHUDFunctions implements HUDFunctions {
     return {
       close: () => {
         this.tradeskillTrackerMinimizedListeners = this.tradeskillTrackerMinimizedListeners.filter(
+          (l) => l !== listener
+        );
+      }
+    };
+  }
+
+  bindPersonalMapMarkerChangedListener(listener: PersonalMapMarkerChangedListener): ListenerHandle {
+    this.personalMapMarkerListeners.push(listener);
+    return {
+      close: () => {
+        this.personalMapMarkerListeners = this.personalMapMarkerListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  bindPersonalMapMarkerVisibilityChangedListener(listener: PersonalMapMarkerVisibilityChangedListener): ListenerHandle {
+    this.personalMapMarkerVisibilityListeners.push(listener);
+    return {
+      close: () => {
+        this.personalMapMarkerVisibilityListeners = this.personalMapMarkerVisibilityListeners.filter(
           (l) => l !== listener
         );
       }
@@ -489,6 +575,30 @@ class BrowserHUDFunctions implements HUDFunctions {
 
   setMinimapState(state: MinimapState): void {
     this.store.set(keyMinimapState, state);
+  }
+
+  getPersonalMapMarkers(): Record<string, PersonalMapMarker> {
+    return this.store.get<Record<string, PersonalMapMarker>>(keyPersonalMapMarkers) ?? {};
+  }
+
+  setPersonalMapMarker(zoneID: string, marker: PersonalMapMarker | null): void {
+    const markers = this.getPersonalMapMarkers();
+    if (marker) {
+      markers[zoneID] = marker;
+    } else {
+      delete markers[zoneID];
+    }
+    this.store.set(keyPersonalMapMarkers, markers);
+    this.personalMapMarkerListeners.forEach((l) => l(zoneID, marker));
+  }
+
+  getPersonalMapMarkerVisibility(): boolean {
+    return this.store.get<boolean>(keyPersonalMapMarkerVisible) ?? true;
+  }
+
+  setPersonalMapMarkerVisibility(visible: boolean): void {
+    this.store.set(keyPersonalMapMarkerVisible, visible);
+    this.personalMapMarkerVisibilityListeners.forEach((l) => l(visible));
   }
 
   getQuestTrackerMinimized(): boolean {

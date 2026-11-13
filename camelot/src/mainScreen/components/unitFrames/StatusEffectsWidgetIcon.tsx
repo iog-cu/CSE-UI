@@ -21,6 +21,7 @@ const StatusImage = 'HUD-StatusEffectsWidgetIcon-StatusImage';
 const StackCount = 'HUD-StatusEffectsWidgetIcon-StackCount';
 const Expiring = 'Expiring';
 const Popping = 'Popping';
+const Compact = 'Compact';
 const Remaining = 'HUD-StatusEffectsWidgetIcon-Remaining';
 const Positive = 'Positive';
 const Negative = 'Negative';
@@ -36,6 +37,8 @@ interface ReactProps {
   expiring: boolean;
   // Freshly applied: the icon pops in at double size and shrinks to normal over 0.5s.
   popping: boolean;
+  // Duration-less effects render at icon-only size, in the strip above the timed columns.
+  compact?: boolean;
 }
 
 interface InjectedProps {
@@ -64,6 +67,9 @@ class AStatusEffectsWidgetIcon extends React.Component<Props> {
     }
     if (this.props.popping) {
       classes.push(Popping);
+    }
+    if (this.props.compact) {
+      classes.push(Compact);
     }
 
     return (

@@ -14,7 +14,13 @@ import { ListenerHandle } from '@csegames/library/dist/_baseGame/listenerHandle'
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { AnimationData } from '@csegames/library/dist/_baseGame/GameClientModels/AnimationData';
 import { StatusDef } from '../../dataSources/manifest/statusManifest';
-import { getDisplayableStatuses, getStatusInstanceKey, isStatusBuff, StatusData } from '../../helpers/statusHelpers';
+import {
+  getDisplayableStatuses,
+  getStatusInstanceKey,
+  isPermanentStatus,
+  isStatusBuff,
+  StatusData
+} from '../../helpers/statusHelpers';
 import { StatusEffectAmountCell } from './StatusEffectAmountCell';
 import { StatusEffectsWidgetIcon } from './StatusEffectsWidgetIcon';
 
@@ -22,6 +28,10 @@ import { StatusEffectsWidgetIcon } from './StatusEffectsWidgetIcon';
 const Root = 'HUD-StatusEffectsColumns-Root';
 const Column = 'HUD-StatusEffectsColumns-Column';
 const Row = 'HUD-StatusEffectsColumns-Row';
+// Wrapper holding the compact row for duration-less effects above the two timed columns.
+const ContentRoot = 'HUD-StatusEffectsWidgetContent-Root';
+const PermanentRow = 'HUD-StatusEffectsWidgetContent-PermanentRow';
+const PermanentSide = 'HUD-StatusEffectsWidgetContent-PermanentSide';
 const Positive = 'Positive';
 const Negative = 'Negative';
 
@@ -58,34 +68,68 @@ class AStatusEffectsColumns extends React.Component<ColumnsProps & ColumnsInject
       return null;
     }
 
-    const buffs = displayable.filter((status) => isStatusBuff(status));
-    const debuffs = displayable.filter((status) => !isStatusBuff(status));
+    // Duration-less ("always on") effects are context rather than something the player is waiting
+    // out, so they get an icon-only strip instead of a full row with a drain cell.
+    const permanent = displayable.filter((status) => isPermanentStatus(status));
+    const timed = displayable.filter((status) => !isPermanentStatus(status));
+
+    const buffs = timed.filter((status) => isStatusBuff(status));
+    const debuffs = timed.filter((status) => !isStatusBuff(status));
 
     return (
-      <div className={Root}>
-        <div className={`${Column} ${Positive}`}>
-          {buffs.map((status) => (
-            <StatusEffectRow
-              key={getStatusInstanceKey(status)}
-              statusData={status}
-              entityID={this.props.entityID}
-              isPositive={true}
-              health={this.props.health}
-            />
-          ))}
-        </div>
-        <div className={`${Column} ${Negative}`}>
-          {debuffs.map((status) => (
-            <StatusEffectRow
-              key={getStatusInstanceKey(status)}
-              statusData={status}
-              entityID={this.props.entityID}
-              isPositive={false}
-              health={this.props.health}
-            />
-          ))}
+      <div className={ContentRoot}>
+        {permanent.length > 0 && (
+          <div className={PermanentRow}>
+            <div className={`${PermanentSide} ${Positive}`}>
+              {permanent.filter((status) => isStatusBuff(status)).map((status) => this.renderCompactIcon(status))}
+            </div>
+            <div className={`${PermanentSide} ${Negative}`}>
+              {permanent.filter((status) => !isStatusBuff(status)).map((status) => this.renderCompactIcon(status))}
+            </div>
+          </div>
+        )}
+        <div className={Root}>
+          <div className={`${Column} ${Positive}`}>
+            {buffs.map((status) => (
+              <StatusEffectRow
+                key={getStatusInstanceKey(status)}
+                statusData={status}
+                entityID={this.props.entityID}
+                isPositive={true}
+                health={this.props.health}
+              />
+            ))}
+          </div>
+          <div className={`${Column} ${Negative}`}>
+            {debuffs.map((status) => (
+              <StatusEffectRow
+                key={getStatusInstanceKey(status)}
+                statusData={status}
+                entityID={this.props.entityID}
+                isPositive={false}
+                health={this.props.health}
+              />
+            ))}
+          </div>
         </div>
       </div>
+    );
+  }
+
+  // Icon-only rendering for duration-less effects: no row, no cell, no countdown - so it needs no
+  // animation state either. The pop-in still plays, driven purely by the icon mounting.
+  private renderCompactIcon(status: StatusData): JSX.Element {
+    return (
+      <StatusEffectsWidgetIcon
+        key={getStatusInstanceKey(status)}
+        statusData={status}
+        entityID={this.props.entityID}
+        elapsed={null}
+        remainingLabel={null}
+        expiring={false}
+        popping={false}
+        compact={true}
+      />
     );
   }
 }

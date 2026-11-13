@@ -28,6 +28,10 @@ MANIFEST_SRC = os.path.normpath(
     )
 )
 
+# Repository root, derived from this script's location rather than the caller's working directory:
+# manifest -> dataSources -> mainScreen -> src -> camelot -> <repo>.
+REPO_ROOT = os.path.normpath(os.path.join(MANIFEST_SRC, '..', '..', '..', '..', '..'))
+
 
 def read_text(path):
     """Read a text file, exiting with a clear message on failure."""
@@ -123,7 +127,7 @@ def main():
     export_dir = sys.argv[1]
     if not os.path.isdir(export_dir):
         sys.exit(f"error: export directory not found: {export_dir}")
-    dist_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.join('camelot', 'dist', 'dev-manifests')
+    dist_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.join(REPO_ROOT, 'camelot', 'dist', 'dev-manifests')
 
     source_by_id = processors()
     try:

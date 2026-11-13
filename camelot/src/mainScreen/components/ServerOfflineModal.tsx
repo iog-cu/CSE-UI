@@ -82,12 +82,35 @@ interface InjectedProps {
 type Props = ReactProps & InjectedProps;
 
 class AServerOfflineModal extends React.Component<Props & DispatchProp> {
+  // Resolved once per mount: isOfflineMode() is async while the modal sync is not, so the answer is
+  // cached. null means "not answered yet" and the modal is left untouched until it arrives, so it
+  // cannot flash up before we know whether this session has a server at all.
+  private offlineMode: boolean | null = null;
+  private unmounted = false;
+
   render(): React.ReactNode {
     return null;
   }
 
   componentDidMount(): void {
-    this.syncModal();
+    clientAPI
+      .isOfflineMode()
+      .then((isOffline) => {
+        if (this.unmounted) return;
+        this.offlineMode = isOffline;
+        this.syncModal();
+      })
+      .catch((e) => {
+        if (this.unmounted) return;
+        // Unanswerable means assumed connected, i.e. behave exactly as before.
+        console.error('Failed to determine whether the client is in offline mode', e);
+        this.offlineMode = false;
+        this.syncModal();
+      });
+  }
+
+  componentWillUnmount(): void {
+    this.unmounted = true;
   }
 
   componentDidUpdate(): void {
@@ -96,10 +119,17 @@ class AServerOfflineModal extends React.Component<Props & DispatchProp> {
 
   private syncModal(): void {
     const { componentStatus, connectionStatus, modals } = this.props;
+    if (this.offlineMode === null) {
+      return;
+    }
     // Confirmed shard query failure (tri-state: null = loading, true = ok, false = failed)
     const isShardOffline = componentStatus[LoadingTopic.ShardCharacters] === false;
-    // Don't show the modal if we're in serverless mode
-    const shouldShow = connectionStatus !== ConnectionStatus.Offline && isShardOffline;
+    // Don't show the modal if this session has no server behind it. A failed shard query only means
+    // "could not reach the shard" when a shard was actually expected: a serverless client, and the
+    // browser development harness, mark the WebAPI-backed topics failed to clear the loading screen
+    // (see withWebInterface) without ever having contacted anything. connectionStatus is not
+    // enough to tell them apart, because the harness connects to reveal the HUD.
+    const shouldShow = !this.offlineMode && connectionStatus !== ConnectionStatus.Offline && isShardOffline;
     const isShown = modals.some((modal) => modal.id === MODAL_ID);
 
     if (shouldShow != isShown) {

@@ -1755,10 +1755,6 @@ $ShieldMarkerOutlineColor: #032a30;
 }
 
 // Standalone status effects widget: neutralize the frame-relative offsets of the embedded root.
-.HUD-StatusEffectsWidget-Root .HUD-StatusEffects-Root {
-  left: 0;
-  top: 0;
-}
 
 .HUD-PlayerUnitFrame-Root.simple .HUD-StatusEffects-Root {
   left: 5vmin;
@@ -1806,6 +1802,9 @@ $ShieldMarkerOutlineColor: #032a30;
 $StatusEffectPositiveColor: #14eb6f;
 $StatusEffectNegativeColor: red;
 $StatusEffectNeutralColor: white;
+// Baseline text shadow for the amount column: in game the UI renders over the world, where neither
+// colour nor brightness is under our control, so contrast cannot be left to the backdrop.
+$StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
 
 .HUD-StatusEffectsIcon-DurationWhiteRing {
   position: absolute;
@@ -1907,6 +1906,253 @@ $StatusEffectNeutralColor: white;
   right: -0.275vmin;
   font-family: OpenSans;
   cursor: default;
+}
+
+// Standalone status effects widget: the columns layout (see StatusEffectsColumns.tsx) replaces the
+// frame-embedded rows, so the previously needed offset neutralizer for the shared rows is gone.
+
+.HUD-StatusEffectsColumns-Root {
+  display: flex;
+  flex-direction: row;
+}
+
+.HUD-StatusEffectsColumns-Column {
+  display: flex;
+  flex-direction: column;
+
+  &.Positive {
+    // Positive effects on the left, negative on the right, separated by a gutter. The drain fills
+    // the cells, so the columns need breathing room even though the rows do not.
+    margin-right: 0.3vmin;
+  }
+
+  &.Negative {
+    margin: 0;
+  }
+}
+
+.HUD-StatusEffectsColumns-Row {
+  display: flex;
+  flex-direction: row;
+}
+
+// Square widget icon: no border-radius and no circle mask, unlike the unit-frame icon.
+.HUD-StatusEffectsWidgetIcon-Root {
+  position: relative;
+  border: 0.15vmin solid rgb(200, 200, 200);
+  width: 2.75vmin;
+  height: 2.75vmin;
+
+  &.Popping {
+    animation-name: HUD-StatusEffectsWidgetIcon-PopIn;
+    // POP_HOLD_SECONDS + POP_SHRINK_SECONDS (0.2s + 0.5s) in StatusEffectsColumns.tsx.
+    animation-duration: 0.7s;
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
+    // The double-size icon must overlay its neighbors while shrinking.
+    z-index: 10;
+  }
+
+  &.Expiring {
+    // Last second before expiry. Deliberately NOT a blink: flashing luminance is a photosensitivity
+    // hazard. The icon art instead breathes (a pure scale pulse, no brightness change) inside its
+    // static frame, which draws the eye without flicker. Runs on the image, not the root, so it
+    // composes with the pop-in transform instead of fighting it.
+    .HUD-StatusEffectsWidgetIcon-StatusImage {
+      animation-name: HUD-StatusEffectsWidgetIcon-ExpirePulse;
+      animation-duration: 1.2s;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+    }
+  }
+}
+
+// Freshly applied: held at double size briefly so the player can recognise the icon, then shrunk
+// to normal. 28.571% of 0.7s is the 0.2s hold; keep it in step with POP_HOLD_SECONDS and
+// POP_SHRINK_SECONDS in StatusEffectsColumns.tsx.
+@keyframes HUD-StatusEffectsWidgetIcon-PopIn {
+  0%,
+  28.571% {
+    transform: scale(2);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+// Last second before expiry: a slow scale pulse of the icon art. No opacity/brightness modulation,
+// so there is no flashing - the cue is geometric, not luminance.
+@keyframes HUD-StatusEffectsWidgetIcon-ExpirePulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.82);
+  }
+}
+
+.HUD-StatusEffectsWidgetIcon-StatusImage {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+}
+
+// Stack counter: same look as the unit-frame icon's combined amount/stack badge; the Amount
+// stat itself moved to the adjacent cell.
+.HUD-StatusEffectsWidgetIcon-StackCount {
+  border: 2px solid white;
+  border-radius: 50%;
+  color: white;
+  background-color: black;
+  position: absolute;
+  z-index: 4;
+  font-size: 0.75rem;
+  width: 1.125vmin;
+  height: 1.125vmin;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  justify-content: center;
+  text-align: center;
+  bottom: -0.275vmin;
+  right: -0.275vmin;
+  font-family: OpenSans;
+  cursor: default;
+}
+
+// The text/number cell beside a widget icon. Width is shared by every cell of a side so the
+// amounts align; height matches the icon row so the drain aligns with it.
+.HUD-StatusEffectAmountCell-Root {
+  position: relative;
+  width: 7.5vmin;
+  height: 2.75vmin;
+  display: flex;
+  // Amounts sit on the cell's bottom edge, which in practice is near-centered (the number is
+  // nearly as tall as the cell) while leaving the top strip to the transient uiText.
+  align-items: flex-end;
+
+  // Positive cells sit left of their icon, negative cells right of it: content hugs the icon.
+  &.Positive {
+    justify-content: flex-end;
+  }
+  &.Negative {
+    justify-content: flex-start;
+  }
+}
+
+// Remaining-duration fill that retreated into this cell from the icon's old ring: hugging the
+// icon side and shrinking towards it as the duration passes. Transparent background otherwise.
+// The fill is a 200%-wide hard-stop gradient whose background-position is animated, mirroring the
+// unit-frame icon's duration overlay. Positive: full at position 100%, draining to 0%; negative:
+// full at 0%, draining to 100%. Periodic statuses step in 1-second increments (steps() is set
+// inline per status, keyed to its duration).
+.HUD-StatusEffectAmountCell-Drain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-size: 200% 100%;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+
+  &.Positive {
+    background-image: linear-gradient(to left, $StatusEffectPositiveColor 50%, transparent 50%);
+    animation-name: HUD-StatusEffectAmountCell-DrainRetreatRight;
+  }
+
+  &.Negative {
+    background-image: linear-gradient(to right, $StatusEffectNegativeColor 50%, transparent 50%);
+    animation-name: HUD-StatusEffectAmountCell-DrainRetreatLeft;
+  }
+}
+
+// Positive: fill anchored on the icon side (right edge of the cell), retreating right.
+@keyframes HUD-StatusEffectAmountCell-DrainRetreatRight {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+// Negative: fill anchored on the icon side (left edge of the cell), retreating left.
+@keyframes HUD-StatusEffectAmountCell-DrainRetreatLeft {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: 100% 0;
+  }
+}
+
+// uiText shown while a status is freshly applied, above the amount without displacing it.
+.HUD-StatusEffectAmountCell-UiText {
+  position: absolute;
+  top: -0.1vmin;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  color: white;
+  font-family: Caudex;
+  font-size: 0.7rem;
+  line-height: 0.8rem;
+  text-shadow: $StatusEffectTextShadow;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  pointer-events: none;
+}
+
+// The Amount stat, formerly the icon's corner badge. Deliberately smaller than the cell: the number
+// only fills it at the extreme tier. Conditional formatting is relative to the current HP of the
+// entity under the effect.
+.HUD-StatusEffectAmountCell-Amount {
+  z-index: 1;
+  color: white;
+  font-family: OpenSans;
+  font-size: 1.75rem;
+  line-height: 1.75rem;
+  white-space: nowrap;
+  text-shadow: $StatusEffectTextShadow;
+  cursor: default;
+
+  &.TierBold {
+    // Above 50% of current HP.
+    font-weight: 700;
+  }
+
+  &.TierHigh {
+    // Above 75%: bold and teal (positive) / orange (negative).
+    font-weight: 700;
+
+    &.Positive {
+      color: #00ced1;
+    }
+    &.Negative {
+      color: #ffa500;
+    }
+  }
+
+  &.TierExtreme {
+    // Above 100%: bold, larger (fills the cell), green (positive) / red (negative).
+    font-weight: 700;
+    font-size: 2.75rem;
+    line-height: 2.75rem;
+
+    &.Positive {
+      color: $StatusEffectPositiveColor;
+    }
+    &.Negative {
+      color: $StatusEffectNegativeColor;
+    }
+  }
 }
 
 .HUD-TargetUnitFrame-Root {

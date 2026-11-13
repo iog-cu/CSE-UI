@@ -14,8 +14,14 @@ when the goal is an in-game build on a machine that already builds fine.
 
 ## Procedure
 
+0. **Or let the script do the whole sequence:** `./scripts/dev-browser.sh <manifest-export-dir>` builds
+   `library/` and `camelot/`, repairs the nested symlink if needed, re-execs itself under the pinned
+   Node via mise, stages the manifests and serves `dist/` (`PORT=`, `SKIP_BUILD=1` supported). The
+   steps below are what it does, for when something breaks.
 1. **Pin Node 10.19.** The repo's `mise.toml` does this. Node >= 17 breaks webpack 4
-   (`ERR_OSSL_EVP_UNSUPPORTED`) and cannot load node-sass 4.
+   (`ERR_OSSL_EVP_UNSUPPORTED`) and cannot load node-sass 4. Note that `build:dev` deletes `dist/`
+   (its prebuild step) before webpack runs, so a build attempted under the wrong Node leaves you with
+   *no* `dist/` rather than a stale one — easy to mistake for a broken build.
 2. `cd library && npm ci && npm pack` — this **wipes `library/node_modules`**, destroying the
    symlink fix below.
 3. **Recreate the nested symlink:**

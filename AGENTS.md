@@ -79,7 +79,18 @@ Linux notes (npm 6 mishandles the nested `file:` dependency chain
 ## Running the UI in a browser (out of context)
 
 Supported by design: `mainScreen/preload.ts` → `loadCamelot()` → `loadGame()` → out-of-context stub →
-React. Serve `camelot/dist/` with any static server and open `mainScreen.html`.
+React.
+
+```sh
+./scripts/dev-browser.sh <manifest-export-dir>     # or omit the path to run without game definitions
+```
+
+That builds `library/` and `camelot/`, stages the given manifest export, and serves `dist/` on
+`http://localhost:8080` (`PORT=` to change, `SKIP_BUILD=1` to serve an existing build). It only reads
+the directory you pass it — no filesystem searching. The manifest export is the one manual step: run
+the game client once with `manifestExportDirectory=<dir>` (see
+`documentation/ExtractingManifests.md`). Without it the UI starts but almost no HUD widget renders,
+because widgets wait for game definitions.
 
 A browser session normally gets neither credentials nor game definitions, because the client supplies
 both. `camelot/src/mainScreen/dev/devBootstrap.ts` fills the gap using `localStorage` keys. **The

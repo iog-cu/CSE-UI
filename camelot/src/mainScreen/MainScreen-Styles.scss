@@ -2047,6 +2047,29 @@ $StatusEffectNegativeExtremeColor: #b98cff; // purple
   cursor: default;
 }
 
+// Remaining duration, drawn into the corner the pop-in shrinks towards: top-left for hostile
+// effects, top-right for friendly ones. Rendered inside the icon, so it scales with the icon's
+// pop-in transform for free, and its text layout matches the uiText.
+.HUD-StatusEffectsWidgetIcon-Remaining {
+  position: absolute;
+  top: 0.1vmin;
+  z-index: 5;
+  color: white;
+  font-family: Caudex;
+  font-size: 0.7rem;
+  line-height: 0.8rem;
+  text-shadow: $StatusEffectTextShadow;
+  pointer-events: none;
+}
+
+.HUD-StatusEffectsWidgetIcon-Root.Negative .HUD-StatusEffectsWidgetIcon-Remaining {
+  left: 0.15vmin;
+}
+
+.HUD-StatusEffectsWidgetIcon-Root.Positive .HUD-StatusEffectsWidgetIcon-Remaining {
+  right: 0.15vmin;
+}
+
 // The text/number cell beside a widget icon. Width is shared by every cell of a side so the
 // amounts align; height matches the icon row so the drain aligns with it.
 .HUD-StatusEffectAmountCell-Root {
@@ -2067,33 +2090,6 @@ $StatusEffectNegativeExtremeColor: #b98cff; // purple
   &.Negative {
     justify-content: flex-start;
   }
-
-  // Strips of the icon's border width above and below the drained area, in a darker shade of the
-  // bar colour, so the bar aligns with the icon art rather than the icon's outer edge.
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 0.15vmin;
-    pointer-events: none;
-    z-index: 0;
-  }
-  &::before {
-    top: 0;
-  }
-  &::after {
-    bottom: 0;
-  }
-  &.Positive::before,
-  &.Positive::after {
-    background-color: $StatusEffectPositiveBarEdge;
-  }
-  &.Negative::before,
-  &.Negative::after {
-    background-color: $StatusEffectNegativeBarEdge;
-  }
 }
 
 // Remaining-duration fill that retreated into this cell from the icon's old ring: hugging the
@@ -2104,49 +2100,60 @@ $StatusEffectNegativeExtremeColor: #b98cff; // purple
 // inline per status, keyed to its duration).
 .HUD-StatusEffectAmountCell-Drain {
   position: absolute;
-  // Inset by the icon's border width, so the bar spans the icon art rather than its outer edge.
-  top: 0.15vmin;
-  bottom: 0.15vmin;
+  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   pointer-events: none;
   z-index: 0;
-  background-size: 200% 100%;
+  background-repeat: no-repeat;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 
+  // Three layers share one animated background-position: the bar, plus the darker strips above and
+  // below it that stand in for the icon's border. Drawing them here rather than as cell
+  // pseudo-elements is what makes them drain in step with the bar instead of staying at full length.
   &.Positive {
-    background-image: linear-gradient(to left, $StatusEffectPositiveBar 50%, transparent 50%);
+    background-image: linear-gradient(to left, $StatusEffectPositiveBarEdge 50%, transparent 50%),
+      linear-gradient(to left, $StatusEffectPositiveBarEdge 50%, transparent 50%),
+      linear-gradient(to left, $StatusEffectPositiveBar 50%, transparent 50%);
+    background-size: 200% 0.15vmin, 200% 0.15vmin, 200% 100%;
+    background-position: 100% 0, 100% 100%, 100% 0;
     animation-name: HUD-StatusEffectAmountCell-DrainRetreatRight;
   }
 
   &.Negative {
-    background-image: linear-gradient(to right, $StatusEffectNegativeBar 50%, transparent 50%);
+    background-image: linear-gradient(to right, $StatusEffectNegativeBarEdge 50%, transparent 50%),
+      linear-gradient(to right, $StatusEffectNegativeBarEdge 50%, transparent 50%),
+      linear-gradient(to right, $StatusEffectNegativeBar 50%, transparent 50%);
+    background-size: 200% 0.15vmin, 200% 0.15vmin, 200% 100%;
+    background-position: 0% 0, 0% 100%, 0% 0;
     animation-name: HUD-StatusEffectAmountCell-DrainRetreatLeft;
   }
 }
 
-// Positive: fill anchored on the icon side (right edge of the cell), retreating right.
+// Positive: fill anchored on the icon side (right edge of the cell), retreating right. One position
+// per background layer: top strip, bottom strip, bar.
 @keyframes HUD-StatusEffectAmountCell-DrainRetreatRight {
   from {
-    background-position: 100% 0;
+    background-position: 100% 0, 100% 100%, 100% 0;
   }
   to {
-    background-position: 0% 0;
+    background-position: 0% 0, 0% 100%, 0% 0;
   }
 }
 
 // Negative: fill anchored on the icon side (left edge of the cell), retreating left.
 @keyframes HUD-StatusEffectAmountCell-DrainRetreatLeft {
   from {
-    background-position: 0% 0;
+    background-position: 0% 0, 0% 100%, 0% 0;
   }
   to {
-    background-position: 100% 0;
+    background-position: 100% 0, 100% 100%, 100% 0;
   }
 }
 
-// uiText shown while a status is freshly applied, above the amount without displacing it.
+// uiText, shown for the whole effect duration, above the amount without displacing it.
 // Stacked above the amount (which is z-index 1) so it stays readable when an extreme-tier number
 // grows tall enough to reach into the text strip.
 .HUD-StatusEffectAmountCell-UiText {

@@ -25,6 +25,11 @@ import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManif
 import GateIconURL from '../../../images/resource-unit-frames/Resource-unit-frame-icon-gate.png';
 import SiegeIconURL from '../../../images/resource-unit-frames/Siege-unit-frame-icon.png';
 import StatusEffects from './StatusEffects';
+import {
+  shouldRenderEmbeddedStatusEffects,
+  WIDGET_ID_STATUS_EFFECTS_ENEMY,
+  WIDGET_ID_STATUS_EFFECTS_FRIENDLY
+} from './StatusEffectsWidget';
 import { TargetPosition } from './TargetPosition';
 import { WarbandSnapshot } from '@csegames/library/dist/camelotunchained/game/GameClientModels/WarbandSnapshot';
 import { PartyState } from '../../redux/partySlice';
@@ -53,6 +58,7 @@ interface ReactProps {
 }
 
 interface InjectedProps {
+  showStatusEffects: boolean;
   target: AnyEntityStateModel | null;
   selectedWidgetID: string | null;
   selectedGroupMemberIDs: string[];
@@ -149,7 +155,7 @@ class ATargetUnitFrame extends React.Component<Props> {
                 <TargetPosition isFriendly={this.props.isFriendly} faction={target.faction} />
               )}
             </div>
-            <StatusEffects entityID={target.entityID} />
+            {this.props.showStatusEffects && <StatusEffects entityID={target.entityID} />}
           </PlayerUnitFrame>
         )}
       </div>
@@ -162,6 +168,10 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
   const { stringTable } = state.stringTable;
   return {
     ...ownProps,
+    showStatusEffects: shouldRenderEmbeddedStatusEffects(
+      state,
+      ownProps.isFriendly ? WIDGET_ID_STATUS_EFFECTS_FRIENDLY : WIDGET_ID_STATUS_EFFECTS_ENEMY
+    ),
     target: ownProps.isFriendly ? state.entities.friendlyTarget : state.entities.enemyTarget,
     selectedWidgetID,
     selectedGroupMemberIDs,

@@ -41,6 +41,11 @@ import { partyRegistry } from '../components/party/Party';
 // import { placementRegistry } from '../components/Placement';
 import { respawnRegistry } from '../components/Respawn';
 import { selfUnitFrameRegistry } from '../components/unitFrames/SelfUnitFrame';
+import {
+  statusEffectsEnemyRegistry,
+  statusEffectsFriendlyRegistry,
+  statusEffectsSelfRegistry
+} from '../components/unitFrames/StatusEffectsWidget';
 import { settingsRegistry } from '../components/Settings';
 import { warningIconsRegistry } from '../components/WarningIcons';
 import { worldMapRegistry } from '../components/WorldMap';
@@ -150,6 +155,9 @@ export class HUDService extends ExternalDataSource {
     registerHUDWidget(repairWarningRegistry);
     registerHUDWidget(respawnRegistry);
     registerHUDWidget(selfUnitFrameRegistry);
+    registerHUDWidget(statusEffectsSelfRegistry);
+    registerHUDWidget(statusEffectsFriendlyRegistry);
+    registerHUDWidget(statusEffectsEnemyRegistry);
     registerHUDWidget(serverMessagesRegistry);
     registerHUDWidget(settingsRegistry);
     registerHUDWidget(socialRegistry);

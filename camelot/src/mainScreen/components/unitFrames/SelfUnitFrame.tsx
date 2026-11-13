@@ -15,6 +15,10 @@ import { HUDHorizontalAnchor, HUDVerticalAnchor } from '@csegames/library/dist/c
 import { ClassDef } from '../../dataSources/manifest/classManifest';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import StatusEffects from './StatusEffects';
+import {
+  shouldRenderEmbeddedStatusEffects,
+  WIDGET_ID_STATUS_EFFECTS_SELF
+} from './StatusEffectsWidget';
 import { WarbandSnapshot } from '@csegames/library/dist/camelotunchained/game/GameClientModels/WarbandSnapshot';
 import { PartyState } from '../../redux/partySlice';
 import {
@@ -36,6 +40,7 @@ interface ReactProps {
 }
 
 interface InjectedProps {
+  showStatusEffects: boolean;
   player: PlayerEntityStateModel;
   party: PartyState;
   warband: WarbandSnapshot;
@@ -89,7 +94,7 @@ class ASelfUnitFrame extends React.Component<Props> {
           isDeputy={getIsCharacterDeputy(player.characterID, this.props.party, this.props.warband)}
           isOnline={true}
         >
-          <StatusEffects entityID={player.entityID} />
+          {this.props.showStatusEffects && <StatusEffects entityID={player.entityID} />}
         </PlayerUnitFrame>
       </div>
     );
@@ -101,6 +106,7 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
   const { stringTable } = state.stringTable;
   return {
     ...ownProps,
+    showStatusEffects: shouldRenderEmbeddedStatusEffects(state, WIDGET_ID_STATUS_EFFECTS_SELF),
     player: state.entities.self,
     party,
     warband,

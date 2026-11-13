@@ -9,37 +9,22 @@ import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { TooltipSource } from '../TooltipSource';
 import { Dictionary } from '@csegames/library/dist/_baseGame/types/ObjectMap';
-import {
-  getStringTableValue,
-  getTokenizedStringTableValue,
-  replaceStringTokens,
-  StringIDGeneralTimeInSeconds
-} from '../../helpers/stringTableHelpers';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
-import { isStatusBuff, StatusData } from '../../helpers/statusHelpers';
-import { getTagFromString, MatchMode, tagsMatch } from '../../helpers/tagHelpers';
+import { isStatusBuff, isStatusRemovable, StatusData } from '../../helpers/statusHelpers';
+import { TagState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { ListenerHandle } from '@csegames/library/dist/_baseGame/listenerHandle';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { AnimationData } from '@csegames/library/dist/_baseGame/GameClientModels/AnimationData';
-import { TagState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
+import { StatusEffectTooltipContent } from './StatusEffectTooltipContent';
 
 // CSS classes
 const Root = 'HUD-StatusEffectsIcon-Root';
 const StatusImage = 'HUD-StatusEffectsIcon-StatusImage';
-const TooltipContainer = 'HUD-StatusEffectsIcon-TooltipContainer';
-const TooltipName = 'HUD-StatusEffectsIcon-TooltipName';
-const TooltipText = 'HUD-StatusEffectsIcon-TooltipText';
-const RemovableHint = 'HUD-StatusEffectsIcon-RemovableHint';
 const DurationWhiteRing = 'HUD-StatusEffectsIcon-DurationWhiteRing';
 const DurationOverlay = 'HUD-StatusEffectsIcon-DurationOverlay';
 const Amount = 'HUD-StatusEffectsIcon-Amount';
 const Positive = 'Positive';
 const Negative = 'Negative';
-
-// String IDs
-const StringIDUnitFrameStatusEffectsPositive = 'UnitFrameStatusEffectsPositive';
-const StringIDUnitFrameStatusEffectsNegative = 'UnitFrameStatusEffectsNegative';
-const StringIDUnitFrameStatusEffectsRemovable = 'UnitFrameStatusEffectsRemovable';
 
 interface ReactProps {
   statusData: StatusData;
@@ -104,14 +89,11 @@ class AStatusEffectsIcon extends React.Component<Props, State> {
 
   // No entityID check here, so other units' frames also color by tag, not just self's.
   private hasRemovableTags(): boolean {
-    const statusTags: Record<string, TagState> = {};
-    this.props.statusData.statusTags.forEach((tag, index) => {
-      statusTags[index] = getTagFromString(tag, this.props.tagAffixIDByStringID);
-    });
-
-    return (
-      tagsMatch(statusTags, this.props.clientStatusRemovalRequiredTags, MatchMode.All) &&
-      tagsMatch(statusTags, this.props.clientStatusRemovalExcludedTags, MatchMode.None)
+    return isStatusRemovable(
+      this.props.statusData,
+      this.props.tagAffixIDByStringID,
+      this.props.clientStatusRemovalRequiredTags,
+      this.props.clientStatusRemovalExcludedTags
     );
   }
 
@@ -127,32 +109,13 @@ class AStatusEffectsIcon extends React.Component<Props, State> {
   }
 
   private renderTooltip(status: StatusData): React.ReactNode {
-    if (this.state.elapsed === null) {
-      return null;
-    }
-    const ttType = isStatusBuff(status) ? Positive : Negative;
-    const ttText = isStatusBuff(status)
-      ? getStringTableValue(StringIDUnitFrameStatusEffectsPositive, this.props.stringTable)
-      : getStringTableValue(StringIDUnitFrameStatusEffectsNegative, this.props.stringTable);
-    const description = replaceStringTokens(status.description, status.stats);
     return (
-      <div className={TooltipContainer}>
-        <div className={TooltipName}>{status.name}</div>
-        <div className={`${TooltipText} ${ttType}`}>{ttText}</div>
-        {this.props.statusData.duration < Infinity && (
-          <div className={TooltipText}>
-            {getTokenizedStringTableValue(StringIDGeneralTimeInSeconds, this.props.stringTable, {
-              TIME: String(Math.floor(this.props.statusData.duration - this.state.elapsed))
-            })}
-          </div>
-        )}
-        <div className={TooltipText}>{description}</div>
-        {this.isRemovable() && (
-          <div className={`${TooltipText} ${RemovableHint}`}>
-            {getStringTableValue(StringIDUnitFrameStatusEffectsRemovable, this.props.stringTable)}
-          </div>
-        )}
-      </div>
+      <StatusEffectTooltipContent
+        status={status}
+        elapsed={this.state.elapsed}
+        removable={this.isRemovable()}
+        stringTable={this.props.stringTable}
+      />
     );
   }
 

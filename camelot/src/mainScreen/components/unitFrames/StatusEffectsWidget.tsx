@@ -9,7 +9,7 @@ import { connect } from 'react-redux';
 import { HUDHorizontalAnchor, HUDVerticalAnchor } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
 import { HUDWidgetRegistration, HUDLayer, isWidgetHidden } from '../../redux/hudSlice';
 import { RootState } from '../../redux/store';
-import StatusEffects from './StatusEffects';
+import { StatusEffectsColumns } from './StatusEffectsColumns';
 
 const Root = 'HUD-StatusEffectsWidget-Root';
 
@@ -39,7 +39,7 @@ class AStatusEffectsWidget extends React.Component<Props> {
 
     return (
       <div className={Root}>
-        <StatusEffects entityID={this.props.entityID} />
+        <StatusEffectsColumns entityID={this.props.entityID} />
       </div>
     );
   }

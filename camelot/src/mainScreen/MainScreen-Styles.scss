@@ -1923,6 +1923,39 @@ $StatusEffectNegativeExtremeColor: #b98cff; // purple
 // Standalone status effects widget: the columns layout (see StatusEffectsColumns.tsx) replaces the
 // frame-embedded rows, so the previously needed offset neutralizer for the shared rows is gone.
 
+.HUD-StatusEffectsWidgetContent-Root {
+  display: flex;
+  flex-direction: column;
+  // Matches the two fixed-width columns plus their gutter, so the compact strip above them cannot
+  // change the widget's width either.
+  width: 21.4vmin; // 2 * 10.55vmin columns + 0.3vmin gutter
+}
+
+// Duration-less effects: a single strip of plain icons above the timed columns. They are background
+// context rather than something to count down, so they cost a fraction of the vertical space.
+.HUD-StatusEffectsWidgetContent-PermanentRow {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 0.3vmin;
+}
+
+.HUD-StatusEffectsWidgetContent-PermanentSide {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 10.55vmin;
+
+  // Mirrors the columns below: friendly icons gather against the centre line, hostile ones too.
+  &.Positive {
+    justify-content: flex-end;
+    margin-right: 0.3vmin;
+  }
+
+  &.Negative {
+    justify-content: flex-start;
+  }
+}
+
 .HUD-StatusEffectsColumns-Root {
   display: flex;
   flex-direction: row;
@@ -1970,12 +2003,37 @@ $StatusEffectNegativeExtremeColor: #b98cff; // purple
 
   // The pop grows out of the corner pointing away from the widget's centre line: hostile effects
   // (negative column, right of their cell) anchor top-left, friendly effects anchor top-right.
-  &.Popping.Negative {
+  // Applied on the side class rather than on .Popping, because the compact strip's icons animate
+  // from mounting and never carry .Popping.
+  &.Negative {
     transform-origin: top left;
   }
 
-  &.Popping.Positive {
+  &.Positive {
     transform-origin: top right;
+  }
+
+  // Duration-less effects in the compact strip: icon only, just over half size, no cell. The pop-in
+  // plays from the element mounting, so it needs no animation state behind it.
+  &.Compact {
+    width: 1.6vmin;
+    height: 1.6vmin;
+    border-width: 0.1vmin;
+    margin: 0 0.1vmin;
+    animation-name: HUD-StatusEffectsWidgetIcon-PopIn;
+    animation-duration: 0.7s;
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
+
+    // The badge is sized in rem, which is far too large on a half-size icon.
+    .HUD-StatusEffectsWidgetIcon-StackCount {
+      font-size: 0.5rem;
+      width: 0.8vmin;
+      height: 0.8vmin;
+      border-width: 1px;
+      bottom: -0.15vmin;
+      right: -0.15vmin;
+    }
   }
 
   &.Expiring {
@@ -2176,8 +2234,13 @@ $StatusEffectNegativeExtremeColor: #b98cff; // purple
 
 // No Amount to show: the uiText is the only content, so it takes the amount's size instead of
 // staying a caption above nothing.
+// It stays positioned on purpose. A static element relies on z-index applying to flex items, which
+// the in-client Coherent GT build does not honour - the label then paints under the drained bar,
+// which is exactly what happened in client. Absolute plus an explicit z-index behaves identically
+// in every engine.
 .HUD-StatusEffectAmountCell-UiText.Solo {
-  position: static;
+  top: auto;
+  bottom: 0;
   max-width: 100%;
   font-size: 1.75rem;
   line-height: 1.75rem;
@@ -2187,6 +2250,9 @@ $StatusEffectNegativeExtremeColor: #b98cff; // purple
 // only fills it at the extreme tier. Conditional formatting is relative to the current HP of the
 // entity under the effect.
 .HUD-StatusEffectAmountCell-Amount {
+  // Positioned rather than static so its z-index does not depend on the engine honouring z-index on
+  // flex items (see the .Solo rule above).
+  position: relative;
   z-index: 1;
   color: white;
   font-family: OpenSans;

@@ -125,3 +125,8 @@ export function getNewestStatusInstances(
     instanceCount: statusInstanceCounts[status.id] ?? 1
   }));
 }
+
+// "Always on" effects arrive without a duration (the unit-frame icon uses the same `duration <
+// Infinity` test to decide whether to draw a countdown ring). They are context rather than
+// something the player waits out, so the widget shows them compactly.
+export const isPermanentStatus = (status: StatusData): boolean => !isFinite(status.duration);

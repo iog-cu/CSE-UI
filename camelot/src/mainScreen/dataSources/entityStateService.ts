@@ -12,8 +12,10 @@ import {
 } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import {
   addOrUpdateEntity,
-  AnyEntityStateModelWithStatusInstanceCounts,
-  PlayerEntityStateModelWithStatusInstanceCounts,
+  addOrUpdateEntityResources,
+  addOrUpdateEntityStats,
+  addOrUpdateEntityStatuses,
+  addOrUpdateEntityStatusInstanceCounts,
   removeEntity,
   setEntityContext
 } from '../redux/entitiesSlice';
@@ -24,6 +26,7 @@ import { ExternalDataSource } from '../redux/externalDataSource';
 import { ItemActionsMessage } from '@csegames/library/dist/camelotunchained/game/types/ItemActions';
 import { showContextMenu } from '../redux/contextMenuSlice';
 import { performItemAction } from '../helpers/itemHelpers';
+import { isDeepDifferent } from '@csegames/library/dist/_baseGame/utils/objectUtils';
 
 export class EntityStateService extends ExternalDataSource {
   protected bind(): Promise<ListenerHandle[]> {
@@ -39,33 +42,49 @@ export class EntityStateService extends ExternalDataSource {
     // Duplicate status ids are legal (a reapply briefly sends old+new instances of the same status, and some
     // statuses stack via repeated instances rather than an Amount stat), so count instances per status id once
     // here instead of leaving every consumer to re-scan entity.statuses on their own.
-    const statusInstanceCounts: Record<number, number> = {};
-    Object.values(newState.statuses).forEach((status) => {
-      statusInstanceCounts[status.id] = (statusInstanceCounts[status.id] ?? 0) + 1;
-    });
+
+    // TODO: I would love a cheaper way of deciding this, but for now I just want to see if good data is enough
+    //       to improve UI performance.  Optimally, the client would have already handled diffing so that we can
+    //       just respond to events.  Also, the client would send separate events for the noisy bits so they don't
+    //       trigger the base entity update at all.
+    if (isDeepDifferent(newState.statuses, this.reduxState.entities.entityStatuses[newState.entityID])) {
+      this.dispatch(addOrUpdateEntityStatuses([newState.entityID, newState.statuses]));
+
+      // This one will conveniently be different only if statuses are different in some way.
+      const statusInstanceCounts: Record<number, number> = {};
+      Object.values(newState.statuses).forEach((status) => {
+        statusInstanceCounts[status.id] = (statusInstanceCounts[status.id] ?? 0) + 1;
+      });
+      if (
+        isDeepDifferent(statusInstanceCounts, this.reduxState.entities.entityStatusInstanceCounts[newState.entityID])
+      ) {
+        this.dispatch(addOrUpdateEntityStatusInstanceCounts([newState.entityID, statusInstanceCounts]));
+      }
+    }
+
+    // `resources` arrives keyed by array index instead of resource ID.
+    const betterResources: Record<string, EntityResource> = {};
+    Object.values(newState.resources).forEach((resource) => (betterResources[resource.id] = resource));
+    if (isDeepDifferent(betterResources, this.reduxState.entities.entityResources[newState.entityID])) {
+      this.dispatch(addOrUpdateEntityResources([newState.entityID, betterResources]));
+    }
 
     if (isEntityPlayer(newState)) {
       // The `stats` property handed to us is a map (not an array) keyed by array index.  We want it keyed by statID instead.
       const betterStats: Record<number, EntityStat> = {};
       Object.values(newState.stats).forEach((stat) => (betterStats[stat.id] = stat));
+      if (isDeepDifferent(betterStats, this.reduxState.entities.entityStats[newState.entityID])) {
+        this.dispatch(addOrUpdateEntityStats([newState.entityID, betterStats]));
+      }
 
-      // `resources` arrives the same way, keyed by array index instead of resource ID.
-      const betterResources: Record<string, EntityResource> = {};
-      Object.values(newState.resources).forEach((resource) => (betterResources[resource.id] = resource));
+      // TODO: Optimally, these would be sent separately instead of split out manually.
+      newState.resources = {};
+      newState.stats = {};
+      newState.statuses = {};
+    }
 
-      const betterState: PlayerEntityStateModelWithStatusInstanceCounts = {
-        ...newState,
-        stats: betterStats,
-        resources: betterResources,
-        statusInstanceCounts
-      };
-      this.dispatch(addOrUpdateEntity(betterState));
-    } else {
-      const betterState: AnyEntityStateModelWithStatusInstanceCounts = {
-        ...newState,
-        statusInstanceCounts
-      };
-      this.dispatch(addOrUpdateEntity(betterState));
+    if (isDeepDifferent(newState, this.reduxState.entities.entities[newState.entityID])) {
+      this.dispatch(addOrUpdateEntity(newState));
     }
   }
 

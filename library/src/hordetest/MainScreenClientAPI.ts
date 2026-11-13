@@ -120,6 +120,8 @@ export const clientAPI: MainScreenClientAPI = {
   executeAbility: abf.executeAbility.bind(abf),
   moveAbility: abilityUnsupported,
   setAbility: abilityUnsupported,
+  setAbilityItem: abilityUnsupported,
+  swapAbilitySlots: abilityUnsupported,
   // Animation
   startAnimation: ani.startAnimation.bind(ani),
   // Audio

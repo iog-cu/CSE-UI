@@ -9,9 +9,9 @@ import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
 import {
   AnyEntityStateModel,
+  EntityResource,
   ItemEntityStateModel
 } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
-import { ArrayMap } from '@csegames/library/dist/_baseGame/types/ObjectMap';
 import { StatusDef } from '../../dataSources/manifest/statusManifest';
 import { StatusState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/StatusState';
 import { TargetPosition } from './TargetPosition';
@@ -55,8 +55,9 @@ interface ReactProps {
 }
 
 interface InjectedProps {
+  entityResources: Record<string, EntityResource>;
   statusDefsByNumericID: Record<number, StatusDef>;
-  localPlayerStatuses: ArrayMap<StatusState>;
+  localPlayerStatuses: Record<number, StatusState>;
   tagAffixIDByStringID: Record<string, number>;
   stringTable: Record<string, StringTableEntryDef>;
 }
@@ -65,7 +66,7 @@ type Props = ReactProps & InjectedProps;
 
 class AResourceNodeUnitFrame extends React.Component<Props> {
   render(): JSX.Element | null {
-    if (!('resources' in this.props.entity) || Object.values(this.props.entity.resources).length < 1) {
+    if (!this.props.entityResources || Object.values(this.props.entity.resources).length < 1) {
       return null;
     }
 
@@ -88,7 +89,7 @@ class AResourceNodeUnitFrame extends React.Component<Props> {
     const entityFaction = Faction[entity.faction];
     const factionData = getFactionData(entityFaction);
     const nodeIconURL = this.getNodeIconURL(entity);
-    const resources = Object.values(entity.resources).slice(0, 1);
+    const resources = Object.values(this.props.entityResources).slice(0, 1);
 
     return (
       <div className={`${Root} simple`}>
@@ -98,9 +99,7 @@ class AResourceNodeUnitFrame extends React.Component<Props> {
           return (
             <div key={r.id} className={BarContainer}>
               <img src={HealthFactionlessURL} className={BarFill} style={{ width: `${pct * 100}%` }} />
-              {pct < 1 && (
-                <div className={Marker} style={{ right: `calc(100% - ${pct * 100}%)` }} />
-              )}
+              {pct < 1 && <div className={Marker} style={{ right: `calc(100% - ${pct * 100}%)` }} />}
             </div>
           );
         })}
@@ -121,7 +120,7 @@ class AResourceNodeUnitFrame extends React.Component<Props> {
     const entityFaction = Faction[entity.faction];
     const factionData = getFactionData(entityFaction);
     const nodeIconURL = this.getNodeIconURL(entity);
-    const resources = Object.values(entity.resources).slice(0, 1);
+    const resources = Object.values(this.props.entityResources).slice(0, 1);
     const barTops = resources.length === 1 ? ['6.39vmin'] : ['5.31vmin', '6.39vmin'];
 
     return (
@@ -132,12 +131,7 @@ class AResourceNodeUnitFrame extends React.Component<Props> {
           return (
             <div key={r.id} className={BarContainer} style={{ top: barTops[i] }}>
               <img src={HealthFactionlessURL} className={BarFill} style={{ width: `${pct * 100}%` }} />
-              {pct < 1 && (
-                <div
-                  className={Marker}
-                  style={{ right: `calc(100% - ${pct * 100}%)` }}
-                />
-              )}
+              {pct < 1 && <div className={Marker} style={{ right: `calc(100% - ${pct * 100}%)` }} />}
             </div>
           );
         })}
@@ -153,14 +147,17 @@ class AResourceNodeUnitFrame extends React.Component<Props> {
 
   private getNodeIconURL(entity: ItemEntityStateModel): string | null {
     const { tagAffixIDByStringID } = this.props;
-    return (
-      tagsMatch(entity.tags, [getTagFromString(FishingTag, tagAffixIDByStringID)]) ? IconFishingURL :
-      tagsMatch(entity.tags, [getTagFromString(HerbalismTag, tagAffixIDByStringID)]) ? IconHerbalismURL :
-      tagsMatch(entity.tags, [getTagFromString(LoggingTag, tagAffixIDByStringID)]) ? IconLoggingURL :
-      tagsMatch(entity.tags, [getTagFromString(MiningTag, tagAffixIDByStringID)]) ? IconMiningURL :
-      tagsMatch(entity.tags, [getTagFromString(ProspectingTag, tagAffixIDByStringID)]) ? IconProspectingURL :
-      null
-    );
+    return tagsMatch(entity.tags, [getTagFromString(FishingTag, tagAffixIDByStringID)])
+      ? IconFishingURL
+      : tagsMatch(entity.tags, [getTagFromString(HerbalismTag, tagAffixIDByStringID)])
+      ? IconHerbalismURL
+      : tagsMatch(entity.tags, [getTagFromString(LoggingTag, tagAffixIDByStringID)])
+      ? IconLoggingURL
+      : tagsMatch(entity.tags, [getTagFromString(MiningTag, tagAffixIDByStringID)])
+      ? IconMiningURL
+      : tagsMatch(entity.tags, [getTagFromString(ProspectingTag, tagAffixIDByStringID)])
+      ? IconProspectingURL
+      : null;
   }
 
   private isPlayerProspecting(): boolean {
@@ -175,11 +172,11 @@ class AResourceNodeUnitFrame extends React.Component<Props> {
 }
 
 function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
-  const { statuses } = state.entities.self;
   return {
     ...ownProps,
+    entityResources: state.entities.entityResources[ownProps.entity.entityID] ?? {},
     statusDefsByNumericID: state.gameDefs.statusesByNumericID,
-    localPlayerStatuses: statuses,
+    localPlayerStatuses: state.entities.entityStatuses[state.entities.self.entityID] ?? {},
     tagAffixIDByStringID: state.gameDefs.tagAffixIDByStringID,
     stringTable: state.stringTable.stringTable
   };

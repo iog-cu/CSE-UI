@@ -10,32 +10,53 @@ import { AddDispatch, AppDispatch, RootState } from '../../redux/store';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import {
   getStringTableValue,
+  StringIDGeneralAccept,
   StringIDGeneralCancel,
+  StringIDGeneralIgnore,
   StringIDGeneralRemove,
   StringIDGeneralUnknownClass
 } from '../../helpers/stringTableHelpers';
-import { BorderType, BorderBackground } from '../FactionBorder';
+import { BorderType, BorderBackground, FactionBorder } from '../FactionBorder';
 import { getFactionData } from '../../gameData/factionData';
 import { FactionScrollArea } from '../FactionScrollArea';
 import ContextMenuSource from '../ContextMenuSource';
 import { ContextMenuItem } from '../../redux/contextMenuSlice';
 import { PlayerEntityStateModel } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
-import { callGuildKick } from '../../helpers/rest/guildsRestCalls';
 import { hideModal, ModalModel, ModalParams, showModal } from '../../redux/modalsSlice';
 import { GameDefsState } from '../../redux/gameDefsSlice';
 import { FactionButton } from '../FactionButton';
 import { FactionBorderSelectable } from '../FactionBorderSelectable';
 import { Chat } from '../chat/Chat';
-import { AddFriendFoeDialog } from './AddFriendFoeDialog';
+import { showAddFriendFoeModal } from './AddFriendFoeDialog';
 import { AddEditFriendFoeNoteDialog } from './AddEditFriendFoeNoteDialog';
-import { ComingSoon } from '../ComingSoon';
+import {
+  Account,
+  Character,
+  Friend,
+  FriendInvite,
+  UserOverrides
+} from '@csegames/library/dist/camelotunchained/graphql/schema';
+import { UserInteractions } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
+import {
+  callSocialSetPermissions,
+  callSocialSetUserPermissions,
+  SocialSetPermissionsParams
+} from '../../helpers/rest/socialRestCalls';
+import {
+  AcceptFriendInviteParams,
+  callAcceptFriendInvite,
+  callRejectAllFriendInvites,
+  callRejectFriendInvite,
+  callRemoveFriend,
+  RejectFriendInviteParams
+} from '../../helpers/rest/friendsRestCalls';
+import { FactionCheckbox } from '../FactionCheckbox';
+import { splitFriendInvites } from '../../dataSources/socialService';
+import { showCallErrorModalIfFailed } from '../../helpers/errorConversionHelpers';
 
-// TODO: This is placeholder until we get a backend built.  It covers the fields the UI currently needs.
-export interface SocialPlayer {
-  accountID: string;
-  name: string;
-  level: number;
-  classID: number;
+interface PlayerDisplayData {
+  account: Account;
+  character: Character | null;
   note: string;
 }
 
@@ -45,14 +66,17 @@ const MemberListSection = 'HUD-FriendFoeList-Roster-MemberListSection';
 const NavTabs = 'HUD-FriendFoeList-NavTabs';
 const NavTab = 'HUD-FriendFoeList-NavTab';
 const TabLabel = 'HUD-FriendFoeList-TabLabel';
+const TabBadgeContainer = 'HUD-FriendFoeList-TabBadgeContainer';
+const TabBadgeLabel = 'HUD-FriendFoeList-TabBadgeLabel';
 const TaperBar = 'HUD-FriendFoeList-TaperBar';
 const MemberListTabNav = 'HUD-FriendFoeList-Roster-MemberList-TabNav';
 const MemberListHeader = 'HUD-FriendFoeList-Roster-MemberList-Header';
 const SortButton = 'HUD-FriendFoeList-Roster-MemberList-SortButton';
 const MemberIndexCell = 'HUD-FriendFoeList-Roster-MemberList-MemberIndexCell';
 const MemberNameCell = 'HUD-FriendFoeList-Roster-MemberList-MemberNameCell';
-const MemberLevelCell = 'HUD-FriendFoeList-Roster-MemberList-MemberLevelCell';
+const MemberNameStack = 'HUD-FriendFoeList-Roster-MemberList-MemberNameStack';
 const MemberClassCell = 'HUD-FriendFoeList-Roster-MemberList-MemberClassCell';
+const MemberClassIcon = 'HUD-FriendFoeList-Roster-MemberList-MemberClassIcon';
 const MemberNoteCell = 'HUD-FriendFoeList-Roster-MemberList-MemberNoteCell';
 const LegendText = 'HUD-FriendFoeList-Roster-MemberList-LegendText';
 const SortDirectionIndicator = 'HUD-FriendFoeList-Roster-MemberList-SortDirectionIndicator';
@@ -62,31 +86,46 @@ const MemberListContent = 'HUD-FriendFoeList-Roster-MemberList-Content';
 const MemberListRow = 'HUD-FriendFoeList-Roster-MemberList-Row';
 const MemberListDataText = 'HUD-FriendFoeList-Roster-MemberList-DataText';
 const AddButton = 'HUD-FriendFoeList-AddButton';
+const BlockInvitesCheckbox = 'HUD-FriendFoeList-BlockInvitesCheckbox';
+const BlockInvitesCheckboxLabel = 'HUD-FriendFoeList-BlockInvitesCheckboxLabel';
+const InvitesSectionContainer = 'HUD-FriendFoeList-InvitesSectionContainer';
+const ReceivedInvitesSection = 'HUD-FriendFoeList-ReceivedInvitesSection';
+const SentInvitesSection = 'HUD-FriendFoeList-SentInvitesSection';
+const InvitesSectionContent = 'HUD-FriendFoeList-InvitesSectionContent';
+const InvitesSectionTitle = 'HUD-FriendFoeList-InvitesSectionTitle';
+const InviteRowContainer = 'HUD-FriendFoeList-InviteRowContainer';
+const InviteNumberLabel = 'HUD-FriendFoeList-InviteNumberLabel';
+const InviteName = 'HUD-FriendFoeList-InviteName';
+const InviteButtonSection = 'HUD-FriendFoeList-InviteButtonSection';
+const InviteActionButton = 'HUD-FriendFoeList-InviteActionButton';
+const RejectAllButton = 'HUD-FriendFoeList-RejectAllButton';
 
 // String IDs
 const StringIDFriendFoeFriendList = 'FriendFoeFriendList';
 const StringIDFriendFoeFoeList = 'FriendFoeFoeList';
+const StringIDFriendFoeInvitationsList = 'FriendFoeInvitationsList';
 const StringIDFriendFoeLegendMemberName = 'FriendFoeLegendMemberName';
-const StringIDFriendFoeLegendMemberLevel = 'FriendFoeLegendMemberLevel';
 const StringIDFriendFoeLegendMemberClass = 'FriendFoeLegendMemberClass';
 const StringIDFriendFoeLegendMemberNote = 'FriendFoeLegendMemberNote';
 const StringIDFriendFoeAddFriend = 'FriendFoeAddFriend';
 const StringIDFriendFoeAddFoe = 'FriendFoeAddFoe';
-const StringIDFriendFoeAddFriendToList = 'FriendFoeAddFriendToList';
-const StringIDFriendFoeAddFoeToList = 'FriendFoeAddFoeToList';
 const StringIDFriendFoeRemoveFriend = 'FriendFoeRemoveFriend';
 const StringIDFriendFoeRemoveFoe = 'FriendFoeRemoveFoe';
 const StringIDFriendFoeAddNote = 'FriendFoeAddNote';
 const StringIDChatScopeNameWhisper = 'ChatScopeNameWhisper';
+const StringIDFriendFoeReceivedInvitationsTitle = 'FriendFoeReceivedInvitationsTitle';
+const StringIDFriendFoeSentInvitationsTitle = 'FriendFoeSentInvitationsTitle';
+const StringIDFriendFoeBlockInvites = 'FriendFoeBlockInvites';
+const StringIDFriendFoeRejectAll = 'FriendFoeRejectAll';
 
 enum ListType {
   Friends = 'Friends',
-  Foes = 'Foes'
+  Foes = 'Foes',
+  Invitations = 'Invitations'
 }
 
 enum SortCategory {
   Name = 'Name',
-  Level = 'Level',
   Class = 'Class',
   Note = 'Note'
 }
@@ -110,8 +149,12 @@ interface InjectedProps {
   uiFactionID: string;
   self: PlayerEntityStateModel;
   defs: GameDefsState;
-  friends: SocialPlayer[];
-  foes: SocialPlayer[];
+  friends: Friend[];
+  friendInvites: FriendInvite[];
+  selfAccountID: string;
+  userOverrides: UserOverrides[];
+  allowedInteractions: UserInteractions;
+  blockedInteractions: UserInteractions;
 }
 
 type Props = ReactProps & InjectedProps & AddDispatch;
@@ -127,141 +170,352 @@ class AFriendFoeList extends React.Component<Props, State> {
   }
 
   render(): React.ReactNode {
+    const [invitesSent, invitesReceived] = splitFriendInvites(this.props.friendInvites, this.props.selfAccountID);
+
     return (
       <div className={Root}>
-        {this.renderList(this.state.listType === ListType.Friends ? this.props.friends : this.props.foes)}
+        <div className={MemberListSection}>
+          {this.renderNavTabs(invitesReceived)}
+          {this.state.listType === ListType.Friends ? this.renderFriendList() : null}
+          {this.state.listType === ListType.Foes ? this.renderBlockList() : null}
+          {this.state.listType === ListType.Invitations ? this.renderInvitations(invitesSent, invitesReceived) : null}
+        </div>
+        <FactionCheckbox
+          className={BlockInvitesCheckbox}
+          labelClassName={BlockInvitesCheckboxLabel}
+          labelOnLeft
+          labelText={getStringTableValue(StringIDFriendFoeBlockInvites, this.props.stringTable)}
+          isChecked={this.getAreInvitesBlocked()}
+          onCheckedChanged={this.onInviteBlockingChanged.bind(this)}
+        />
       </div>
     );
   }
 
-  private renderList(members: SocialPlayer[]): React.ReactNode {
+  private renderNavTabs(invitesReceived: FriendInvite[]): React.ReactNode {
     const factionData = getFactionData(this.props.uiFactionID);
+    return (
+      <div className={MemberListTabNav}>
+        <div className={NavTabs}>
+          {this.renderNavTab(ListType.Friends, StringIDFriendFoeFriendList)}
+          {this.renderNavTab(ListType.Foes, StringIDFriendFoeFoeList)}
+          {this.renderNavTab(ListType.Invitations, StringIDFriendFoeInvitationsList, invitesReceived.length)}
+        </div>
+        <img className={TaperBar} src={factionData.taperBarImage} />
+      </div>
+    );
+  }
 
-    const isFriend = this.state.listType === ListType.Friends;
+  private renderNavTab(listType: ListType, labelStringID: string, badgeCount: number = 0): React.ReactNode {
+    return (
+      <FactionBorderSelectable
+        className={NavTab}
+        isSelected={this.state.listType === listType}
+        onSelected={() => this.setState({ listType })}
+        background={BorderBackground.PatternSmall}
+        includeBottom={false}
+      >
+        <div className={TabLabel}>{getStringTableValue(labelStringID, this.props.stringTable)}</div>
+        {badgeCount > 0 ? (
+          <FactionBorder
+            className={TabBadgeContainer}
+            type={BorderType.Secondary}
+            background={BorderBackground.Darken}
+            includeBottom={false}
+          >
+            <div className={TabBadgeLabel} style={{ color: getFactionData(this.props.uiFactionID).targetBorderColor }}>
+              {badgeCount}
+            </div>
+          </FactionBorder>
+        ) : null}
+      </FactionBorderSelectable>
+    );
+  }
+
+  private renderFriendList(): React.ReactNode {
+    const factionData = getFactionData(this.props.uiFactionID);
 
     return (
       <>
-        <div className={MemberListSection}>
-          <div className={MemberListTabNav}>
-            <div className={NavTabs}>
-              <FactionBorderSelectable
-                className={NavTab}
-                isSelected={isFriend}
-                onSelected={() => this.setState({ listType: ListType.Friends })}
-              >
-                <div className={TabLabel}>
-                  {getStringTableValue(StringIDFriendFoeFriendList, this.props.stringTable)}
-                </div>
-              </FactionBorderSelectable>
-              <FactionBorderSelectable
-                className={NavTab}
-                isSelected={!isFriend}
-                onSelected={() => this.setState({ listType: ListType.Foes })}
-              >
-                <div className={TabLabel}>{getStringTableValue(StringIDFriendFoeFoeList, this.props.stringTable)}</div>
-              </FactionBorderSelectable>
+        <div className={MemberListHeader}>
+          <div className={MemberIndexCell} />
+          <div
+            className={`${SortButton} ${MemberNameCell}`}
+            onClick={this.shiftSortOrder.bind(this, SortCategory.Name)}
+          >
+            <div className={LegendText}>
+              {getStringTableValue(StringIDFriendFoeLegendMemberName, this.props.stringTable)}
             </div>
-            <img className={TaperBar} src={factionData.taperBarImage} />
+            <img className={this.getSortClassName(SortCategory.Name)} src={factionData.arrowPointerImage} />
           </div>
-          <div className={MemberListHeader}>
-            <div className={MemberIndexCell} />
-            <div
-              className={`${SortButton} ${MemberNameCell}`}
-              onClick={this.shiftSortOrder.bind(this, SortCategory.Name)}
-            >
-              <div className={LegendText}>
-                {getStringTableValue(StringIDFriendFoeLegendMemberName, this.props.stringTable)}
-              </div>
-              <img className={this.getSortClassName(SortCategory.Name)} src={factionData.arrowPointerImage} />
+          <div
+            className={`${SortButton} ${MemberClassCell}`}
+            onClick={this.shiftSortOrder.bind(this, SortCategory.Class)}
+          >
+            <div className={LegendText}>
+              {getStringTableValue(StringIDFriendFoeLegendMemberClass, this.props.stringTable)}
             </div>
-            <div
-              className={`${SortButton} ${MemberLevelCell}`}
-              onClick={this.shiftSortOrder.bind(this, SortCategory.Level)}
-            >
-              <div className={LegendText}>
-                {getStringTableValue(StringIDFriendFoeLegendMemberLevel, this.props.stringTable)}
-              </div>
-              <img className={this.getSortClassName(SortCategory.Level)} src={factionData.arrowPointerImage} />
-            </div>
-            <div
-              className={`${SortButton} ${MemberClassCell}`}
-              onClick={this.shiftSortOrder.bind(this, SortCategory.Class)}
-            >
-              <div className={LegendText}>
-                {getStringTableValue(StringIDFriendFoeLegendMemberClass, this.props.stringTable)}
-              </div>
-              <img className={this.getSortClassName(SortCategory.Class)} src={factionData.arrowPointerImage} />
-            </div>
-            <div
-              className={`${SortButton} ${MemberNoteCell}`}
-              onClick={this.shiftSortOrder.bind(this, SortCategory.Note)}
-            >
-              <div className={LegendText}>
-                {getStringTableValue(StringIDFriendFoeLegendMemberNote, this.props.stringTable)}
-              </div>
-              <img className={this.getSortClassName(SortCategory.Note)} src={factionData.arrowPointerImage} />
-            </div>
+            <img className={this.getSortClassName(SortCategory.Class)} src={factionData.arrowPointerImage} />
           </div>
-          <div className={MemberListScrollRegion}>
-            <FactionScrollArea
-              className={MemberListScrollArea}
-              borderType={BorderType.Primary}
-              background={BorderBackground.PatternLarge}
-            >
-              <div className={MemberListContent}>{this.getSortedPlayers().map(this.renderPlayerRow.bind(this))}</div>
-            </FactionScrollArea>
+          <div
+            className={`${SortButton} ${MemberNoteCell}`}
+            onClick={this.shiftSortOrder.bind(this, SortCategory.Note)}
+          >
+            <div className={LegendText}>
+              {getStringTableValue(StringIDFriendFoeLegendMemberNote, this.props.stringTable)}
+            </div>
+            <img className={this.getSortClassName(SortCategory.Note)} src={factionData.arrowPointerImage} />
           </div>
-          <FactionButton className={AddButton} onClick={this.onAddClicked.bind(this, isFriend)}>
-            {getStringTableValue(
-              isFriend ? StringIDFriendFoeAddFriend : StringIDFriendFoeAddFoe,
-              this.props.stringTable
-            )}
-          </FactionButton>
         </div>
-        <ComingSoon />
+        <div className={MemberListScrollRegion}>
+          <FactionScrollArea
+            className={MemberListScrollArea}
+            borderType={BorderType.Primary}
+            background={BorderBackground.PatternLarge}
+            showEmptyTrack
+          >
+            <div className={MemberListContent}>{this.getSortedPlayers().map(this.renderFriendRow.bind(this))}</div>
+          </FactionScrollArea>
+        </div>
+        <FactionButton className={AddButton} onClick={this.onAddClicked.bind(this, true)}>
+          {getStringTableValue(StringIDFriendFoeAddFriend, this.props.stringTable)}
+        </FactionButton>
       </>
     );
   }
 
-  private onAddClicked(isFriend: boolean): void {
-    const model: ModalModel = {
-      title: getStringTableValue(
-        isFriend ? StringIDFriendFoeAddFriendToList : StringIDFriendFoeAddFoeToList,
-        this.props.stringTable
-      ),
-      message: '',
-      body: <AddFriendFoeDialog isFoe={!isFriend} />,
-      buttons: null
-    };
+  private renderBlockList(): React.ReactNode {
+    const factionData = getFactionData(this.props.uiFactionID);
 
-    this.props.dispatch(
-      showModal({
-        id: 'AddFriendFoe',
-        content: model,
-        escapable: true
-      })
+    return (
+      <>
+        <div className={MemberListHeader}>
+          <div className={MemberIndexCell} />
+          <div
+            className={`${SortButton} ${MemberNameCell}`}
+            onClick={this.shiftSortOrder.bind(this, SortCategory.Name)}
+          >
+            <div className={LegendText}>
+              {getStringTableValue(StringIDFriendFoeLegendMemberName, this.props.stringTable)}
+            </div>
+            <img className={this.getSortClassName(SortCategory.Name)} src={factionData.arrowPointerImage} />
+          </div>
+          <div
+            className={`${SortButton} ${MemberNoteCell} block`}
+            onClick={this.shiftSortOrder.bind(this, SortCategory.Note)}
+          >
+            <div className={LegendText}>
+              {getStringTableValue(StringIDFriendFoeLegendMemberNote, this.props.stringTable)}
+            </div>
+            <img className={this.getSortClassName(SortCategory.Note)} src={factionData.arrowPointerImage} />
+          </div>
+        </div>
+        <div className={MemberListScrollRegion}>
+          <FactionScrollArea
+            className={MemberListScrollArea}
+            borderType={BorderType.Primary}
+            background={BorderBackground.PatternLarge}
+            showEmptyTrack
+          >
+            <div className={MemberListContent}>{this.getSortedPlayers().map(this.renderBlockRow.bind(this))}</div>
+          </FactionScrollArea>
+        </div>
+        <FactionButton className={AddButton} onClick={this.onAddClicked.bind(this, false)}>
+          {getStringTableValue(StringIDFriendFoeAddFoe, this.props.stringTable)}
+        </FactionButton>
+      </>
     );
   }
 
-  private onAddEditNoteClicked(isFriend: boolean, player: SocialPlayer): void {
+  private renderInvitations(invitesSent: FriendInvite[], invitesReceived: FriendInvite[]): React.ReactNode {
+    const titleStyle: React.CSSProperties = {
+      backgroundImage: `url(${getFactionData(this.props.uiFactionID).headerBorderSecondaryImage})`
+    };
+    return (
+      <>
+        <div className={InvitesSectionContainer}>
+          <FactionScrollArea
+            className={ReceivedInvitesSection}
+            contentClassName={InvitesSectionContent}
+            borderType={BorderType.Primary}
+            background={BorderBackground.PatternLarge}
+            showEmptyTrack
+          >
+            {invitesReceived.map(this.renderReceivedInvitationRow.bind(this))}
+          </FactionScrollArea>
+          <div className={InvitesSectionTitle} style={titleStyle}>
+            {getStringTableValue(StringIDFriendFoeReceivedInvitationsTitle, this.props.stringTable)}
+          </div>
+        </div>
+        <FactionButton
+          className={RejectAllButton}
+          widthOverrideVmin={8.32}
+          disabled={invitesReceived.length <= 0}
+          onClick={this.onRejectAllClicked.bind(this)}
+        >
+          {getStringTableValue(StringIDFriendFoeRejectAll, this.props.stringTable)}
+        </FactionButton>
+        <div className={InvitesSectionContainer}>
+          <FactionScrollArea
+            className={SentInvitesSection}
+            contentClassName={InvitesSectionContent}
+            borderType={BorderType.Primary}
+            background={BorderBackground.PatternLarge}
+            showEmptyTrack
+          >
+            {invitesSent.map(this.renderSentInvitationRow.bind(this))}
+          </FactionScrollArea>
+          <div className={InvitesSectionTitle} style={titleStyle}>
+            {getStringTableValue(StringIDFriendFoeSentInvitationsTitle, this.props.stringTable)}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  private renderSentInvitationRow(invite: FriendInvite, index: number): React.ReactNode {
+    return (
+      <div className={`${InviteRowContainer}${index % 2 ? ' odd' : ''}`}>
+        <div className={InviteNumberLabel}>{index + 1}</div>
+        <div className={InviteName}>{invite.to?.displayName}</div>
+        <div className={InviteButtonSection}>
+          <FactionButton
+            className={InviteActionButton}
+            size={'m'}
+            widthOverrideVmin={8}
+            onClick={this.onInviteCancel.bind(this, invite)}
+          >
+            {getStringTableValue(StringIDGeneralCancel, this.props.stringTable)}
+          </FactionButton>
+        </div>
+      </div>
+    );
+  }
+
+  private renderReceivedInvitationRow(invite: FriendInvite, index: number): React.ReactNode {
+    return (
+      <div className={`${InviteRowContainer}${index % 2 ? ' odd' : ''}`}>
+        <div className={InviteNumberLabel}>{index + 1}</div>
+        <div className={InviteName}>{invite.from?.displayName}</div>
+        <div className={InviteButtonSection}>
+          <FactionButton
+            className={InviteActionButton}
+            size={'m'}
+            widthOverrideVmin={8}
+            onClick={this.onInviteAccept.bind(this, invite)}
+          >
+            {getStringTableValue(StringIDGeneralAccept, this.props.stringTable)}
+          </FactionButton>
+          <FactionButton
+            className={InviteActionButton}
+            size={'m'}
+            widthOverrideVmin={8}
+            onClick={this.onInviteIgnore.bind(this, invite)}
+          >
+            {getStringTableValue(StringIDGeneralIgnore, this.props.stringTable)}
+          </FactionButton>
+        </div>
+      </div>
+    );
+  }
+
+  private async onInviteCancel(invite: FriendInvite): Promise<void> {
+    // You sent this invite, and you are retracting it.
+    const params: RejectFriendInviteParams = {
+      inviteID: invite.id,
+      inviterID: invite.to!.id!
+    };
+    const result = await this.props.dispatch(callRejectFriendInvite(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
+  }
+
+  private async onInviteAccept(invite: FriendInvite): Promise<void> {
+    // You received this invite, and you are accepting it.
+    const params: AcceptFriendInviteParams = {
+      inviteID: invite.id,
+      inviterID: invite.from!.id!
+    };
+    const result = await this.props.dispatch(callAcceptFriendInvite(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
+  }
+
+  private async onInviteIgnore(invite: FriendInvite): Promise<void> {
+    // You received this invite, and you are rejecting it.
+    const params: RejectFriendInviteParams = {
+      inviteID: invite.id,
+      inviterID: invite.from!.id!
+    };
+    const result = await this.props.dispatch(callRejectFriendInvite(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
+  }
+
+  private onAddClicked(isFriend: boolean): void {
+    // A sent invite is listed under Invitations; a new block already shows in the Block List.
+    const onAdded = isFriend ? () => this.setState({ listType: ListType.Invitations }) : undefined;
+    showAddFriendFoeModal(this.props.dispatch, this.props.stringTable, { isFoe: !isFriend, onAdded });
+  }
+
+  private onAddEditNoteClicked(isFriend: boolean, player: PlayerDisplayData): void {
     const model: ModalModel = {
       title: getStringTableValue(StringIDFriendFoeAddNote, this.props.stringTable),
-      message: player.name,
-      body: <AddEditFriendFoeNoteDialog isFoe={!isFriend} player={player} />,
+      message: player.character && player.character.name ? player.character.name : player.account.displayName ?? '',
+      body: (
+        <AddEditFriendFoeNoteDialog
+          isFoe={!isFriend}
+          account={player.account}
+          character={player.character}
+          note={player.note ?? ''}
+        />
+      ),
       buttons: null
     };
 
     this.props.dispatch(
       showModal({
-        id: 'AddFriendFoe',
+        id: 'AddEditFriendFoeNote',
         content: model,
         escapable: true
       })
     );
   }
 
-  private renderPlayerRow(player: SocialPlayer, index: number): React.ReactNode {
-    const idString = `Player${player.accountID}`;
+  private renderFriendRow(player: PlayerDisplayData, index: number): React.ReactNode {
+    const idString = `Player${player.account.id}`;
+
+    const isOffline = !player.character;
+
+    return (
+      <ContextMenuSource
+        className={`${MemberListRow}${index % 2 ? ' odd' : ''}${isOffline ? ' offline' : ''}`}
+        key={idString}
+        menuParams={{ id: idString, content: this.buildPlayerContextMenu(player) }}
+      >
+        <div className={MemberIndexCell}>
+          <div className={MemberListDataText}>{`${index + 1}.`}</div>
+        </div>
+        <div className={MemberNameCell}>
+          <div className={MemberNameStack}>
+            <div className={MemberListDataText}>{player.account.displayName}</div>
+            {player.character && <div className={MemberListDataText}>{`(${player.character.name})`}</div>}
+          </div>
+        </div>
+        <div className={MemberClassCell}>
+          {player.character && (
+            <img
+              className={MemberClassIcon}
+              src={this.props.defs.classesByStringID[player.character!.classID!].unitFrameIconTransparencyImage}
+            />
+          )}
+        </div>
+        <div className={MemberNoteCell}>
+          <div className={MemberListDataText}>{player.note}</div>
+        </div>
+      </ContextMenuSource>
+    );
+  }
+
+  private renderBlockRow(player: PlayerDisplayData, index: number): React.ReactNode {
+    const idString = `Player${player.account.id}`;
 
     return (
       <ContextMenuSource
@@ -272,28 +526,17 @@ class AFriendFoeList extends React.Component<Props, State> {
         <div className={MemberIndexCell}>
           <div className={MemberListDataText}>{`${index + 1}.`}</div>
         </div>
-        <div className={MemberNameCell}>
-          <div className={MemberListDataText}>{player.name}</div>
+        <div className={`${MemberNameCell} block`}>
+          <div className={MemberListDataText}>{player.account.displayName}</div>
         </div>
-        <div className={MemberLevelCell}>
-          <div className={MemberListDataText}>{player.level + 1}</div>
-        </div>
-        <div className={MemberClassCell}>
-          <div className={MemberListDataText}>
-            {getStringTableValue(
-              this.props.defs.classesByNumericID[player.classID]?.name ?? StringIDGeneralUnknownClass,
-              this.props.stringTable
-            )}
-          </div>
-        </div>
-        <div className={MemberNoteCell}>
+        <div className={`${MemberNoteCell} block`}>
           <div className={MemberListDataText}>{player.note}</div>
         </div>
       </ContextMenuSource>
     );
   }
 
-  private buildPlayerContextMenu(player: SocialPlayer): ContextMenuItem[] {
+  private buildPlayerContextMenu(player: PlayerDisplayData): ContextMenuItem[] {
     const items: ContextMenuItem[] = [];
 
     const isFriend = this.state.listType === ListType.Friends;
@@ -304,7 +547,7 @@ class AFriendFoeList extends React.Component<Props, State> {
       item = {
         title: getStringTableValue(StringIDChatScopeNameWhisper, this.props.stringTable),
         onClick: (dispatch: AppDispatch) => {
-          Chat.requestWhisper(player.name);
+          Chat.requestWhisper(player.character!.name!);
         }
       };
       items.push(item);
@@ -328,19 +571,29 @@ class AFriendFoeList extends React.Component<Props, State> {
             isFriend ? StringIDFriendFoeRemoveFriend : StringIDFriendFoeRemoveFoe,
             this.props.stringTable
           ),
-          message: player.name,
+          message: player.character?.name ?? player.account.displayName ?? '',
           buttons: [
+            {
+              text: getStringTableValue(StringIDGeneralRemove, this.props.stringTable),
+              onClick: async () => {
+                dispatch(hideModal());
+                const result = isFriend
+                  ? await this.props.dispatch(callRemoveFriend(player.account.id!))
+                  : // Remove from Block List. Sending both allowed and blocked resets the player to the defaults.
+                    await this.props.dispatch(
+                      callSocialSetUserPermissions({
+                        allowed: UserInteractions.All,
+                        blocked: UserInteractions.All,
+                        targetID: player.account.id
+                      })
+                    );
+                showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
+              }
+            },
             {
               text: getStringTableValue(StringIDGeneralCancel, this.props.stringTable),
               onClick: () => {
                 dispatch(hideModal());
-              }
-            },
-            {
-              text: getStringTableValue(StringIDGeneralRemove, this.props.stringTable),
-              onClick: () => {
-                dispatch(hideModal());
-                dispatch(callGuildKick(player.accountID));
               }
             }
           ]
@@ -360,39 +613,58 @@ class AFriendFoeList extends React.Component<Props, State> {
     return items;
   }
 
-  private getSortedPlayers(): SocialPlayer[] {
-    let sorted: SocialPlayer[] = (
-      this.state.listType === ListType.Friends ? this.props.friends : this.props.foes
+  private getFriendDisplayData(): PlayerDisplayData[] {
+    return this.props.friends.map((f) => {
+      return { account: f.account!, character: f.character, note: f.note ?? '' };
+    });
+  }
+
+  private getFoeDisplayData(): PlayerDisplayData[] {
+    return this.props.userOverrides
+      .filter((uo) => {
+        // Only blocked players go in the block list.
+        return uo.blocked === UserInteractions.All;
+      })
+      .map((uo) => {
+        return { account: uo.account!, character: null, note: uo.note ?? '' };
+      });
+  }
+
+  private getSortedPlayers(): PlayerDisplayData[] {
+    let sorted: PlayerDisplayData[] = (
+      this.state.listType === ListType.Friends ? this.getFriendDisplayData() : this.getFoeDisplayData()
     ).slice();
     sorted.sort((a, b) => {
+      const aIsOnline = !!a.character;
+      const bIsOnline = !!b.character;
+
+      // Online characters always before offline characters.
+      if (aIsOnline !== bIsOnline) {
+        return aIsOnline ? -1 : 1;
+      }
+
       for (let i = 0; i < this.state.sort.length; ++i) {
         const [category, order] = this.state.sort[i];
         const inverter = order === SortOrder.Descending ? -1 : 1;
 
         switch (category) {
           case SortCategory.Name: {
-            if (a.name !== b.name) {
-              return inverter * a.name.localeCompare(b.name);
+            if (a.character?.name !== b.character?.name) {
+              return inverter * a.character!.name!.localeCompare(b.character!.name!);
             }
             break;
           }
           case SortCategory.Class: {
             const aClass = getStringTableValue(
-              this.props.defs.classesByNumericID[a.classID]?.name ?? StringIDGeneralUnknownClass,
+              this.props.defs.classesByStringID[a.character!.classID!]?.name ?? StringIDGeneralUnknownClass,
               this.props.stringTable
             );
             const bClass = getStringTableValue(
-              this.props.defs.classesByNumericID[a.classID]?.name ?? StringIDGeneralUnknownClass,
+              this.props.defs.classesByStringID[a.character!.classID!]?.name ?? StringIDGeneralUnknownClass,
               this.props.stringTable
             );
             if (aClass !== bClass) {
               return inverter * aClass.localeCompare(bClass);
-            }
-            break;
-          }
-          case SortCategory.Level: {
-            if (a.level !== b.level) {
-              return inverter * (b.level - a.level);
             }
             break;
           }
@@ -432,6 +704,25 @@ class AFriendFoeList extends React.Component<Props, State> {
       order === SortOrder.Descending ? ' down' : ''
     }`;
   }
+
+  private getAreInvitesBlocked(): boolean {
+    return !!(this.props.blockedInteractions & UserInteractions.FriendInvite);
+  }
+
+  private async onInviteBlockingChanged(isBlocked: boolean): Promise<void> {
+    // we're either clearing (by setting both) or blocking the specific friend invite field
+    const params: SocialSetPermissionsParams = {
+      allowed: isBlocked ? UserInteractions.None : UserInteractions.FriendInvite,
+      blocked: UserInteractions.FriendInvite
+    };
+    const result = await this.props.dispatch(callSocialSetPermissions(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
+  }
+
+  private async onRejectAllClicked(): Promise<void> {
+    const result = await this.props.dispatch(callRejectAllFriendInvites());
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
+  }
 }
 
 const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & InjectedProps => {
@@ -441,21 +732,13 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     uiFactionID: state.hud.uiFactionID,
     self: state.entities.self,
     defs: state.gameDefs,
-    // TODO: Get real data from somewhere, once it exists.
-    friends: [
-      { accountID: '1', name: 'Friend 1', level: 0, classID: 1, note: '' },
-      { accountID: '2', name: 'Friend 2', level: 1, classID: 2, note: '' },
-      { accountID: '3', name: 'Friend 3', level: 2, classID: 3, note: '' },
-      { accountID: '4', name: 'Friend 4', level: 3, classID: 4, note: '' },
-      { accountID: '5', name: 'Friend 5', level: 4, classID: 5, note: '' }
-    ],
-    foes: [
-      { accountID: '6', name: 'Foe 1', level: 0, classID: 1, note: '' },
-      { accountID: '7', name: 'Foe 2', level: 1, classID: 2, note: '' },
-      { accountID: '8', name: 'Foe 3', level: 2, classID: 3, note: '' },
-      { accountID: '9', name: 'Foe 4', level: 3, classID: 4, note: '' },
-      { accountID: '10', name: 'Foe 5', level: 4, classID: 5, note: '' }
-    ]
+    friends: (state.social.friends.friends ?? []) as Friend[],
+    friendInvites: (state.social.friends.friendInvites ?? []) as FriendInvite[],
+    selfAccountID: state.entities.self.accountID,
+    userOverrides: (state.social.settings?.overrides ?? []) as UserOverrides[],
+    // Only null before the settings load; the server always sends both.
+    allowedInteractions: state.social.settings?.defaultAllowed ?? UserInteractions.All,
+    blockedInteractions: state.social.settings?.defaultBlocked ?? UserInteractions.None
   };
 };
 

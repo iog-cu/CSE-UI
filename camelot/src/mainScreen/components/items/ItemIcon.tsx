@@ -6,7 +6,7 @@
 
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { AddDispatch, RootState } from '../../redux/store';
+import { AddDispatch, RootState, store } from '../../redux/store';
 import {
   InventoryStackSplit,
   ItemActionTargetingData,
@@ -62,6 +62,8 @@ import { GameDefsState } from '../../redux/gameDefsSlice';
 import { AbilityDisplayDef } from '../../dataSources/manifest/abilityDisplayManifest';
 import { EntityResourceIDs } from '@csegames/library/dist/camelotunchained/game/types/EntityResourceIDs';
 import { showToaster } from '../../redux/toastersSlice';
+import { DropTypeAbilityButton } from '../abilityBars/AbilityButtonShared';
+import { AbilityBarSlotDropTargetData } from '../abilityBars/AbilityBarSlot';
 
 import RepairCursorCursorPath from '../../../cursors/cursor-repair.cur';
 import CannotRepairCursorPath from '../../../cursors/cursor-cannot-repair.cur';
@@ -70,6 +72,9 @@ import FallbackItemIconURL from '../../../images/unknown-item.jpg';
 
 const ModalID = 'InventoryStack';
 export const MOUSE_UP_NEEDED_REASON_REPAIRING = 'Repairing';
+
+const DropTypeInventorySlot = 'inventorySlot';
+const DropTypesInventoryAndAbilityBar = [DropTypeInventorySlot, DropTypeAbilityButton];
 
 // CSS classes
 const Root = 'HUD-ItemIcon-Root';
@@ -134,6 +139,12 @@ interface InjectedProps {
   itemActionTargetingData: ItemActionTargetingData | null;
 }
 
+function isAbilityBarSlotDropData(
+  data: ItemIconDropData | AbilityBarSlotDropTargetData | null
+): data is AbilityBarSlotDropTargetData {
+  return !!data && 'groupID' in data;
+}
+
 function formatCursorUrl(url: string): string {
   return `coui://./${url}`; // Cursors must have coui:// scheme prepended for the client to parse correctly
 }
@@ -177,7 +188,20 @@ class AItemIcon extends React.Component<Props> {
           // Is this item in tradeItemPositions?
           Object.values(this.props.tradeItemPositions).includes(this.props.items[0].instanceID));
 
-      const handleDragEnded = (data: ItemIconDropData | null): void => {
+      // Only top-level primary inventory items can go on the ability bar.
+      const canDropOnAbilityBar =
+        this.props.type === ItemLocationType.Inventory &&
+        this.props.items[0].location.type === ItemLocationType.Inventory;
+
+      const handleDragEnded = (data: ItemIconDropData | AbilityBarSlotDropTargetData | null): void => {
+        if (isAbilityBarSlotDropData(data)) {
+          this.dropOnAbilityBar(data);
+          if (this.props.stackSplit) {
+            this.props.dispatch(updateStackSplit(null));
+          }
+          return;
+        }
+
         const isSourceTrade = this.props.type === ItemLocationType._Trade;
         const isDestinationTrade = data?.type === ItemLocationType._Trade;
         let updatedStackSplit = false;
@@ -247,12 +271,12 @@ class AItemIcon extends React.Component<Props> {
             draggableID={this.getDraggableID()}
             dragStartHandler={this.handleDragStarted.bind(this)}
             dropHandler={handleDragEnded.bind(this)}
-            dropType='inventorySlot'
+            dropType={canDropOnAbilityBar ? DropTypesInventoryAndAbilityBar : DropTypeInventorySlot}
             isDisabled={isLockedForTrade}
           >
             <DropTarget
               dropData={this.getDropData()}
-              dropType='inventorySlot'
+              dropType={DropTypeInventorySlot}
               getHoverColor={this.getDropTargetHoverColor.bind(this)}
               showColorWhileDragging={this.props.type === ItemLocationType.Equipped}
             >
@@ -302,7 +326,7 @@ class AItemIcon extends React.Component<Props> {
       <div style={{ width: this.props.size }} className={Root}>
         <DropTarget
           dropData={this.getDropData()}
-          dropType='inventorySlot'
+          dropType={DropTypeInventorySlot}
           getHoverColor={this.getDropTargetHoverColor.bind(this)}
           showColorWhileDragging={this.props.type === ItemLocationType.Equipped}
         >
@@ -553,6 +577,29 @@ class AItemIcon extends React.Component<Props> {
     }
   }
 
+  private dropOnAbilityBar(dropData: AbilityBarSlotDropTargetData): void {
+    const item = this.props.items![0];
+    const itemDef = this.props.defs.itemsByNumericID[item.defID];
+    const displayDef = this.props.defs.abilityDisplayDefsByStringID[itemDef?.actions?.[0]?.id ?? ''];
+    const group = store.getState().abilities.groups[dropData.groupID];
+
+    const canPlace =
+      !!displayDef &&
+      // The bar has no way to pick a target item.
+      !displayDef.tags.some((tag) => tag.startsWith('Asset.Activation.SelectItem')) &&
+      itemDef.isStackableItem &&
+      !!item.stackHash &&
+      !!group?.canReplace &&
+      !group.isSystem;
+    if (!canPlace) {
+      clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_BAD_DROP);
+      return;
+    }
+
+    clientAPI.setAbilityItem(group.id, dropData.slotIndex, item.defID, item.stackHash, displayDef.numericID);
+    clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_RELEASE);
+  }
+
   beginRepairTargetingAction(item: Item, action: ItemAction, def: AbilityDisplayDef): void {
     // Set custom cursor.
     clientAPI.setCursorOverrideURL(RepairCursor);
@@ -610,6 +657,7 @@ class AItemIcon extends React.Component<Props> {
             setValue={(deleteCount) => {
               this.trashCount = deleteCount;
               this.props.dispatch(updateModalContent([ModalID, this.getTrashItemModalContent()]));
+              clientAPI.playGameSound(SoundEvents.PLAY_UI_CRAFTING_SCROLLBAR);
             }}
             minValue={1}
             maxValue={this.props.items?.[0]?.unitCount ?? 1}
@@ -622,6 +670,7 @@ class AItemIcon extends React.Component<Props> {
           text: getStringTableValue(StringIDGeneralCancel, this.props.stringTable),
           onClick: () => {
             this.props.dispatch(hideModal());
+            clientAPI.playGameSound(SoundEvents.PLAY_UI_SFX_CC_CANCEL_RETURN);
           }
         },
         {
@@ -629,6 +678,7 @@ class AItemIcon extends React.Component<Props> {
           onClick: () => {
             this.deleteItem();
             this.props.dispatch(hideModal());
+            clientAPI.playGameSound(SoundEvents.PLAY_UI_GAME_MENU_SELECT);
           }
         }
       ]
@@ -1024,7 +1074,7 @@ class AItemIcon extends React.Component<Props> {
 }
 
 const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & InjectedProps => {
-  const { entityID, faction, race, classID, stats, tags } = state.entities.self;
+  const { entityID, faction, race, classID, tags } = state.entities.self;
   const { primary, accountBank, equipment, stackSplit } = state.inventory;
   return {
     ...ownProps,
@@ -1037,7 +1087,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     race,
     classID,
     selfTags: tags,
-    myStats: stats,
+    myStats: state.entities.entityStats[entityID] ?? {},
     stringTable: state.stringTable.stringTable,
     tradeSnapshot: state.trade.tradeSnapshot,
     tradeItemPositions: state.trade.tradeItemPositions,

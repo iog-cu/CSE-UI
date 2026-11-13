@@ -30,6 +30,8 @@ interface ReactProps extends React.HTMLAttributes<HTMLDivElement> {
   displayedZoneID: string;
   map: React.ReactNode;
   overlays: React.ReactNode;
+  /** Measured from the map image's top-left, independent of zoom and pan. */
+  onShiftLeftClick?: (mapImageLeftPercent: number, mapImageTopPercent: number) => void;
 }
 
 interface InjectedProps {
@@ -54,6 +56,7 @@ class AWorldMapController extends React.Component<Props, State> {
   private lastX: number = 0;
   private lastY: number = 0;
   private baseScale = -1;
+  private overlaysContainerRef = React.createRef<HTMLDivElement>();
 
   constructor(props: Props) {
     super(props);
@@ -69,7 +72,7 @@ class AWorldMapController extends React.Component<Props, State> {
   }
 
   render(): JSX.Element {
-    const { children, className, style, displayedZoneID, ...otherProps } = this.props;
+    const { children, className, style, displayedZoneID, onShiftLeftClick, ...otherProps } = this.props;
     return (
       <div
         className={`${Root} ${className}`}
@@ -82,7 +85,7 @@ class AWorldMapController extends React.Component<Props, State> {
           <ResizeDetector key={displayedZoneID} onResize={this.onContainerResize.bind(this)} />
           {this.props.map}
         </div>
-        <div className={OverlaysContainer} style={this.buildOverlaysStyle()}>
+        <div ref={this.overlaysContainerRef} className={OverlaysContainer} style={this.buildOverlaysStyle()}>
           {this.props.overlays}
         </div>
       </div>
@@ -217,6 +220,15 @@ class AWorldMapController extends React.Component<Props, State> {
   private handleMouseDown(e: React.MouseEvent<HTMLDivElement>): void {
     // If there was a passed-in handler, run it too.
     this.props.onMouseDown?.(e);
+
+    if (e.button === 0 && e.shiftKey && this.props.onShiftLeftClick) {
+      const rect = this.overlaysContainerRef.current?.getBoundingClientRect();
+      if (rect && rect.width > 0 && rect.height > 0) {
+        const mapImageLeftPercent = ((e.clientX - rect.left) / rect.width) * 100;
+        const mapImageTopPercent = ((e.clientY - rect.top) / rect.height) * 100;
+        this.props.onShiftLeftClick(mapImageLeftPercent, mapImageTopPercent);
+      }
+    }
 
     // Click-drag to pan (0-left, 1-middle, 2-right)
     if (e.button === 0 || e.button === 2) {

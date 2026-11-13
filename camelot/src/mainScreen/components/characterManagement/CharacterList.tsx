@@ -37,6 +37,7 @@ import { BodyTypeDef } from '../../dataSources/manifest/bodyTypeManifest';
 import { FactionBorderSelectable } from '../FactionBorderSelectable';
 
 const ModalID = 'DeleteCharacter';
+const UnknownMaxCharacterSlots = '??';
 
 // String IDs
 const StringIDCharacterManagementCharactersCount = 'CharacterManagementCharactersCount';
@@ -47,6 +48,10 @@ const StringIDCharacterManagementDeleteCharacterMessage = 'CharacterManagementDe
 const Root = 'HUD-CharacterList-Root';
 const CharacterCountNumber = 'HUD-CharacterList-CharacterCountNumber';
 const CharacterCountLabel = 'HUD-CharacterList-CharacterCountLabel';
+const ListFrame = 'HUD-CharacterList-ListFrame';
+const EdgeFadeTop = 'HUD-CharacterList-EdgeFadeTop';
+const EdgeFadeBottom = 'HUD-CharacterList-EdgeFadeBottom';
+const Divider = 'HUD-CharacterList-Divider';
 const ListContainer = 'HUD-CharacterList-CharacterListContainer';
 const ListContent = 'HUD-CharacterList-CharacterListContent';
 const Cell = 'HUD-CharacterList-Cell';
@@ -65,7 +70,7 @@ interface InjectedProps {
   racesByStringID: Record<string, RaceDef>;
   bodyTypesByStringID: Record<string, BodyTypeDef>;
   gameDefsLoaded: boolean;
-  maxCharacterSlots: number;
+  maxCharacterSlots: number | null;
 }
 
 type Props = ReactProps & InjectedProps & AddDispatch;
@@ -82,17 +87,21 @@ class ACharacterList extends React.Component<Props> {
           textAlign={'center'}
           text={getTokenizedStringTableValue(StringIDCharacterManagementCharactersCount, this.props.stringTable, {
             COUNT: String(this.props.characters.length),
-            MAX: this.props.maxCharacterSlots.toFixed(0)
+            MAX: this.props.maxCharacterSlots?.toFixed(0) ?? UnknownMaxCharacterSlots
           })}
           className={CharacterCountLabel}
           textClasses={[CharacterCountNumber]}
           nodes={[]}
         />
-        <FactionDivider />
-        <FactionScrollArea className={ListContainer} contentClassName={ListContent}>
-          {this.props.characters.map(this.renderCharacterCell.bind(this))}
-        </FactionScrollArea>
-        <FactionDivider />
+        <div className={ListFrame}>
+          <FactionScrollArea className={ListContainer} contentClassName={ListContent}>
+            {this.props.characters.map(this.renderCharacterCell.bind(this))}
+          </FactionScrollArea>
+          <div className={EdgeFadeTop} />
+          <div className={EdgeFadeBottom} />
+          <FactionDivider className={Divider} position='top' />
+          <FactionDivider className={Divider} position='bottom' />
+        </div>
       </div>
     );
   }
@@ -210,7 +219,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     racesByStringID: state.gameDefs.racesByStringID,
     bodyTypesByStringID: state.gameDefs.bodyTypesByStringID,
     gameDefsLoaded: state.loading.gameDefsLoaded,
-    maxCharacterSlots: state.characters.restrictions?.maxSlots ?? Number.MAX_SAFE_INTEGER
+    maxCharacterSlots: state.characters.restrictions?.maxSlots ?? null
   };
 };
 

@@ -8,24 +8,35 @@ import { engine } from '../engine';
 
 // UI -> client (see UIViewListener.cpp)
 const ApplySpecAllocationCallbackName = 'progression.ApplySpecAllocation';
+const ApplyTierAllocationCallbackName = 'progression.ApplyTierAllocation';
 
 export interface ProgressionTrackDelta {
   trackID: string;
   delta: number; // Whole numbers only.
 }
 
+export interface ProgressionTierDelta {
+  unlockID: string; // ID for specific ability/status
+  delta: number; // Whole numbers only.
+}
+
 export interface ProgressionFunctions {
   applySpecAllocation(deltas: ProgressionTrackDelta[]): void;
+  applyTierAllocation(trackID: string, deltas: ProgressionTierDelta[]): void;
 }
 
 class CoherentProgressionFunctions implements ProgressionFunctions {
   applySpecAllocation(deltas: ProgressionTrackDelta[]): void {
     engine.call(ApplySpecAllocationCallbackName, deltas);
   }
+  applyTierAllocation(trackID: string, deltas: ProgressionTierDelta[]): void {
+    engine.call(ApplyTierAllocationCallbackName, trackID, deltas);
+  }
 }
 
 class BrowserProgressionFunctions implements ProgressionFunctions {
   applySpecAllocation(deltas: ProgressionTrackDelta[]): void {}
+  applyTierAllocation(trackID: string, deltas: ProgressionTierDelta[]): void {}
 }
 
 export const impl: ProgressionFunctions = engine.isAttached

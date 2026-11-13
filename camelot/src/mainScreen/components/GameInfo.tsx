@@ -314,7 +314,6 @@ const EconomyMethods: { headerID: string; bodyID: string }[] = [
   { headerID: StringIDEconomySubHeaderTwo, bodyID: StringIDEconomySubBodyTwo }
 ];
 
-
 interface ReactProps {
   isDragCopy: boolean;
 }
@@ -441,7 +440,10 @@ class AGameInfo extends React.Component<Props, State> {
         <div className={SectionHeading} style={{ color: highlightColor }}>
           {this.text(headingID)}
         </div>
-        <div className={SectionDivider} style={{ background: `linear-gradient(to right, ${highlightColor}, transparent)` }} />
+        <div
+          className={SectionDivider}
+          style={{ background: `linear-gradient(to right, ${highlightColor}, transparent)` }}
+        />
         {this.renderSectionContent(sectionId)}
       </div>
     );
@@ -766,7 +768,10 @@ class AGameInfo extends React.Component<Props, State> {
   }
 
   // borderClassName controls aspect ratio; defaults to the 1.75:1 box most clips use.
-  private renderRealmVideo(videosByFaction: Record<string, string>, borderClassName: string = VideoBorder): React.ReactNode {
+  private renderRealmVideo(
+    videosByFaction: Record<string, string>,
+    borderClassName: string = VideoBorder
+  ): React.ReactNode {
     const videoUrl = videosByFaction[this.props.uiFactionID];
     if (!videoUrl) {
       return null;
@@ -804,7 +809,9 @@ class AGameInfo extends React.Component<Props, State> {
       this.props.itemsByNumericID,
       ProficiencyGearSlotID
     );
-    const categoryDefID = torsoItem ? this.props.itemsByNumericID[torsoItem.defID]?.armorConfig?.armorCategoryDefID : undefined;
+    const categoryDefID = torsoItem
+      ? this.props.itemsByNumericID[torsoItem.defID]?.armorConfig?.armorCategoryDefID
+      : undefined;
     return categoryDefID ? this.props.armorCategories[categoryDefID]?.name : undefined;
   }
 
@@ -829,8 +836,10 @@ class AGameInfo extends React.Component<Props, State> {
     currentArmorType?: string
   ): React.ReactNode {
     const iconType = StationIconTypes[stationName.trim().toLowerCase()];
-    const iconImage = iconType !== undefined ? getFactionData(this.props.uiFactionID).mapIconImages[iconType] : undefined;
-    const isProficiency = !!currentArmorType && armorType.trim().toLowerCase() === currentArmorType.trim().toLowerCase();
+    const iconImage =
+      iconType !== undefined ? getFactionData(this.props.uiFactionID).mapIconImages[iconType] : undefined;
+    const isProficiency =
+      !!currentArmorType && armorType.trim().toLowerCase() === currentArmorType.trim().toLowerCase();
     const highlightColor = this.getHighlightColor();
     return (
       <div className={StationRow} key={index}>

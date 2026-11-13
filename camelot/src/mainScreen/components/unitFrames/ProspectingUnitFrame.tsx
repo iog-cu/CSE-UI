@@ -14,7 +14,6 @@ import {
   // ItemEntityStateModel
 } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { EntityResourceDef } from '../../dataSources/manifest/entityResourceManifest';
-import { ArrayMap } from '@csegames/library/dist/_baseGame/types/ObjectMap';
 import { StatusDef } from '../../dataSources/manifest/statusManifest';
 import { StatusState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/StatusState';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
@@ -58,9 +57,9 @@ interface ReactProps {
 interface InjectedProps {
   localEntityID: string;
   entityResourcesByStringID: Record<string, EntityResourceDef>;
-  localPlayerResources: ArrayMap<EntityResource>;
+  localPlayerResources: Record<string, EntityResource>;
   statusDefsByNumeric: Record<string, StatusDef>;
-  localPlayerStatuses: ArrayMap<StatusState>;
+  localPlayerStatuses: Record<number, StatusState>;
   uiFactionID: string;
 }
 
@@ -72,34 +71,28 @@ class AProspectingUnitFrame extends React.Component<Props> {
     const factionData = getFactionData(this.props.uiFactionID);
 
     let fragilityPercent = 1;
-    const fragility = this.getResource(EntityResourceIDs.ProspectingFragility);
+    const fragility = this.props.localPlayerResources[EntityResourceIDs.ProspectingFragility];
     if (fragility) {
       fragilityPercent = fragility.current / fragility.max;
     }
 
     let excavationPercent = 1;
-    const excavation = this.getResource(EntityResourceIDs.ProspectingExcavation);
+    const excavation = this.props.localPlayerResources[EntityResourceIDs.ProspectingExcavation];
     if (excavation) {
       excavationPercent = excavation.current / excavation.max;
     }
 
     let targetPercent = 1;
-    const target = this.getResource(EntityResourceIDs.ProspectingTargetNumber);
+    const target = this.props.localPlayerResources[EntityResourceIDs.ProspectingTargetNumber];
     if (target) {
       targetPercent = target.current / target.max;
     }
 
     let yieldPercent = 1;
-    const yieldResource = Object.values(entity.resources).find((r) => r.id === EntityResourceIDs.Yield);
+    const yieldResource = this.props.localPlayerResources[EntityResourceIDs.Yield];
     if (yieldResource) {
       yieldPercent = yieldResource.current / yieldResource.max;
     }
-
-    console.log(
-      `Fragility: ${fragilityPercent.toFixed(1)} Excavation: ${excavationPercent.toFixed(
-        1
-      )} Target: ${targetPercent.toFixed(1)} Yield: ${yieldPercent.toFixed(1)}`
-    );
 
     return (
       <div
@@ -155,22 +148,18 @@ class AProspectingUnitFrame extends React.Component<Props> {
       clientAPI.requestEnemyTarget('');
     }
   }
-
-  private getResource(resourceID: EntityResourceIDs): EntityResource {
-    return Object.values(this.props.localPlayerResources).find((r) => r.id === resourceID);
-  }
 }
 
 function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
-  const { entityID, resources, statuses } = state.entities.self;
+  const { entityID } = state.entities.self;
   return {
     ...ownProps,
     uiFactionID: state.hud.uiFactionID,
     localEntityID: entityID,
     entityResourcesByStringID: state.gameDefs.entityResourcesByStringID,
-    localPlayerResources: resources,
+    localPlayerResources: state.entities.entityResources[entityID] ?? {},
     statusDefsByNumeric: state.gameDefs.statusesByNumericID,
-    localPlayerStatuses: statuses
+    localPlayerStatuses: state.entities.entityStatuses[entityID] ?? {}
   };
 }
 

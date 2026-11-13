@@ -36,6 +36,7 @@ import {
   getUnitFrameContextMenuItems
 } from '../../helpers/characterHelpers';
 import { GuildSnapshot } from '@csegames/library/dist/camelotunchained/game/GameClientModels/GuildSnapshot';
+import { Friend } from '@csegames/library/dist/camelotunchained/graphql/schema';
 
 // CSS Classes
 const Root = 'HUD-TargetUnitFrame-Root';
@@ -60,6 +61,7 @@ interface InjectedProps {
   party: PartyState;
   warband: WarbandSnapshot;
   guild: GuildSnapshot;
+  friends: (Friend | null)[] | null;
   stringTable: Record<string, StringTableEntryDef>;
   tagAffixIDByStringID: Record<string, number>;
   nameplateStyle: NameplateStyle;
@@ -126,6 +128,7 @@ class ATargetUnitFrame extends React.Component<Props> {
               this.props.player?.faction,
               this.props.player?.guildID,
               this.props.guild,
+              this.props.friends,
               target.entityID,
               targetAsPlayer?.accountID ?? '',
               targetAsPlayer?.characterID,
@@ -146,7 +149,7 @@ class ATargetUnitFrame extends React.Component<Props> {
                 <TargetPosition isFriendly={this.props.isFriendly} faction={target.faction} />
               )}
             </div>
-            <StatusEffects statuses={target.statuses} entityID={target.entityID} />
+            <StatusEffects entityID={target.entityID} />
           </PlayerUnitFrame>
         )}
       </div>
@@ -167,6 +170,7 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
     party: state.party,
     warband: state.warband,
     guild: state.guild,
+    friends: state.social.friends.friends,
     stringTable,
     tagAffixIDByStringID: state.gameDefs.tagAffixIDByStringID,
     nameplateStyle: state.hud.nameplateStyle

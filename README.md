@@ -6,6 +6,8 @@
 
 [Updating APIs](documentation/UpdatingAPIs.md)
 
+[Extracting Manifest Data](documentation/ExtractingManifests.md)
+
 [Debugging](documentation/Debugging.md)
 
 [Deploying](documentation/Deploying.md)

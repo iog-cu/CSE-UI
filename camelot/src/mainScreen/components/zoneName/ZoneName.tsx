@@ -71,8 +71,7 @@ export const zoneNameRegistry: HUDWidgetRegistration = {
     xAnchor: HUDHorizontalAnchor.Right,
     yAnchor: HUDVerticalAnchor.Top,
     xOffset: 2.5,
-    yOffset: 1,
-    visible: true
+    yOffset: 1
   },
   requiresGameDefsLoaded: true,
   layer: HUDLayer.HUD,

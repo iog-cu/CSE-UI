@@ -7,30 +7,16 @@
 import * as React from 'react';
 import { connect } from 'react-redux';
 import { HUDLayer, HUDWidgetRegistration } from '../../redux/hudSlice';
-import { AppDispatch, RootState, store } from '../../redux/store';
+import { AppDispatch, RootState } from '../../redux/store';
 import { HUDHorizontalAnchor, HUDVerticalAnchor } from '@csegames/library/dist/camelotunchained/game/types/HUDTypes';
-import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { ClassDef } from '../../dataSources/manifest/classManifest';
 import { ProgressionTrackDef } from '../../dataSources/manifest/progressionTrackManifest';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
-import {
-  getStringTableValue,
-  getTokenizedStringTableValue,
-  StringIDGeneralUnlocked
-} from '../../helpers/stringTableHelpers';
 import {
   PlayerEntityStateModel,
   ProgressState
 } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { getFactionData } from '../../gameData/factionData';
-import { showToaster } from '../../redux/toastersSlice';
-import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
-import { TAG_PREFIX_ARCHETYPE_CLASS, TAG_PREFIX_TRADESKILL } from '../../helpers/abilityBookHelpers';
-
-// String IDs
-const StringIDProgressionNewLevelMessage = 'ProgressionNewLevelMessage';
-const StringIDProgressionNotificationLevelUp = 'ProgressionNotificationLevelUp';
-const StringIDProgressionAbilityPointGained = 'ProgressionAbilityPointGained';
 
 // CSS classes
 const Root = 'HUD-LevelBars-Root';
@@ -42,7 +28,7 @@ const BarFill = 'HUD-LevelBars-BarFill';
 const BarBling = 'HUD-LevelBars-BarBling';
 const BarEnd = 'HUD-LevelBars-BarEnd';
 
-const LEVEL_UP_BLING_DURATION_MS = 3000;
+export const LEVEL_UP_BLING_DURATION_MS = 3000;
 
 interface State {
   /** The state used for display, and to detect changes. */
@@ -62,7 +48,6 @@ interface ReactProps {
 
 interface InjectedProps {
   classDef: ClassDef;
-  stringTable: Record<string, StringTableEntryDef>;
   progressionTracks: Record<string, ProgressionTrackDef>;
   self: PlayerEntityStateModel;
   uiFactionID: string;
@@ -171,65 +156,6 @@ class ALevelBars extends React.Component<Props, State> {
       };
 
       if (isNewCharacter === false) {
-        // For all progression tracks, if a level-up occurred, push it into the toaster system.
-        Object.values(props.self.progression).forEach((prog) => {
-          if (prog.level > state.progression[prog.id]?.level) {
-            const track = props.progressionTracks[prog.id];
-            if (track) {
-              // Push a toaster for the track level up event.
-              let stringTable = store.getState().stringTable.stringTable;
-              // Only the archetype/character track grants a new ability point; spending one on a
-              // specialization track also raises its level, but isn't a gain.
-              const isArchetypeTrack = track.tags.some((tag) => tag.startsWith(TAG_PREFIX_ARCHETYPE_CLASS));
-
-              const isTradeskillTrack = track.tags.some((tag) => tag.startsWith(TAG_PREFIX_TRADESKILL));
-              const displayLevel = isTradeskillTrack ? prog.level : prog.level + 1;
-              store.dispatch?.(
-                showToaster({
-                  id: `LevelUp${prog.id}`,
-                  content: {
-                    // Same layout as the quest toasts: eyebrow banner over an icon + title row.
-                    eyebrow: getStringTableValue(StringIDProgressionNotificationLevelUp, stringTable),
-                    titleIconURL: track.iconURL,
-                    title: getStringTableValue(track.nameKey, stringTable),
-                    message: getTokenizedStringTableValue(StringIDProgressionNewLevelMessage, stringTable, {
-                      LEVEL: displayLevel.toFixed(0)
-                    }),
-                    rewards: isArchetypeTrack
-                      ? [{ name: getStringTableValue(StringIDProgressionAbilityPointGained, stringTable) }]
-                      : undefined,
-                    isSmall: true
-                  },
-                  position: 'level',
-                  soundEvent: SoundEvents.PLAY_UI_SPECIALIZATION_UP
-                })
-              );
-              // Scan for new unlocks at the new level.  Add small right toasters for those.
-              Object.entries(track.abilityUnlocks).forEach(([abilityID, unlockAtLevel]) => {
-                if (unlockAtLevel === prog.level) {
-                  const ability = store.getState().gameDefs.abilityDisplayDefsByStringID[abilityID];
-                  if (ability) {
-                    store.dispatch?.(
-                      showToaster({
-                        id: `AbilityUnlock${ability.id}`,
-                        content: {
-                          // Same layout as the quest toasts: eyebrow banner over an icon + title row.
-                          eyebrow: getStringTableValue(StringIDGeneralUnlocked, stringTable),
-                          titleIconURL: ability.iconURL,
-                          title: ability.name,
-                          isSmall: true
-                        },
-                        position: 'level',
-                        soundEvent: SoundEvents.PLAY_UI_ABILITY_LEVEL_UP
-                      })
-                    );
-                  }
-                }
-              });
-            }
-          }
-        });
-
         state.progress.forEach((oldProgress) => {
           const newProgress = props.self.progression[oldProgress.id];
 
@@ -252,7 +178,6 @@ class ALevelBars extends React.Component<Props, State> {
 function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
   return {
     ...ownProps,
-    stringTable: state.stringTable.stringTable,
     classDef: state.gameDefs.classesByNumericID[state.entities.self?.classID],
     progressionTracks: state.gameDefs.progressionTracks,
     self: state.entities.self,

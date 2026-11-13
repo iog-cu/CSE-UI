@@ -1562,14 +1562,14 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     serverTimeDeltaMS: state.clock.serverTimeDeltaMS,
     statDefs: state.gameDefs.stats,
     craftingJobs: state.gameDefs.craftingJobs,
-    selfStats: state.entities.self.stats,
-    selfTags: state.entities.self.tags,
+    selfStats: state.entities.entityStats[state.entities.self?.entityID] ?? {},
+    selfTags: state.entities.self?.tags ?? {},
     selfInventory,
     selfAccountBank,
     selfWallet,
     tagAffixByNumericID: state.gameDefs.tagAffixByNumericID,
-    selfRace: state.entities.self.race,
-    selfClassID: state.entities.self.classID,
+    selfRace: state.entities.self?.race ?? 0,
+    selfClassID: state.entities.self?.classID ?? 0,
     racesByNumericID: state.gameDefs.racesByNumericID,
     classesByNumericID: state.gameDefs.classesByNumericID
   };

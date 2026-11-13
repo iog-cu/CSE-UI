@@ -9,15 +9,18 @@ import * as React from 'react';
 import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
-import { getStringTableValue, StringIDGeneralBack } from '../../helpers/stringTableHelpers';
+import { getStringTableValue, replaceStringTokens, StringIDGeneralBack } from '../../helpers/stringTableHelpers';
 import { getFactionData } from '../../gameData/factionData';
 import { FactionButton } from '../FactionButton';
-import { MailMessage } from '../../redux/mailSlice';
+import { MailMessage } from '@csegames/library/dist/camelotunchained/game/GameClientModels/MailSnapshot';
+import { resolveSenderName } from '../../redux/mailSlice';
 import { ItemDef } from '../../dataSources/manifest/itemManifest';
+import { MailTemplateDef } from '../../dataSources/manifest/mailTemplateManifest';
 import { FactionScrollArea } from '../FactionScrollArea';
 import { TooltipSource } from '../TooltipSource';
 import { Item } from '@csegames/library/dist/camelotunchained/game/types/Items';
 import { ItemTooltip } from '../items/ItemTooltip';
+import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 
 // CSS classes
 const PageContainer = 'HUD-Mail-PageContainer';
@@ -39,7 +42,6 @@ const AttachmentContainer = 'HUD-MailMessageView-AttachmentContainer';
 const AttachmentBackground = 'HUD-MailMessageView-AttachmentBackground';
 const AttachmentBorder = 'HUD-MailMessageView-AttachmentBorder';
 const AttachmentIcon = 'HUD-MailMessageView-AttachmentIcon';
-const AttachmentSelectionIndicator = 'HUD-MailMessageView-AttachmentSelectionIndicator';
 const FooterButtonsRow = 'HUD-MailMessageView-FooterButtonsRow';
 const FooterButton = 'HUD-MailMessageView-FooterButton';
 
@@ -54,11 +56,11 @@ const ATTACHMENTS_PER_MESSAGE = 6;
 const FOOTER_BUTTON_WIDTH_VMIN = 12.25;
 
 interface State {
-  selectedAttachmentIndex: number;
 }
 
 interface ReactProps {
   message: MailMessage;
+  commonMessageStringTokens: Record<string, string>;
   onCloseRequested: () => void;
 }
 
@@ -66,6 +68,7 @@ interface InjectedProps {
   uiFactionID: string;
   stringTable: Record<string, StringTableEntryDef>;
   itemsByNumericID: Record<number, ItemDef>;
+  mailTemplatesByNumericID: Record<number, MailTemplateDef>;
   dispatch?: Dispatch;
 }
 
@@ -76,13 +79,14 @@ class AMailMessageView extends React.Component<Props, State> {
     super(props);
 
     this.state = {
-      selectedAttachmentIndex: -1
     };
   }
 
   render(): JSX.Element {
     const m = this.props.message;
     const factionData = getFactionData(this.props.uiFactionID);
+    const mailTemplateDef = this.props.mailTemplatesByNumericID[this.props.message.templateID];
+    const messageStringTokens = {...this.props.commonMessageStringTokens, ...m.resolvedStringTokens}
 
     return (
       <div className={PageContainer}>
@@ -90,31 +94,31 @@ class AMailMessageView extends React.Component<Props, State> {
           <div className={MessageHeaderRow}>
             <div className={MessageHeaderLabel}>{getStringTableValue(StringIDMailFrom, this.props.stringTable)}</div>
             <div className={RowSenderName} style={{ color: factionData.mailSenderColor }}>
-              {m.senderName}
+              {resolveSenderName(m, this.props.stringTable)}
             </div>
           </div>
           <div className={MessageHeaderRow}>
             <div className={MessageHeaderLabel}>{getStringTableValue(StringIDMailSubject, this.props.stringTable)}</div>
-            <div className={RowMessageSubject}>{m.subject}</div>
+            <div className={RowMessageSubject}>{replaceStringTokens(mailTemplateDef.subject, messageStringTokens)}</div>
           </div>
         </div>
         <div className={MessageContainer}>
           <img className={MessageBackground} src={factionData.mailMessageBackgroundImage} />
           <FactionScrollArea className={MessageScrollArea} topFadeAmount={'10%'} bottomFadeAmount={'10%'}>
-            <div className={MessageText}>{m.text}</div>
+            <div className={MessageText}>{replaceStringTokens(mailTemplateDef.body, messageStringTokens)}</div>
           </FactionScrollArea>
         </div>
         <div className={MessageFooter} style={{ borderTopColor: factionData.mailDividerColor }}>
           <div className={GoldContainer}>
             <img className={GoldBackground} src={factionData.goldBackgroundImage} />
-            <div className={GoldText}>{m.money}</div>
+            <div className={GoldText}>{m.wasCollected ? 0 : m.money}</div>
           </div>
           <div className={AttachmentsRow}>{this.renderAttachments()}</div>
           <div className={FooterButtonsRow}>
             <FactionButton
               className={FooterButton}
               widthOverrideVmin={FOOTER_BUTTON_WIDTH_VMIN}
-              disabled={m.money <= 0 && this.state.selectedAttachmentIndex < 0}
+              disabled={m.wasCollected || (m.money <= 0 && m.attachmentIDs.length == 0)}
               onClick={this.onMessageCollectClicked.bind(this, m)}
             >
               {getStringTableValue(StringIDMailCollect, this.props.stringTable)}
@@ -149,7 +153,7 @@ class AMailMessageView extends React.Component<Props, State> {
   }
 
   private onMessageCollectClicked(message: MailMessage): void {
-    // TODO: Try to collect the selected item and/or money.
+    clientAPI.collectRewards([message.id]);
   }
 
   private onForwardClicked(message: MailMessage): void {
@@ -164,10 +168,12 @@ class AMailMessageView extends React.Component<Props, State> {
     const factionData = getFactionData(this.props.uiFactionID);
     const attachments: React.ReactNode[] = [];
 
+    if (this.props.message.wasCollected) {
+      return <>{attachments}</>;
+    }
+
     for (let i = 0; i < ATTACHMENTS_PER_MESSAGE; ++i) {
       const itemDef = this.props.itemsByNumericID[this.props.message.attachmentIDs?.[i]];
-      const isSelectable = !!itemDef;
-      const isSelected = isSelectable && this.state.selectedAttachmentIndex === i;
 
       // TODO: Once we have real data, get/make "Item"s for the tooltip display.
       const items: Item[] = [];
@@ -180,20 +186,9 @@ class AMailMessageView extends React.Component<Props, State> {
           content={() => <ItemTooltip items={items} />}
           positionType='mouse'
           className={AttachmentContainer}
-          onClick={() => {
-            if (i < this.props.message.attachmentIDs.length) {
-              this.setState({ selectedAttachmentIndex: i });
-            }
-          }}
         >
           <img className={AttachmentBackground} src={factionData.squareBackgroundImage} />
-          <img className={`${AttachmentIcon} ${isSelectable ? 'selectable' : ''}`} src={itemDef?.iconUrl} />
-          {isSelected && (
-            <div
-              className={AttachmentSelectionIndicator}
-              style={{ boxShadow: `inset 0 0 0.8vmin 0.5vmin ${factionData.selectionGlowColor}` }}
-            />
-          )}
+          <img className={AttachmentIcon} src={itemDef?.iconUrl} />
           <img className={AttachmentBorder} src={factionData.borderImage} />
         </TooltipSource>
       );
@@ -208,7 +203,8 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
     ...ownProps,
     uiFactionID: state.hud.uiFactionID,
     stringTable: state.stringTable.stringTable,
-    itemsByNumericID: state.gameDefs.itemsByNumericID
+    itemsByNumericID: state.gameDefs.itemsByNumericID,
+    mailTemplatesByNumericID: state.gameDefs.mailTemplatesByNumericID
   };
 };
 

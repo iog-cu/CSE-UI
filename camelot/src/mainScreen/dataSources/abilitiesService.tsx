@@ -41,6 +41,12 @@ import {
   refreshPopUpAnnouncement
 } from '../redux/popUpAnnouncementsSlice';
 import { getStringTableValue } from '../helpers/stringTableHelpers';
+import {
+  BuildModeLayoutID,
+  DynamicAbilitiesLayoutID,
+  getAbilityBarWidgetID,
+  SiegeEngineLayoutID
+} from '../helpers/abilityBarHelpers';
 import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
 
 // String IDs
@@ -128,7 +134,7 @@ export class AbilitiesService extends ExternalDataSource {
     // The client will send us an update event for every layout post-init.  When that happens, we register
     // the layouts with the HUD Widget system, which allows us to set a default position.
 
-    let id: string = `Bar: Abilities ${layout.id}`;
+    const id = getAbilityBarWidgetID(layout.id);
     let nameStringID = 'HUDEditorWidgetNameBarAbilities';
     let nameStringTokens = { LAYOUT_ID: String(layout.id) };
 
@@ -141,18 +147,15 @@ export class AbilitiesService extends ExternalDataSource {
       };
 
       if (layout.id >= 1) {
-        defaults.yOffset += (layout.id - 1) * 6;
-      } else if (layout.id === -3) {
-        id = 'Bar: Dynamic Abilities';
+        defaults.yOffset += (layout.id - 1) * 5.15;
+      } else if (layout.id === DynamicAbilitiesLayoutID) {
         nameStringID = 'HUDEditorWidgetNameBarDynamicAbilities';
         nameStringTokens = undefined;
-        defaults.yOffset += 12;
-      } else if (layout.id === -2) {
-        id = 'Bar: Siege Engine';
+        defaults.yOffset += 10.3;
+      } else if (layout.id === SiegeEngineLayoutID) {
         nameStringID = 'HUDEditorWidgetNameBarSiegeEngine';
         nameStringTokens = undefined;
-      } else if (layout.id === -1) {
-        id = 'Bar: Build Mode';
+      } else if (layout.id === BuildModeLayoutID) {
         nameStringID = 'HUDEditorWidgetNameBarBuildMode';
         nameStringTokens = undefined;
       }

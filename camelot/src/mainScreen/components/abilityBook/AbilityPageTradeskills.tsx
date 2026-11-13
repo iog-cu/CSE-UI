@@ -22,53 +22,49 @@ import { AbilityGroup } from '@csegames/library/dist/_baseGame/types/AbilityType
 import { TooltipSource } from '../TooltipSource';
 import Draggable from '../Draggable';
 import DraggableHandle, { DropHandlerDraggableData } from '../DraggableHandle';
-import { DropTypeAbilityButton } from '../abilityBars/AbilityButton';
+import { DropTypeAbilityButton } from '../abilityBars/AbilityButtonShared';
 import { AbilityBarSlotDropTargetData } from '../abilityBars/AbilityBarSlot';
 import { getFactionData } from '../../gameData/factionData';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
-import { FactionTitle } from '../FactionTitle';
-import { FactionBorderSelectable } from '../FactionBorderSelectable';
 import { PlayerEntityStateModel } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { ProgressionTrackDef } from '../../dataSources/manifest/progressionTrackManifest';
-import { FactionDivider } from '../FactionDivider';
-import { FactionScrollArea } from '../FactionScrollArea';
 import { AbilityTooltip } from '../abilityBars/AbilityTooltip';
-import { typedObjectEntries } from '@csegames/library/dist/_baseGame/utils/objectUtils';
 import { GameDefsState } from '../../redux/gameDefsSlice';
 import { AbilityBookAbilityDisplayData } from './AbilityBook';
-import { getAbilityByDisplayDefID } from '../../helpers/abilityBookHelpers';
+import { AbilityBookHeader } from './AbilityBookHeader';
+import { AbilityBookTrainingBar } from './AbilityBookTrainingBar';
+import {
+  getAbilityByDisplayDefID,
+  getAbilityIconBorderProps,
+  getTradeskillTitle,
+  isTradeskillTrack,
+  StringIDAbilityBookTradeskillProgression
+} from '../../helpers/abilityBookHelpers';
+import { FactionCheckbox } from '../FactionCheckbox';
+
+// Matches .HUD-AbilityPageTradeskills-AbilityIconContainer.
+const ABILITY_ICON_SIZE_VMIN = 1.8;
+// Secondary corners default to 2vmin, which would overlap each other on the 1.35vmin bar.
+const PROGRESS_BAR_CORNER_SIZE = '1.5vmin';
 
 // CSS classes
 const Root = 'HUD-AbilityPageTradeskills-Root';
+const Panel = 'HUD-AbilityPageTradeskills-Panel';
+const TrackColumns = 'HUD-AbilityPageTradeskills-TrackColumns';
+const TrackColumn = 'HUD-AbilityPageTradeskills-TrackColumn';
+const CellRoot = 'HUD-AbilityPageTradeskills-CellRoot';
+const CellIconContainer = 'HUD-AbilityPageTradeskills-CellIconContainer';
+const CellIcon = 'HUD-AbilityPageTradeskills-CellIcon';
+const CellDetailsSection = 'HUD-AbilityPageTradeskills-CellDetailsSection';
+const CellNameRow = 'HUD-AbilityPageTradeskills-CellNameRow';
+const CellNameLabel = 'HUD-AbilityPageTradeskills-CellNameLabel';
+const CellTrackCheckbox = 'HUD-AbilityPageTradeskills-CellTrackCheckbox';
+const ProgressBarContainer = 'HUD-AbilityPageTradeskills-ProgressBarContainer';
 const ProgressBarClipper = 'HUD-AbilityPageTradeskills-ProgressBarClipper';
 const ProgressBarContent = 'HUD-AbilityPageTradeskills-ProgressBarContent';
 const ProgressBar = 'HUD-AbilityPageTradeskills-ProgressBar';
 const ProgressBarEnd = 'HUD-AbilityPageTradeskills-ProgressBarEnd';
 const ProgressBarText = 'HUD-AbilityPageTradeskills-ProgressBarText';
-const TotalLevelRow = 'HUD-AbilityPageTradeskills-TotalLevelRow';
-const TotalLevelDecoration = 'HUD-AbilityPageTradeskills-TotalLevelDecoration';
-const TotalLevelContainer = 'HUD-AbilityPageTradeskills-TotalLevelContainer';
-const TotalLevelLabel = 'HUD-AbilityPageTradeskills-TotalLevelLabel';
-const CategoryRow = 'HUD-AbilityPageTradeskills-CategoryRow';
-const CategoryTabContainer = 'HUD-AbilityPageTradeskills-CategoryTabContainer';
-const CategoryTabLevelContainer = 'HUD-AbilityPageTradeskills-CategoryTabLevelContainer';
-const CategoryTabLevelLabel = 'HUD-AbilityPageTradeskills-CategoryTabLevelLabel';
-const CategoryTabNameContainer = 'HUD-AbilityPageTradeskills-CategoryTabNameContainer';
-const CategoryTabNameLabel = 'HUD-AbilityPageTradeskills-CategoryTabNameLabel';
-const ListContainer = 'HUD-AbilityPageTradeskills-ListContainer';
-const ListScrollArea = 'HUD-AbilityPageTradeskills-ListScrollArea';
-const ListContent = 'HUD-AbilityPageTradeskills-ListContent';
-const ListBorder = 'HUD-AbilityPageTradeskills-ListBorder';
-const ProgressBarContainer = 'HUD-AbilityPageTradeskills-ProgressBarContainer';
-const CellRoot = 'HUD-AbilityPageTradeskills-CellRoot';
-const CellIconSection = 'HUD-AbilityPageTradeskills-CellIconSection';
-const CellIconContainer = 'HUD-AbilityPageTradeskills-CellIconContainer';
-const CellIcon = 'HUD-AbilityPageTradeskills-CellIcon';
-const CellLevelContainer = 'HUD-AbilityPageTradeskills-CellLevelContainer';
-const CellLevelLabel = 'HUD-AbilityPageTradeskills-CellLevelLabel';
-const CellDetailsSection = 'HUD-AbilityPageTradeskills-CellDetailsSection';
-const CellNameLabel = 'HUD-AbilityPageTradeskills-CellNameLabel';
-const CellDivider = 'HUD-AbilityPageTradeskills-CellDivider';
 const AbilitiesContainer = 'HUD-AbilityPageTradeskills-AbilitiesContainer';
 const AbilitiesListEntry = 'HUD-AbilityPageTradeskills-AbilitiesListEntry';
 const AbilityIconContainer = 'HUD-AbilityPageTradeskills-AbilityIconContainer';
@@ -82,21 +78,7 @@ const TooltipDescription = 'HUD-AbilityBook-TooltipDescription';
 
 // String IDs
 const StringIDAbilityBookUnlockLevel = 'AbilityBookUnlockLevel';
-const StringIDTradeskillTabName = 'TradeskillTabName';
-const StringIDTradeskillCategoryNamePrefix = 'TradeskillCategoryName';
-
-const MAX_LARGE_TRADESKILLS = 6;
-
-enum TradeskillTab {
-  // In display order.
-  Gathering = 'Gathering',
-  Refining = 'Refining',
-  Crafting = 'Crafting'
-}
-
-interface State {
-  tradeskillTab: TradeskillTab;
-}
+const StringIDAbilityBookUpgradesAvailable = 'AbilityBookUpgradesAvailable';
 
 interface ReactProps {}
 
@@ -109,96 +91,53 @@ interface InjectedProps {
   abilities: Record<number, AbilityWithActivation>;
   abilityIDsByDisplayDefID: Record<number, number>;
   self: PlayerEntityStateModel;
+  trackedProgressionTrackIDs: string[];
 }
 
 type Props = ReactProps & InjectedProps & AddDispatch;
 
-class AAbilityPageTradeskills extends React.Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-
-    this.state = {
-      tradeskillTab: TradeskillTab.Gathering
-    };
-  }
-
+class AAbilityPageTradeskills extends React.Component<Props> {
   render(): React.ReactNode {
-    const factionData = getFactionData(this.props.uiFactionID);
-    const classDef = this.props.myClass;
-
-    const tracks: Record<TradeskillTab, ProgressionTrackDef[]> = {
-      [TradeskillTab.Gathering]: [],
-      [TradeskillTab.Refining]: [],
-      [TradeskillTab.Crafting]: []
-    };
-
-    classDef.progressionTracks.forEach((ptID) => {
-      const progressionTrack = this.props.defs.progressionTracks[ptID];
-      const tag = progressionTrack.tags.find((tag) => tag.startsWith(`Tradeskill.Category.`));
-      const tab = tag?.slice(20) as TradeskillTab;
-      // Only track supported categories.
-      if (tracks[tab]) {
-        tracks[tab].push(progressionTrack);
-      }
-    });
-
-    const totalLevel = Object.values(tracks).reduce<number>((soFar, categoryTracks) => {
-      return (
-        soFar +
-        categoryTracks.reduce<number>((catSoFar, catTrack) => {
-          const prog = this.props.self.progression[catTrack.id];
-          return catSoFar + (prog?.level ?? 0);
-        }, 0)
-      );
-    }, 0);
-
-    const sizeClass = (tracks[this.state.tradeskillTab]?.length ?? 0) > MAX_LARGE_TRADESKILLS ? ' small' : '';
+    const tracks = this.getTradeskillTracks();
+    // The left column takes the extra track when the count is odd.
+    const leftColumnCount = Math.ceil(tracks.length / 2);
 
     return (
       <div className={Root}>
-        <FactionTitle heightOverrideVmin={13.54}>
-          {getStringTableValue(StringIDTradeskillTabName, this.props.stringTable)}
-        </FactionTitle>
-        <div className={TotalLevelRow}>
-          <img
-            className={TotalLevelDecoration}
-            style={{ backgroundImage: `url(${factionData.dividerVerticalImage})` }}
-          />
-          <img
-            className={`${TotalLevelDecoration} right`}
-            style={{ backgroundImage: `url(${factionData.dividerVerticalImage})` }}
-          />
-          <FactionBorder
-            className={TotalLevelContainer}
-            type={BorderType.Decorative}
-            background={BorderBackground.PatternSmall}
-          >
-            <div className={TotalLevelLabel}>{totalLevel}</div>
-          </FactionBorder>
-        </div>
-        <div className={CategoryRow}>{typedObjectEntries(tracks).map(this.renderTradeskillCategoryTab.bind(this))}</div>
-        <div className={ListContainer}>
-          <FactionScrollArea className={ListScrollArea} hideTrack={true} key={this.state.tradeskillTab}>
-            <div className={`${ListContent}${sizeClass}`}>
-              {(tracks[this.state.tradeskillTab] ?? []).map(this.renderTradeskillCell.bind(this, sizeClass))}
+        <AbilityBookHeader
+          title={getStringTableValue(StringIDAbilityBookTradeskillProgression, this.props.stringTable)}
+        />
+        <FactionBorder className={Panel} type={BorderType.Primary} background={BorderBackground.PatternLarge}>
+          <div className={TrackColumns}>
+            <div className={TrackColumn}>
+              {tracks.slice(0, leftColumnCount).map(this.renderTradeskillCell.bind(this))}
             </div>
-          </FactionScrollArea>
-          <FactionBorder className={ListBorder} type={BorderType.Primary} />
-        </div>
+            <div className={TrackColumn}>{tracks.slice(leftColumnCount).map(this.renderTradeskillCell.bind(this))}</div>
+          </div>
+        </FactionBorder>
+        <AbilityBookTrainingBar
+          availableTemplate={getStringTableValue(StringIDAbilityBookUpgradesAvailable, this.props.stringTable)}
+          availablePoints={0}
+          stagedPoints={0}
+          isDisabled
+        />
       </div>
     );
   }
 
-  private renderTradeskillCell(
-    sizeClass: string,
-    def: ProgressionTrackDef,
-    index: number,
-    all: ProgressionTrackDef[]
-  ): React.ReactNode {
-    const factionData = getFactionData(this.props.uiFactionID);
+  private getTradeskillTracks(): ProgressionTrackDef[] {
+    return this.props.myClass.progressionTracks
+      .map((ptID) => this.props.defs.progressionTracks[ptID])
+      .filter((track) => !!track && isTradeskillTrack(track))
+      .sort((a, b) =>
+        getStringTableValue(a.nameKey, this.props.stringTable).localeCompare(
+          getStringTableValue(b.nameKey, this.props.stringTable)
+        )
+      );
+  }
 
-    const cellsPerRow = all.length <= MAX_LARGE_TRADESKILLS ? 1 : 2;
-    const isLastRow = index >= all.length - cellsPerRow;
+  private renderTradeskillCell(def: ProgressionTrackDef): React.ReactNode {
+    const factionData = getFactionData(this.props.uiFactionID);
 
     const prog = this.props.self.progression[def.id];
     const current = prog?.progress ?? 0;
@@ -207,57 +146,51 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
     const abilities = this.getFilteredAbilities([def.id]);
 
     return (
-      <React.Fragment key={index}>
-        <div className={`${CellRoot}${sizeClass}${isLastRow ? ' last' : ''}`}>
-          <div className={CellIconSection}>
-            <FactionBorder
-              className={CellIconContainer}
-              type={BorderType.Secondary}
-              background={BorderBackground.PatternSmall}
-            >
-              <img className={CellIcon} src={def.iconURL} />
-            </FactionBorder>
-            <FactionBorder
-              className={CellLevelContainer}
-              type={BorderType.Secondary}
-              background={BorderBackground.PatternSmall}
-              includeTop={false}
-            >
-              <div className={CellLevelLabel}>{prog.level}</div>
-            </FactionBorder>
-          </div>
-          <div className={CellDetailsSection}>
-            <div className={`${CellNameLabel}${sizeClass}`}>
-              {getStringTableValue(def.nameKey, this.props.stringTable)}
-            </div>
-            <FactionBorder
-              className={`${ProgressBarContainer}${sizeClass}`}
-              type={BorderType.Secondary}
-              background={BorderBackground.ProgressBar}
-            >
-              <div className={ProgressBarClipper}>
-                <div className={ProgressBarContent}>
-                  <img
-                    className={ProgressBar}
-                    src={factionData.progressBarImage}
-                    style={{ width: `${Math.min(1, current / total) * 100}%` }}
-                  />
-                  <div className={ProgressBarEnd} />
-                  <div className={`${ProgressBarText}${sizeClass}`}>{`${current} / ${total}`}</div>
-                </div>
-              </div>
-            </FactionBorder>
+      <div key={def.id} className={CellRoot}>
+        <FactionCheckbox
+          className={CellTrackCheckbox}
+          isChecked={this.props.trackedProgressionTrackIDs.includes(def.id)}
+          soundEventClicked={SoundEvents.PLAY_UI_TRACK_SELECT}
+          onCheckedChanged={this.onTrackCheckedChanged.bind(this, def.id)}
+        />
+        <FactionBorder
+          className={CellIconContainer}
+          type={BorderType.Secondary}
+          background={BorderBackground.PatternSmall}
+        >
+          <img className={CellIcon} src={def.iconURL} />
+        </FactionBorder>
+        <div className={CellDetailsSection}>
+          <div className={CellNameRow}>
+            <div className={CellNameLabel}>{getTradeskillTitle(def, prog?.level ?? 0, this.props.stringTable)}</div>
             {abilities.length > 0 && (
               <div className={AbilitiesContainer}>{abilities.map(this.renderTradeskillAbilityCell.bind(this))}</div>
             )}
           </div>
+          <FactionBorder
+            className={ProgressBarContainer}
+            type={BorderType.Secondary}
+            background={BorderBackground.ProgressBar}
+            cornerSize={PROGRESS_BAR_CORNER_SIZE}
+          >
+            <div className={ProgressBarClipper}>
+              <div className={ProgressBarContent}>
+                <img
+                  className={ProgressBar}
+                  src={factionData.progressBarImage}
+                  style={{ width: `${Math.min(1, current / total) * 100}%` }}
+                />
+                <div className={ProgressBarEnd} />
+              </div>
+            </div>
+            <div className={ProgressBarText}>{`${current} / ${total}`}</div>
+          </FactionBorder>
         </div>
-        {!isLastRow && all.length <= MAX_LARGE_TRADESKILLS ? <FactionDivider className={CellDivider} /> : null}
-      </React.Fragment>
+      </div>
     );
   }
 
-  private renderTradeskillAbilityCell(data: AbilityBookAbilityDisplayData, index: number): React.ReactNode {
+  private renderTradeskillAbilityCell(data: AbilityBookAbilityDisplayData): React.ReactNode {
     const draggableId = `AbilityBook${data.ability?.id}`;
 
     const progress = this.props.self.progression[data.progressionTrackID];
@@ -272,7 +205,10 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
         positionType='mouse'
         key={data.displayDef.id}
       >
-        <FactionBorder className={AbilityIconContainer} type={BorderType.Secondary}>
+        <FactionBorder
+          className={AbilityIconContainer}
+          {...getAbilityIconBorderProps(!isLocked, ABILITY_ICON_SIZE_VMIN)}
+        >
           <Draggable
             className={AbilitiesListEntryDraggable}
             draggableID={draggableId}
@@ -291,41 +227,6 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
           </Draggable>
         </FactionBorder>
       </TooltipSource>
-    );
-  }
-
-  private renderTradeskillCategoryTab(entry: [TradeskillTab, ProgressionTrackDef[]]): React.ReactNode {
-    const tabID = entry[0];
-    const trackDefs = entry[1];
-
-    const isSelected = tabID === this.state.tradeskillTab;
-    const totalLevel = trackDefs.reduce<number>((soFar, def) => {
-      const prog = this.props.self.progression[def.id];
-      return soFar + (prog?.level ?? 0);
-    }, 0);
-
-    return (
-      <div className={CategoryTabContainer} onClick={() => this.setState({ tradeskillTab: tabID })}>
-        <FactionBorder
-          className={CategoryTabLevelContainer}
-          type={BorderType.Secondary}
-          background={BorderBackground.PatternSmall}
-          includeBottom={false}
-        >
-          <div className={CategoryTabLevelLabel}>{totalLevel}</div>
-        </FactionBorder>
-        <FactionBorderSelectable
-          className={CategoryTabNameContainer}
-          isSelected={isSelected}
-          onSelected={() => this.setState({ tradeskillTab: tabID })}
-          background={BorderBackground.PatternSmall}
-          includeBottom={false}
-        >
-          <div className={CategoryTabNameLabel}>
-            {getStringTableValue(StringIDTradeskillCategoryNamePrefix + tabID, this.props.stringTable)}
-          </div>
-        </FactionBorderSelectable>
-      </div>
     );
   }
 
@@ -384,6 +285,13 @@ class AAbilityPageTradeskills extends React.Component<Props, State> {
 
   private onAbilityDragStarted(): void {
     clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_SELECT);
+  }
+
+  private onTrackCheckedChanged(trackID: string, isChecked: boolean): void {
+    clientAPI.setProgressionTrackTracked(this.props.self.characterID, trackID, isChecked);
+    if (isChecked) {
+      clientAPI.setTradeskillTrackerMinimized(false);
+    }
   }
 
   private getFilteredAbilities(progressionTrackIDs: string[]): AbilityBookAbilityDisplayData[] {
@@ -453,7 +361,8 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): ReactProps & I
     abilities,
     abilityIDsByDisplayDefID,
     uiFactionID: state.hud.uiFactionID,
-    self: state.entities.self
+    self: state.entities.self,
+    trackedProgressionTrackIDs: state.tradeskillTracker.trackedProgressionTrackIDs
   };
 };
 

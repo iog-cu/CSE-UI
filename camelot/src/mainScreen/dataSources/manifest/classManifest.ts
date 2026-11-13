@@ -11,6 +11,11 @@ import { Faction } from '@csegames/library/dist/camelotunchained/graphql/schema'
 
 export const classesManifestID = 'classes';
 
+const UnitFrameIconPrefix = 'unit-frame-icon-';
+const UnitFrameIconSmallPrefix = 'unit-frame-icon-small-';
+const UnitFrameIconTransparencyPrefix = 'unit-frame-icon-transparency-';
+const UnitFrameIconTransparencySmallPrefix = 'unit-frame-icon-transparency-small-';
+
 export interface PaperDollImageDef {
   raceID: string;
   bodyTypeID: string;
@@ -32,9 +37,27 @@ export interface ClassDef {
   abilityBookIconImage: string;
   combatAbilitiesIconImage: string;
   unitFrameIconImage: string;
+  // Not in the manifest, derived from unitFrameIconImage.
+  unitFrameIconSmallImage: string;
+  unitFrameIconTransparencyImage: string;
+  unitFrameIconTransparencySmallImage: string;
   paperDollImages: PaperDollImageDef[];
   statLoadoutIDs: string[];
   progressionTracks: string[];
+}
+
+type UnitFrameIconVariants = Pick<
+  ClassDef,
+  'unitFrameIconSmallImage' | 'unitFrameIconTransparencyImage' | 'unitFrameIconTransparencySmallImage'
+>;
+
+function getUnitFrameIconVariants(unitFrameIconImage: string | null): UnitFrameIconVariants {
+  const image = unitFrameIconImage ?? '';
+  return {
+    unitFrameIconSmallImage: image.replace(UnitFrameIconPrefix, UnitFrameIconSmallPrefix),
+    unitFrameIconTransparencyImage: image.replace(UnitFrameIconPrefix, UnitFrameIconTransparencyPrefix),
+    unitFrameIconTransparencySmallImage: image.replace(UnitFrameIconPrefix, UnitFrameIconTransparencySmallPrefix)
+  };
 }
 
 export function processClasses(dispatch: Dispatch, json: any, version: number): void {
@@ -61,6 +84,7 @@ export function processClasses(dispatch: Dispatch, json: any, version: number): 
           abilityBookIconImage: classJson.abilityBookIconImage,
           combatAbilitiesIconImage: classJson.combatAbilitiesIconImage,
           unitFrameIconImage: classJson.unitFrameIconImage,
+          ...getUnitFrameIconVariants(classJson.unitFrameIconImage),
           paperDollImages: classJson.paperDollImages,
           statLoadoutIDs: classJson.statLoadoutIDs,
           progressionTracks: new Array<string>()
@@ -82,6 +106,7 @@ export function processClasses(dispatch: Dispatch, json: any, version: number): 
           abilityBookIconImage: classJson.abilityBookIconImage,
           combatAbilitiesIconImage: classJson.combatAbilitiesIconImage,
           unitFrameIconImage: classJson.unitFrameIconImage,
+          ...getUnitFrameIconVariants(classJson.unitFrameIconImage),
           paperDollImages: classJson.paperDollImages,
           statLoadoutIDs: classJson.statLoadoutIDs,
           progressionTracks: classJson.progressionTracks

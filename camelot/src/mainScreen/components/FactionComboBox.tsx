@@ -100,6 +100,9 @@ class AFactionComboBox extends React.Component<Props, State> {
         {...otherProps}
         onClick={(e) => {
           e.stopPropagation();
+          if (disabled) {
+            return;
+          }
           this.setState({ isOpen: !this.state.isOpen });
         }}
       >

@@ -10,6 +10,18 @@ export enum HUDHorizontalAnchor {
   Right = 'hud-horizontal-anchor-right'
 }
 
+export enum AbilityBarDecor {
+  Left = 'left',
+  Right = 'right',
+  Top = 'top',
+  Bottom = 'bottom'
+}
+
+export enum CompassHeadingSource {
+  Camera = 'camera',
+  Character = 'character'
+}
+
 export interface HUDResizableParams {
   widthVmin: number;
   heightVmin: number;
@@ -19,7 +31,6 @@ export interface HUDResizableParams {
 }
 
 export interface HUDWidgetState {
-  visible?: boolean;
   initialized?: boolean;
   xAnchor?: HUDHorizontalAnchor;
   yAnchor?: HUDVerticalAnchor;
@@ -36,6 +47,14 @@ export interface HUDWidgetState {
   chatFontSize?: number;
   /** Notification widgets only: seconds each toast stays on screen (0 hides notifications entirely). */
   toastDurationSeconds?: number;
+  /** Ability bars only: integer percentage of a slot's width left empty between neighboring slots. */
+  abilitySlotSpacing?: number;
+  /** Ability bars only: which decorative ornaments are shown. Unset entries use the bar's default. */
+  abilityBarDecor?: Partial<Record<AbilityBarDecor, boolean>>;
+  /** Compass-only: integer percentage (25 to 100, default 33) of the compass bar's full width. */
+  compassWidth?: number;
+  /** Compass-only: whether the compass follows the camera or the character's facing (default camera). */
+  compassHeadingSource?: CompassHeadingSource;
 }
 
 // These are pseudo-MapDataType entries, split off from MapDataType.Player.

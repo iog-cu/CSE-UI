@@ -18,7 +18,7 @@ const Icon = 'HUD-NavMenu-ItemIcon';
 const Count = 'HUD-NavMenu-ItemCount';
 const Glow = 'HUD-NavMenu-ItemGlow';
 
-const GLOW_BOX_SHADOW = 'inset 0 0 1.2vmin 0.5vmin';
+const GLOW_BOX_SHADOW = 'inset 0 0 0.9vmin 0.35vmin';
 
 interface ReactProps {
   tooltipID: string;

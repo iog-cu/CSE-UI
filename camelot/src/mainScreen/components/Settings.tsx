@@ -23,7 +23,6 @@ import { GameOptionInputsList } from './input/GameOptionInputsList';
 import { Menu } from './menu/Menu';
 import { TextInput } from './input/TextInput';
 import { BooleanInput } from './input/BooleanInput';
-import { refetchKeybinds } from '../dataSources/keybindsService';
 import { genID } from '@csegames/library/dist/_baseGame/utils/idGen';
 import { clearOptionChanges } from '../redux/gameSettingsSlice';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
@@ -337,7 +336,6 @@ class ASettings extends React.Component<Props, State> {
   confirmKeybindsReset(): void {
     game.resetKeybinds();
     this.props.dispatch(hideModal());
-    refetchKeybinds(this.props.dispatch);
   }
 
   cancelKeybindsReset(): void {
@@ -451,7 +449,6 @@ class ASettings extends React.Component<Props, State> {
           });
         }
       }
-      refetchKeybinds(this.props.dispatch);
       this.props.dispatch(hideModal());
     };
     const content: ModalModel = {

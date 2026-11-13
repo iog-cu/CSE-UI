@@ -85,6 +85,17 @@ export enum TransactionType {
   CSE = 5,
 }
 
+export enum UserInteractions {
+  None = 0,
+  Chat = 2,
+  FriendInvite = 4,
+  PartyInvite = 8,
+  PartyApplication = 16,
+  GuildInvite = 32,
+  GuildApplication = 64,
+  All = 126,
+}
+
 export interface CharacterCreationInput {
   classID: string;
   stats: { [key: string]: number; };
@@ -145,19 +156,6 @@ export interface ChatServerRecord {
   transport: string;
 }
 
-export const DisplayNameAPI = {
-  SetDisplayName: function(config: RequestConfig, wantName: string): Promise<RequestResult> {
-    const conf = config();
-    return xhrRequest(
-      'post',
-      `${conf.url}v1/displayname/set`,
-      { wantName },
-      null,
-      { headers: { ...conf.headers, 'Accept': 'application/json'}}
-    );
-  },
-}
-
 export interface Euler3f {
   roll: number;
   pitch: number;
@@ -165,6 +163,66 @@ export interface Euler3f {
   x: number;
   y: number;
   z: number;
+}
+
+export const FriendsAPI = {
+  CreateFriendInviteV1: function(config: RequestConfig, targetID?: AccountID, name?: string): Promise<RequestResult> {
+    const conf = config();
+    const parameters: {[key:string]: any} = {};
+    if (targetID !== undefined) parameters["targetID"] = targetID;
+    if (name !== undefined) parameters["name"] = name;
+    return xhrRequest(
+      'post',
+      `${conf.url}v1/friend/invitation`,
+      parameters,
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
+
+  AcceptFriendInviteV1: function(config: RequestConfig, inviteID: string, inviterID: AccountID): Promise<RequestResult> {
+    const conf = config();
+    return xhrRequest(
+      'put',
+      `${conf.url}v1/friend/invitation`,
+      { inviteID, inviterID },
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
+
+  RejectFriendInviteV1: function(config: RequestConfig, inviteID: string, inviterID: AccountID): Promise<RequestResult> {
+    const conf = config();
+    return xhrRequest(
+      'delete',
+      `${conf.url}v1/friend/invitation`,
+      { inviteID, inviterID },
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
+
+  RejectAllFriendInvitesV1: function(config: RequestConfig): Promise<RequestResult> {
+    const conf = config();
+    return xhrRequest(
+      'delete',
+      `${conf.url}v1/friend/invitations`,
+      {},
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
+
+  RemoveFriendV1: function(config: RequestConfig, targetID: AccountID): Promise<RequestResult> {
+    const conf = config();
+    return xhrRequest(
+      'delete',
+      `${conf.url}v1/friend`,
+      { targetID },
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
 }
 
 export const GuildsAPI = {
@@ -559,6 +617,50 @@ export const ServersAPI = {
       'get',
       `${conf.url}v1/getZoneInfo`,
       { shard, zoneID },
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
+}
+
+export const SocialSettingsAPI = {
+  SetPermissionsV1: function(config: RequestConfig, allowed: UserInteractions, blocked: UserInteractions): Promise<RequestResult> {
+    const conf = config();
+    return xhrRequest(
+      'put',
+      `${conf.url}v1/social/permissions`,
+      { allowed, blocked },
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
+
+  SetUserPermissionsV1: function(config: RequestConfig, allowed: UserInteractions, blocked: UserInteractions, targetID?: AccountID | null, name?: string): Promise<RequestResult> {
+    const conf = config();
+    const parameters: {[key:string]: any} = {};
+    parameters["allowed"] = allowed;
+    parameters["blocked"] = blocked;
+    if (targetID !== undefined) parameters["targetID"] = targetID;
+    if (name !== undefined) parameters["name"] = name;
+    return xhrRequest(
+      'put',
+      `${conf.url}v1/social/user/permissions`,
+      parameters,
+      null,
+      { headers: { ...conf.headers, 'Accept': 'application/json'}}
+    );
+  },
+
+  SetUserNoteV1: function(config: RequestConfig, targetID?: AccountID, name?: string, note?: string): Promise<RequestResult> {
+    const conf = config();
+    const parameters: {[key:string]: any} = {};
+    if (targetID !== undefined) parameters["targetID"] = targetID;
+    if (name !== undefined) parameters["name"] = name;
+    if (note !== undefined) parameters["note"] = note;
+    return xhrRequest(
+      'put',
+      `${conf.url}v1/social/user/note`,
+      parameters,
       null,
       { headers: { ...conf.headers, 'Accept': 'application/json'}}
     );

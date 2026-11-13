@@ -22,6 +22,10 @@ export function isCallError(state: any): state is CallError {
   return true;
 }
 
+export function getCallErrorStringID(error: CallError): string {
+  return `Error.${error.system}.${error.type}`;
+}
+
 export function toCallError(msg: any): CallError {
   switch (typeof msg) {
     case 'string':

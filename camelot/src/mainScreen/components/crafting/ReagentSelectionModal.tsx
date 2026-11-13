@@ -141,6 +141,7 @@ class AReagentSelectionModal extends React.Component<Props, State> {
                 onClick={() => {
                   this.props.onIngredientsSelected(this.state.selections.slice());
                   this.props.dispatch(hideModal());
+                  clientAPI.playGameSound(SoundEvents.PLAY_UI_GAME_MENU_SELECT);
                 }}
               >
                 {getStringTableValue(StringIDGeneralAccept, this.props.stringTable)}
@@ -216,6 +217,7 @@ class AReagentSelectionModal extends React.Component<Props, State> {
         newSelections.push(newSelection);
       }
       this.setState({ selections: newSelections });
+      clientAPI.playGameSound(SoundEvents.PLAY_UI_CRAFT_ARROW);
     };
 
     return (

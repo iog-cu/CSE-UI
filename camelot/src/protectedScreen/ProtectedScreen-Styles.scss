@@ -208,6 +208,16 @@ body {
 
 .DevUI-DevUIPage-ContentRoot {
   flex: 1;
+  user-select: text;
+  -webkit-user-select: text;
+
+  // Server-generated buttons are divs with onclick handlers.
+  a,
+  button,
+  [onclick]:not(input):not(select):not(option) {
+    user-select: none;
+    -webkit-user-select: none;
+  }
 }
 
 .DevUI-DevUIPage-TableRoot {

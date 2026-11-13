@@ -18,6 +18,7 @@ import { floatEquals } from '@csegames/library/dist/_baseGame/utils/mathExtensio
 import { getFactionData } from '../gameData/factionData';
 import { ResizeDetector } from '../../shared/components/ResizeDetector';
 import { WorldMapIcons } from './WorldMapIcons';
+import { MiniMapTimeOfDay } from './MiniMapTimeOfDay';
 import { getMapDetails, parseZoneBounds } from '../helpers/mapHelpers';
 
 const MIN_ZOOM = 0.5;
@@ -92,6 +93,7 @@ class AMiniMap extends React.Component<Props, State> {
             <WorldMapIcons zone={zone} />
           </div>
         </div>
+        <MiniMapTimeOfDay />
         <img className={MiniMapFrame} src={factionData.miniMapImage} />
         <div
           className={MiniMapZoomIn}

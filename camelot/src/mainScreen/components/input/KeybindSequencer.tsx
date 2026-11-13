@@ -10,7 +10,6 @@ import { CancellablePromise } from '@csegames/library/dist/_baseGame/clientTasks
 import { Binding, Keybind } from '@csegames/library/dist/_baseGame/types/Keybind';
 import { Dictionary } from '@csegames/library/dist/_baseGame/types/ObjectMap';
 import { Dispatch } from '@reduxjs/toolkit';
-import { refetchKeybinds } from '../../dataSources/keybindsService';
 import { endIsBindingKey, startIsBindingKey } from '../../redux/hudSlice';
 import { hideModal, showModal, updateModalContent } from '../../redux/modalsSlice';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
@@ -89,6 +88,7 @@ export class KeybindSequencer {
   private handleMenuClose(): void {
     this.listenForKeyBindingPromise.cancel();
     this.listenForKeyBindingPromise = null;
+    this.dispatch(endIsBindingKey());
   }
 
   private handleBindStart(binding: Binding): void {
@@ -145,7 +145,6 @@ export class KeybindSequencer {
   private removeBind(): void {
     game.clearKeybind(this.keybind.id, this.bindIndex);
     this.dispatch(hideModal());
-    refetchKeybinds(this.dispatch);
   }
 
   private confirmBind(): void {
@@ -159,7 +158,6 @@ export class KeybindSequencer {
     }
     game.setKeybind(this.keybind.id, this.bindIndex, this.binding.value);
     this.dispatch(hideModal());
-    refetchKeybinds(this.dispatch);
   }
 
   private cancelBind(): void {

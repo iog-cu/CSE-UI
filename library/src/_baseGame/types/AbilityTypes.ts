@@ -75,6 +75,12 @@ export interface AbilityStatus {
   stats: Record<string, number>;
 }
 
+export interface AbilityGroupItem {
+  defID: number;
+  stackHash: string;
+  abilityID: number;
+}
+
 // ability length is variable and adjustable with the setVisibleAbilitySlots call
 export interface AbilityGroup {
   id: number;
@@ -86,6 +92,7 @@ export interface AbilityGroup {
   canReplace: boolean;
   canResize: boolean;
   abilities: number[];
+  items: (AbilityGroupItem | null)[];
 }
 
 export interface ButtonLayout {

@@ -25,7 +25,12 @@ import { getStringTableValue, StringIDGeneralComingSoon } from '../../helpers/st
 import { AbilityWithActivation } from '../../redux/abilitiesSlice';
 import { AbilityDisplayDef } from '../../dataSources/manifest/abilityDisplayManifest';
 import { TooltipSource } from '../TooltipSource';
-import { getFactionData } from '../../gameData/factionData';
+import { FactionTabBadge } from '../FactionTabBadge';
+import {
+  getAvailableAbilityPoints,
+  StringIDAbilityBookClassProgression,
+  StringIDAbilityBookTradeskillProgression
+} from '../../helpers/abilityBookHelpers';
 import { BorderBackground, BorderType, FactionBorder } from '../FactionBorder';
 import { Faction } from '@csegames/library/dist/camelotunchained/graphql/schema';
 import { CornerButtonType, FactionCornerButton } from '../FactionCornerButton';
@@ -40,20 +45,18 @@ import { GameDefsState } from '../../redux/gameDefsSlice';
 // CSS classes
 const Root = 'HUD-AbilityBook-Root';
 const Border = 'HUD-AbilityBook-Border';
-const ClassIconContainer = 'HUD-AbilityBook-ClassIconContainer';
-const ClassIconArrow = 'HUD-AbilityBook-ClassIconArrow';
-const ClassIcon = 'HUD-AbilityBook-ClassIcon';
+const Page = 'HUD-AbilityBook-Page';
 const Handle = 'HUD-FancyBorder-HeaderHandle';
 const Tabs = 'HUD-AbilityBook-Tabs';
 const Tab = 'HUD-AbilityBook-Tab';
 const TabIcon = 'HUD-AbilityBook-TabIcon';
+const TabTooltipArea = 'HUD-AbilityBook-TabTooltipArea';
 const TooltipRoot = 'HUD-AbilityBook-TooltipRoot';
 const TooltipHeader = 'HUD-AbilityBook-TooltipHeader';
 const TooltipDescription = 'HUD-AbilityBook-TooltipDescription';
 
 // String IDs
 const StringIDAbilityBookTitle = 'AbilityBookTitle';
-const StringIDTradeskillTabName = 'TradeskillTabName';
 const StringIDRealmProgressionTabName = 'RealmProgressionTabName';
 
 const TRADESKILL_TAB_ID = 'Tradeskills';
@@ -77,6 +80,16 @@ export interface AbilityBookAbilityDisplayData {
   displayDef: AbilityDisplayDef;
   progressionTrackID: string;
   unlockedAtLevel: number;
+}
+
+interface SideTabDef {
+  tabID: string;
+  iconURL: string;
+  iconModifierClass?: string;
+  title: string;
+  description?: string;
+  isDisabled?: boolean;
+  badgeCount?: number;
 }
 
 interface State {
@@ -110,21 +123,14 @@ class AAbilityBook extends React.Component<Props, State> {
   }
 
   render(): React.ReactNode {
-    const factionData = getFactionData(this.props.uiFactionID);
-
     return (
       <div className={Root}>
-        <div className={Tabs}>
-          {this.renderClassSkillsTab()}
-          {this.renderTradeskillTab()}
-          {this.renderRealmProgressionTab()}
-        </div>
+        {this.renderSideTabs()}
         <FactionBorder
           className={Border}
           type={BorderType.FancyHeader}
-          background={factionData.backgroundBookImage}
+          background={BorderBackground.Leather}
           titleText={getStringTableValue(StringIDAbilityBookTitle, this.props.stringTable)}
-          titleCenterOverride={'51.2%'}
           cornerButtons={[
             <FactionCornerButton
               type={CornerButtonType.Close}
@@ -135,23 +141,11 @@ class AAbilityBook extends React.Component<Props, State> {
           ]}
         >
           {!this.props.isDragCopy && (
-            <Escapable
-              escapeID={WIDGET_ID_ABILITY_BOOK}
-              onEscape={this.closeSelf.bind(this)}
-              sound={SoundEvents.PLAY_UI_ABILITY_WINDOW_OPEN}
-            />
+            <Escapable escapeID={WIDGET_ID_ABILITY_BOOK} onEscape={this.closeSelf.bind(this)} />
           )}
-          {this.state.tabID === TRADESKILL_TAB_ID ? <AbilityPageTradeskills /> : <AbilityPageClass />}
-        </FactionBorder>
-        <img className={ClassIconArrow} src={factionData.hudnavEndImage} />
-        <FactionBorder
-          className={`${ClassIconContainer} ${this.props.uiFactionID}`}
-          type={BorderType.Decorative}
-          background={factionData.backgroundClassIconImage}
-          cornerSize={'4vmin'}
-          borderSize={'4vmin'}
-        >
-          <img className={ClassIcon} src={this.props.myClass.abilityBookIconImage} />
+          <div className={Page}>
+            {this.state.tabID === TRADESKILL_TAB_ID ? <AbilityPageTradeskills /> : <AbilityPageClass />}
+          </div>
         </FactionBorder>
         <BaseHUDWidgetDraggableHandle className={Handle} widgetID={WIDGET_ID_ABILITY_BOOK} />
       </div>
@@ -183,7 +177,7 @@ class AAbilityBook extends React.Component<Props, State> {
     if (this.props.isDragCopy) return;
 
     requestAddImagesToCache(Root, this.getProgressionIconURLs());
-    clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_WINDOW_CLOSED);
+    clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_WINDOW_OPEN);
     clientAPI.requestEditMode(true);
   }
 
@@ -192,31 +186,60 @@ class AAbilityBook extends React.Component<Props, State> {
     if (this.props.isDragCopy) return;
 
     requestRemoveImagesFromCache(Root, this.getProgressionIconURLs());
-    clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_WINDOW_OPEN);
+    clientAPI.playGameSound(SoundEvents.PLAY_UI_ABILITY_WINDOW_CLOSED);
     if (!this.props.isEditingHUD) {
       clientAPI.requestEditMode(false);
     }
   }
 
-  private renderClassSkillsTab(): React.ReactNode {
+  private renderSideTabs(): React.ReactNode {
     const classDef = this.props.myClass;
 
     return (
+      <div className={Tabs}>
+        {this.renderSideTab({
+          tabID: classDef.id,
+          iconURL: classDef.unitFrameIconTransparencySmallImage,
+          iconModifierClass: ' emblem',
+          title: getStringTableValue(StringIDAbilityBookClassProgression, this.props.stringTable),
+          badgeCount: getAvailableAbilityPoints(classDef, this.props.defs, this.props.self)
+        })}
+        {this.renderSideTab({
+          tabID: TRADESKILL_TAB_ID,
+          iconURL: TradeskillTabIconURL,
+          title: getStringTableValue(StringIDAbilityBookTradeskillProgression, this.props.stringTable)
+        })}
+        {this.renderSideTab({
+          tabID: REALM_PROGRESSION_TAB_ID,
+          iconURL: RealmProgressionTabIconByFactionID[this.props.uiFactionID],
+          title: getStringTableValue(StringIDRealmProgressionTabName, this.props.stringTable),
+          description: getStringTableValue(StringIDGeneralComingSoon, this.props.stringTable),
+          isDisabled: true
+        })}
+      </div>
+    );
+  }
+
+  private renderSideTab(tab: SideTabDef): React.ReactNode {
+    return (
       <FactionBorderSelectable
-        key={classDef.id}
+        key={tab.tabID}
         className={Tab}
-        isSelected={this.state.tabID === classDef.id}
-        onSelected={() => this.setState({ tabID: classDef.id })}
+        isSelected={this.state.tabID === tab.tabID}
+        isDisabled={tab.isDisabled}
+        onSelected={this.onTabSelected.bind(this, tab.tabID)}
         includeLeft={false}
         background={BorderBackground.PatternSmall}
       >
-        <img className={TabIcon} src={classDef.combatAbilitiesIconImage} />
+        <img className={`${TabIcon}${tab.iconModifierClass ?? ''}`} src={tab.iconURL} />
+        <FactionTabBadge count={tab.badgeCount ?? 0} />
         <TooltipSource
-          className={TabIcon}
-          tooltipID={classDef.id}
+          className={TabTooltipArea}
+          tooltipID={tab.tabID}
           content={() => (
             <div className={TooltipRoot}>
-              <div className={TooltipHeader}>{getStringTableValue(classDef.name, this.props.stringTable)}</div>
+              <div className={TooltipHeader}>{tab.title}</div>
+              {tab.description && <div className={TooltipDescription}>{tab.description}</div>}
             </div>
           )}
           positionType='mouse'
@@ -225,62 +248,11 @@ class AAbilityBook extends React.Component<Props, State> {
     );
   }
 
-  private renderTradeskillTab(): React.ReactNode {
-    return (
-      <FactionBorderSelectable
-        key={TRADESKILL_TAB_ID}
-        className={Tab}
-        isSelected={this.state.tabID === TRADESKILL_TAB_ID}
-        onSelected={() => this.setState({ tabID: TRADESKILL_TAB_ID })}
-        includeLeft={false}
-        background={BorderBackground.PatternSmall}
-      >
-        <img className={TabIcon} src={TradeskillTabIconURL} />
-        <TooltipSource
-          className={TabIcon}
-          tooltipID={TRADESKILL_TAB_ID}
-          content={() => (
-            <div className={TooltipRoot}>
-              <div className={TooltipHeader}>
-                {getStringTableValue(StringIDTradeskillTabName, this.props.stringTable)}
-              </div>
-            </div>
-          )}
-          positionType='mouse'
-        />
-      </FactionBorderSelectable>
-    );
-  }
-
-  private renderRealmProgressionTab(): React.ReactNode {
-    return (
-      <FactionBorderSelectable
-        key={REALM_PROGRESSION_TAB_ID}
-        className={Tab}
-        isSelected={false}
-        isDisabled
-        onSelected={() => {}}
-        includeLeft={false}
-        background={BorderBackground.PatternSmall}
-      >
-        <img className={TabIcon} src={RealmProgressionTabIconByFactionID[this.props.uiFactionID]} />
-        <TooltipSource
-          className={TabIcon}
-          tooltipID={REALM_PROGRESSION_TAB_ID}
-          content={() => (
-            <div className={TooltipRoot}>
-              <div className={TooltipHeader}>
-                {getStringTableValue(StringIDRealmProgressionTabName, this.props.stringTable)}
-              </div>
-              <div className={TooltipDescription}>
-                {getStringTableValue(StringIDGeneralComingSoon, this.props.stringTable)}
-              </div>
-            </div>
-          )}
-          positionType='mouse'
-        />
-      </FactionBorderSelectable>
-    );
+  private onTabSelected(tabID: string): void {
+    if (tabID !== this.state.tabID) {
+      clientAPI.playGameSound(SoundEvents.PLAY_CP_ABILITY_TAB);
+      this.setState({ tabID });
+    }
   }
 
   private closeSelf(): void {

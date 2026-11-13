@@ -27,6 +27,7 @@ import {
   requiredScopes,
   requiredSystemScopes
 } from './ChatScopes';
+import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
 
 // CSS classes
 const Root = 'HUD-ChatTabEditor-Root';
@@ -249,6 +250,8 @@ class AChatTabEditor extends React.Component<Props, State> {
             this.setState({ selectedScopes });
 
             if (!this.state.isNewTab) clientAPI.updateChatTab({ name: this.props.tabName, scopes: selectedScopes });
+
+            clientAPI.playGameSound(SoundEvents.PLAY_UI_CHAT_CHECKBOX);
           }}
         />
         <div className={ScopeNameLabel} style={{ color: data.color }}>
@@ -272,6 +275,7 @@ class AChatTabEditor extends React.Component<Props, State> {
 
     // After name changes are submitted (or a new tab is created), we close the ChatTabEditor.
     this.closeSelf();
+    clientAPI.playGameSound(SoundEvents.PLAY_UI_CHAT_SUBMIT);
   }
 
   private closeSelf(): void {

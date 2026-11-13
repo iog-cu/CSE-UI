@@ -7,13 +7,11 @@
 import * as React from 'react';
 import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
-import { Dictionary } from '@csegames/library/dist/_baseGame/types/ObjectMap';
 import { StatusDef } from '../../dataSources/manifest/statusManifest';
 import { StatusState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/StatusState';
 import { getNewestStatusInstances, getStatusInstanceKey, isStatusBuff, StatusData } from '../../helpers/statusHelpers';
 import { StatusEffectsIcon } from './StatusEffectsIcon';
 import { getIsEntityNPC } from '../../helpers/characterHelpers';
-import { hasStatusInstanceCounts } from '../../redux/entitiesSlice';
 
 const HIDDEN_STATUS_TAG = 'UI.Hidden';
 
@@ -22,11 +20,11 @@ const Root = 'HUD-StatusEffects-Root';
 const StatusSection = 'HUD-StatusEffects-StatusSection';
 
 interface ReactProps {
-  statuses: Dictionary<StatusState>;
   entityID: string;
 }
 
 interface InjectedProps {
+  statuses: Record<number, StatusState>;
   statusesByNumericID: Record<number, StatusDef>;
   isNPC: boolean;
   statusInstanceCounts: Record<number, number>;
@@ -104,7 +102,8 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
     ...ownProps,
     statusesByNumericID,
     isNPC: getIsEntityNPC(entity),
-    statusInstanceCounts: hasStatusInstanceCounts(entity) ? entity.statusInstanceCounts : {}
+    statuses: state.entities.entityStatuses[ownProps.entityID] ?? {},
+    statusInstanceCounts: state.entities.entityStatusInstanceCounts[ownProps.entityID] ?? {}
   };
 }
 

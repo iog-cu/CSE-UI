@@ -154,7 +154,7 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
   const { stats, itemsByNumericID, tagAffixIDByStringID } = state.gameDefs;
   return {
     stats,
-    myStats: state.entities.self.stats,
+    myStats: state.entities.entityStats[state.entities.self.entityID],
     equippedItems: state.inventory.equipment,
     itemsByNumericID,
     stringTable: state.stringTable.stringTable,

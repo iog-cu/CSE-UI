@@ -20,7 +20,10 @@ const BarTrack = 'HUD-FactionScrollArea-BarTrack';
 const BorderOverlay = 'HUD-FactionScrollArea-BorderOverlay';
 
 const LONG_ASPECT_RATIO = 512 / 64;
-const SHORT_ASPECT_RATIO = 80 / 26;
+const SHORT_ASPECT_RATIO = 98 / 32;
+const THUMB_POSITION_STEPS = 1000;
+const TRACK_WIDTH_RATIO = 0.28;
+const TRACK_INSET_RATIO = (1 - TRACK_WIDTH_RATIO) / 2;
 
 interface State {
   id: string;
@@ -52,6 +55,12 @@ interface InjectedProps {
 type Props = ReactProps & InjectedProps;
 
 class AFactionScrollArea extends React.Component<Props, State> {
+  private rootElement: HTMLDivElement | null = null;
+  private wrapperRef = React.createRef<HTMLDivElement>();
+  private contentRef = React.createRef<HTMLDivElement>();
+  private thumbPositionStyleRef = React.createRef<HTMLStyleElement>();
+  private thumbPositionStep: number = 0;
+
   constructor(props: Props) {
     super(props);
 
@@ -90,7 +99,6 @@ class AFactionScrollArea extends React.Component<Props, State> {
     const factionData = getFactionData(this.props.uiFactionID);
 
     const isThumbShown = this.state.height < this.state.contentHeight;
-    const trackInset = useSmallThumb ? 0.43 : 0.36;
 
     const topFade = topFadeAmount ?? '0%';
     const bottomFade = `calc(100% - ${bottomFadeAmount ?? '0%'})`;
@@ -113,10 +121,10 @@ class AFactionScrollArea extends React.Component<Props, State> {
             className={BarTrack}
             style={{
               borderColor: factionData.borderColor,
-              right: barOnLeft ? undefined : `calc(${finalScrollbarWidth} * ${trackInset})`,
-              left: barOnLeft ? `calc(${finalScrollbarWidth} * ${trackInset})` : undefined,
-              width: `calc(${finalScrollbarWidth} * 0.28)`,
-              borderRadius: `calc(${finalScrollbarWidth} * 0.14)`
+              right: barOnLeft ? undefined : `calc(${finalScrollbarWidth} * ${TRACK_INSET_RATIO})`,
+              left: barOnLeft ? `calc(${finalScrollbarWidth} * ${TRACK_INSET_RATIO})` : undefined,
+              width: `calc(${finalScrollbarWidth} * ${TRACK_WIDTH_RATIO})`,
+              borderRadius: `calc(${finalScrollbarWidth} * ${TRACK_WIDTH_RATIO / 2})`
             }}
           />
         )}
@@ -135,27 +143,22 @@ class AFactionScrollArea extends React.Component<Props, State> {
         <div
           className={`${Wrapper} ${contentClassName ?? ''}`}
           id={this.state.id}
+          ref={this.wrapperRef}
           onScroll={(e) => {
+            this.updateThumbPosition();
             if (soundEventScrolled) {
               clientAPI.playGameSound(soundEventScrolled);
             }
             onScroll?.(e);
           }}
+          onTransitionEnd={() => this.measureHeights()}
         >
-          <style>{`#${this.state.id}::-webkit-scrollbar-thumb { background-image: url(${
+          <style>{`${this.getThumbSelector()} { background-image: url(${
             useSmallThumb ? factionData.scrollbarShortImage : factionData.scrollbarImage
           }); height: ${thumbHeight} }`}</style>
           <style>{`#${this.state.id}::-webkit-scrollbar { width: ${finalScrollbarWidth}; }`}</style>
-          <div
-            style={barOnLeft ? { direction: 'ltr' } : {}}
-            ref={(r) => {
-              if (r) {
-                if (this.state.contentHeight !== r.offsetHeight) {
-                  this.setState({ contentHeight: r.offsetHeight });
-                }
-              }
-            }}
-          >
+          <style ref={this.thumbPositionStyleRef} />
+          <div style={barOnLeft ? { direction: 'ltr' } : {}} ref={this.contentRef}>
             {this.props.children}
           </div>
         </div>
@@ -174,14 +177,59 @@ class AFactionScrollArea extends React.Component<Props, State> {
     );
   }
 
+  componentDidMount(): void {
+    this.measureHeights();
+  }
+
+  componentDidUpdate(prevProps: Readonly<Props>, prevState: Readonly<State>): void {
+    this.measureHeights();
+    if (prevState.height !== this.state.height || prevState.contentHeight !== this.state.contentHeight) {
+      this.updateThumbPosition();
+    }
+  }
+
+  // Also runs on transitionend, since content can resize through a CSS transition (e.g. FactionAccordion)
+  // without this component re-rendering.
+  private measureHeights(): void {
+    const content = this.contentRef.current;
+    if (!this.rootElement || !content) {
+      return;
+    }
+
+    const height = this.rootElement.offsetHeight;
+    const contentHeight = content.offsetHeight;
+    if (height !== this.state.height || contentHeight !== this.state.contentHeight) {
+      this.setState({ height, contentHeight });
+    }
+  }
+
+  private getThumbSelector(): string {
+    return `#${this.state.id}::-webkit-scrollbar-thumb`;
+  }
+
+  // The engine sizes the thumb by the visible fraction, so the art is placed inside it by scroll fraction to keep
+  // it at the track ends.
+  private updateThumbPosition(): void {
+    const wrapper = this.wrapperRef.current;
+    const thumbPositionStyle = this.thumbPositionStyleRef.current;
+    if (!wrapper || !thumbPositionStyle) {
+      return;
+    }
+
+    const maxScroll = wrapper.scrollHeight - wrapper.clientHeight;
+    const step = maxScroll > 0 ? Math.round((wrapper.scrollTop / maxScroll) * THUMB_POSITION_STEPS) : 0;
+    if (step !== this.thumbPositionStep) {
+      this.thumbPositionStep = step;
+      thumbPositionStyle.textContent = `${this.getThumbSelector()} { background-position: center ${
+        (step * 100) / THUMB_POSITION_STEPS
+      }%; }`;
+    }
+  }
+
   // A pre-bound ref function won't trigger unnecessary re-renders.
   private boundSetRootRef = this.setRootRef.bind(this);
   private setRootRef(r: HTMLDivElement): void {
-    if (r) {
-      if (this.state.height !== r.offsetHeight) {
-        this.setState({ height: r.offsetHeight });
-      }
-    }
+    this.rootElement = r;
     // If an external ref was requested, pass it out.
     this.props.scrollRef?.(r);
   }

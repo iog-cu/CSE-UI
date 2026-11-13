@@ -74,6 +74,8 @@ export interface AnimationData {
   viewY: number;
   viewZ: number;
   worldTime: number;
+  // In-game clock hours, 0 to 24.
+  timeOfDay: number;
   fps: number;
   mapData: MapData;
 }

@@ -19,7 +19,8 @@ import { MapDataType } from '@csegames/library/dist/_baseGame/GameClientModels/A
 import {
   MAX_UI_SCALE,
   MIN_UI_SCALE,
-  NameplateStyle
+  NameplateStyle,
+  PersonalMapMarker
 } from '@csegames/library/dist/camelotunchained/clientFunctions/HUDFunctions';
 
 export enum HUDLayer {
@@ -43,7 +44,6 @@ interface HUDEditorState {
 }
 
 export const defaultWidgetState: HUDWidgetState = {
-  visible: true,
   initialized: false,
   xAnchor: HUDHorizontalAnchor.Left,
   yAnchor: HUDVerticalAnchor.Top,
@@ -53,6 +53,11 @@ export const defaultWidgetState: HUDWidgetState = {
   scale: 1
   // We don't set a value for `resizable`, because the default is to not be resizable.
 };
+
+// Menus are never hidden: closed menus already unload, and an unloaded menu can't finish closing.
+export function isWidgetHidden(widget: HUDWidget): boolean {
+  return !widget.registration?.isConditional && widget.state.opacity === 0;
+}
 
 export interface HUDWidget {
   registration: HUDWidgetRegistration | null;
@@ -110,6 +115,9 @@ interface HUDState {
   uiFactionID: string;
   poisToHide: MapDataType[];
   groupPOIsToHide: GroupPOIType[];
+  // Keyed by zoneID.
+  personalMapMarkers: Record<string, PersonalMapMarker>;
+  personalMapMarkerVisible: boolean;
   nameplateStyle: NameplateStyle;
   uiScale: number;
   worldMapSelection: WorldMapSelection;
@@ -142,6 +150,8 @@ function buildDefaultHUDState() {
     uiFactionID: Faction[Faction.Arthurian],
     poisToHide: [],
     groupPOIsToHide: [],
+    personalMapMarkers: {},
+    personalMapMarkerVisible: true,
     nameplateStyle: 'fancy',
     uiScale: 1,
     worldMapSelection: { regionID: '', mapID: '', isWorldView: false }
@@ -212,6 +222,10 @@ export const hudSlice = createSlice({
     },
     setSelectedWidget: (state: HUDState, action: PayloadAction<string>) => {
       const widgetID = action.payload;
+      // Hidden widgets never report bounds, so the previous widget's bounds must not carry over.
+      if (state.editor.selectedWidgetID !== widgetID) {
+        state.editor.selectedWidgetBounds = null;
+      }
       state.editor.selectedWidgetID = widgetID;
       // Selecting a widget that isn't part of the active group clears the group selection. Selecting
       // one of the group's own members keeps the group active so the others stay visible/movable.
@@ -481,6 +495,23 @@ export const hudSlice = createSlice({
     setUIScale: (state: HUDState, action: PayloadAction<number>) => {
       state.uiScale = Math.max(MIN_UI_SCALE, Math.min(action.payload, MAX_UI_SCALE));
     },
+    updatePersonalMapMarkers: (state: HUDState, action: PayloadAction<Record<string, PersonalMapMarker>>) => {
+      state.personalMapMarkers = action.payload;
+    },
+    setPersonalMapMarker: (
+      state: HUDState,
+      action: PayloadAction<{ zoneID: string; marker: PersonalMapMarker | null }>
+    ) => {
+      const { zoneID, marker } = action.payload;
+      if (marker) {
+        state.personalMapMarkers[zoneID] = marker;
+      } else {
+        delete state.personalMapMarkers[zoneID];
+      }
+    },
+    setPersonalMapMarkerVisible: (state: HUDState, action: PayloadAction<boolean>) => {
+      state.personalMapMarkerVisible = action.payload;
+    },
     updateWorldMapSelection: (state: HUDState, action: PayloadAction<Partial<WorldMapSelection>>) => {
       state.worldMapSelection = { ...state.worldMapSelection, ...action.payload };
     }
@@ -527,5 +558,8 @@ export const {
   updateGroupPOIsToHide,
   showGroupPOIType,
   hideGroupPOIType,
+  updatePersonalMapMarkers,
+  setPersonalMapMarker,
+  setPersonalMapMarkerVisible,
   updateWorldMapSelection
 } = hudSlice.actions;

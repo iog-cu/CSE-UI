@@ -7,6 +7,8 @@
 import * as React from 'react';
 import { Faction } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
 import { FactionData } from '../../gameData/factionData';
+import { ClassDef } from '../../dataSources/manifest/classManifest';
+import { ClassIconSize } from '../../helpers/classIconHelpers';
 
 // CSS classes
 export const ClassIcon = 'HUD-PlayerUnitFrame-ClassIcon';
@@ -36,7 +38,9 @@ interface Props {
   isNPC: boolean;
   isRealmNPC: boolean;
   classID: number | undefined;
-  classIconImage: string | undefined;
+  classDef: ClassDef | undefined;
+  classIconSize: ClassIconSize;
+  hasClassIcon: boolean;
   name: string;
   levelString: string;
   npcTierIconSource: string;
@@ -51,13 +55,11 @@ export class PlayerUnitFrameChrome extends React.PureComponent<Props> {
 
   private renderFancy(): JSX.Element {
     const { factionData } = this.props;
-    const hasTargetClassIcon =
-      !this.props.isParty && !this.props.isNPC && !!this.props.classID && !!this.props.classIconImage;
 
     return (
       <>
         {this.props.isParty && this.props.classID && (
-          <img className={ClassIcon} src={this.props.classIconImage} />
+          <img className={ClassIcon} src={this.props.classDef?.unitFrameIconImage} />
         )}
         <img
           className={FrameForeground}
@@ -77,12 +79,7 @@ export class PlayerUnitFrameChrome extends React.PureComponent<Props> {
         <div className={NameForeground}>{this.props.name}</div>
         {this.props.isFactionless && <img className={NPCTierIcon} src={this.props.npcTierIconSource} />}
         {this.props.isRealmNPC && <img className={RealmIcon} src={getRealmIconURL(this.props.faction)} />}
-        {hasTargetClassIcon && (
-          <img
-            className={TargetClassIcon}
-            src={this.props.classIconImage.replace('unit-frame-icon-', 'unit-frame-icon-transparency-')}
-          />
-        )}
+        {this.props.hasClassIcon && <img className={TargetClassIcon} src={this.getTransparentClassIconImage()} />}
       </>
     );
   }
@@ -92,7 +89,6 @@ export class PlayerUnitFrameChrome extends React.PureComponent<Props> {
   // icon but not the name), so the name stays inline in the parent rather than living in this memoized piece.
   private renderSimple(): JSX.Element {
     const { factionData } = this.props;
-    const hasClassIcon = !this.props.isNPC && !!this.props.classID && !!this.props.classIconImage;
 
     return (
       <>
@@ -109,17 +105,18 @@ export class PlayerUnitFrameChrome extends React.PureComponent<Props> {
         {this.props.hasCompass && factionData.simpleUnitFrameForegroundRightImage && (
           <img className={SimpleForegroundRight} src={factionData.simpleUnitFrameForegroundRightImage} />
         )}
-        {hasClassIcon && (
-          <img
-            className={SimpleClassIcon}
-            src={this.props.classIconImage.replace('unit-frame-icon-', 'unit-frame-icon-transparency-')}
-          />
-        )}
+        {this.props.hasClassIcon && <img className={SimpleClassIcon} src={this.getTransparentClassIconImage()} />}
         {this.props.isFactionless && <img className={SimpleNPCTierIcon} src={this.props.npcTierIconSource} />}
         {!this.props.isFactionless && this.props.isNPC && (
           <img className={SimpleRealmIcon} src={getRealmIconURL(this.props.faction)} />
         )}
       </>
     );
+  }
+
+  private getTransparentClassIconImage(): string {
+    return this.props.classIconSize === 'small'
+      ? this.props.classDef.unitFrameIconTransparencySmallImage
+      : this.props.classDef.unitFrameIconTransparencyImage;
   }
 }

@@ -23,6 +23,7 @@ import { ContextMenuItem, ContextMenuParams } from '../../redux/contextMenuSlice
 import { showModal } from '../../redux/modalsSlice';
 import { ChatTabEditor } from './ChatTabEditor';
 import { ListenerHandle } from '@csegames/library/dist/_baseGame/listenerHandle';
+import { SoundEvents } from '@csegames/library/dist/camelotunchained/game/types/SoundEvents';
 
 // CSS classes
 const Navigation = 'HUD-Chat-Navigation';
@@ -148,6 +149,7 @@ class AChatTabs extends React.Component<Props, State> {
           this.props.dispatch(
             showModal({ id: StringIDChatConfigureTab, content: () => <ChatTabEditor tabName={''} /> })
           );
+          clientAPI.playGameSound(SoundEvents.PLAY_UI_CHAT_TAB);
         }}
       >
         <div className={TabTransparency}>
@@ -160,6 +162,7 @@ class AChatTabs extends React.Component<Props, State> {
   private handleTabChange(chatTabs: ChatTab[], currentTabIndex: number) {
     this.props.onTabChanged(chatTabs[currentTabIndex]);
     this.setState({ chatTabs, currentTabIndex });
+    clientAPI.playGameSound(SoundEvents.PLAY_UI_CHAT_TAB);
   }
 
   private getTabContextMenuParams(index: number): ContextMenuParams {

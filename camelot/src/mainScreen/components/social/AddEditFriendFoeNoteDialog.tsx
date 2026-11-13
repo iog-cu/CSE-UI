@@ -6,7 +6,9 @@ import { TextInput, TextInputType } from '../input/TextInput';
 import { FactionButton } from '../FactionButton';
 import { getStringTableValue, StringIDGeneralCancel, StringIDGeneralSave } from '../../helpers/stringTableHelpers';
 import { hideModal } from '../../redux/modalsSlice';
-import { SocialPlayer } from './FriendFoeList';
+import { callSocialSetUserNote, SocialSetUserNoteParams } from '../../helpers/rest/socialRestCalls';
+import { showCallErrorModalIfFailed } from '../../helpers/errorConversionHelpers';
+import { Account, Character } from '@csegames/library/dist/camelotunchained/graphql/schema';
 
 // CSS classes
 const Root = 'HUD-AddEditFriendFoeNoteDialog-Root';
@@ -20,8 +22,10 @@ interface State {
 }
 
 interface ReactProps {
-  player: SocialPlayer;
+  account: Account;
+  character: Character | null;
   isFoe?: boolean;
+  note?: string;
 }
 
 interface InjectedProps {
@@ -36,7 +40,7 @@ class AAddEditFriendFoeNoteDialog extends React.Component<Props, State> {
     super(props);
 
     this.state = {
-      inputValue: ''
+      inputValue: props.note ?? ''
     };
   }
 
@@ -57,7 +61,7 @@ class AAddEditFriendFoeNoteDialog extends React.Component<Props, State> {
         />
 
         <div className={ButtonSection}>
-          <FactionButton className={ActionButton} onClick={this.onAddClicked.bind(this)}>
+          <FactionButton className={ActionButton} onClick={this.onSaveClicked.bind(this)}>
             {getStringTableValue(StringIDGeneralSave, this.props.stringTable)}
           </FactionButton>
           <FactionButton className={ActionButton} onClick={this.onCancelClicked.bind(this)}>
@@ -68,9 +72,15 @@ class AAddEditFriendFoeNoteDialog extends React.Component<Props, State> {
     );
   }
 
-  private onAddClicked(): void {
-    // TODO: Going to need some clientAPI call, most likely.
-    // TODO: if (this.props.isFoe) ...
+  private async onSaveClicked(): Promise<void> {
+    const params: SocialSetUserNoteParams = {
+      targetID: this.props.account.id!,
+      name: this.props.character && this.props.character.name ? this.props.character.name : undefined,
+      note: this.state.inputValue
+    };
+    this.props.dispatch(hideModal());
+    const result = await this.props.dispatch(callSocialSetUserNote(params));
+    showCallErrorModalIfFailed(this.props.dispatch, this.props.stringTable, result);
   }
 
   private onCancelClicked(): void {

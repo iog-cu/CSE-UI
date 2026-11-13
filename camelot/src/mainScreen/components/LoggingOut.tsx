@@ -23,6 +23,7 @@ import { ListenerHandle } from '@csegames/library/dist/_baseGame/listenerHandle'
 import { AnimationData } from '@csegames/library/dist/_baseGame/GameClientModels/AnimationData';
 import Escapable from './Escapable'
 import { ConnectionStatus } from '@csegames/library/dist/_baseGame/types/ConnectionStatus';
+import { getFactionData, RealmColorStyle } from '../gameData/factionData';
 
 // CSS classes
 const Root = 'HUD-LoggingOut-Root';
@@ -50,6 +51,7 @@ interface InjectedProps {
   stringTable: Record<string, StringTableEntryDef>;
   logoutCompleteTime: number;
   connectionStatus: ConnectionStatus;
+  uiFactionID: string;
   dispatch?: Dispatch;
 }
 
@@ -68,10 +70,14 @@ class ALoggingOut extends React.Component<Props, State> {
     }
 
     const logoutCompleteSecondsLeft = Math.max(0, this.props.logoutCompleteTime - this.state.worldTimeSeconds);
+    const realmColorStyle: RealmColorStyle = {
+      '--faction-border-color': getFactionData(this.props.uiFactionID).targetBorderColor
+    };
 
     return (
       <FactionBorder
         className={Root}
+        style={realmColorStyle}
         type={BorderType.Decorative}
         background={BorderBackground.PatternLarge}
         titleText={getStringTableValue(StringIDLoggingOutTitle, this.props.stringTable)}
@@ -143,7 +149,8 @@ const mapStateToProps = (state: RootState, ownProps: ReactProps): Props => {
     ...ownProps,
     stringTable: state.stringTable.stringTable,
     logoutCompleteTime: state.entities.self?.logoutCompleteTime ?? 0,
-    connectionStatus: state.loading.connectionStatus
+    connectionStatus: state.loading.connectionStatus,
+    uiFactionID: state.hud.uiFactionID
   };
 };
 

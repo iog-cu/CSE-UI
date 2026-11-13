@@ -19,6 +19,8 @@ import { FactionDivider } from '../FactionDivider';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
 import { FormattedTextDiv } from '../../../shared/components/FormattedTextDiv';
 import { GameDefsState } from '../../redux/gameDefsSlice';
+import { ClassDef } from '../../dataSources/manifest/classManifest';
+import { TAG_PREFIX_ARCHETYPE_CLASS, TAG_PREFIX_SPECIALIZATION } from '../../helpers/abilityBookHelpers';
 
 const StringIDAbilityTooltipTargetingEnemy = 'AbilityTooltipTargetingEnemy';
 const StringIDAbilityTooltipTargetingFriend = 'AbilityTooltipTargetingFriend';
@@ -105,6 +107,7 @@ interface InjectedProps {
   displayData: AbilityDisplayDef;
   stringTable: Record<string, StringTableEntryDef>;
   gameDefs: GameDefsState;
+  myClass: ClassDef;
   dispatch?: Dispatch;
 }
 
@@ -270,8 +273,11 @@ class AAbilityTooltip extends React.Component<Props> {
     tags.forEach((tag) => {
       if (tag.startsWith('Asset.Targeting.')) {
         data.targeting = this.getTargetingString(tag);
-      } else if (tag.startsWith('Asset.Specialization.')) {
-        data.specialization = this.getSpecializationString(tag);
+      } else if (tag.startsWith(TAG_PREFIX_SPECIALIZATION)) {
+        data.specialization = this.getTrackUnlockString(tag);
+      } else if (tag.startsWith(TAG_PREFIX_ARCHETYPE_CLASS)) {
+        // Matches the Ability Book, which titles the archetype column with the class name.
+        data.specialization = this.getTrackUnlockString(tag, this.props.myClass?.name);
       } else if (tag.startsWith('Asset.Effect.Damage.')) {
         const damageTypeStringID = StringIDsAbilityTooltipDamageTypes[tag.slice(20)];
         if (!!damageTypeStringID) {
@@ -313,15 +319,15 @@ class AAbilityTooltip extends React.Component<Props> {
     return '';
   }
 
-  private getSpecializationString(tag: string): string {
-    const specDef = Object.values(this.props.gameDefs.progressionTracks).find((track) => track.tags.includes(tag));
+  private getTrackUnlockString(tag: string, sourceNameKey?: string): string {
+    const trackDef = Object.values(this.props.gameDefs.progressionTracks).find((track) => track.tags.includes(tag));
 
-    if (specDef) {
-      const unlockLevel = specDef.abilityUnlocks[this.props.displayData?.id] ?? 0;
+    if (trackDef) {
+      const unlockLevel = trackDef.abilityUnlocks[this.props.displayData?.id] ?? 0;
       const displayUnlockLevel = unlockLevel + 1;
 
       return getTokenizedStringTableValue(StringIDAbilityTooltipSpecAndUnlockLevel, this.props.stringTable, {
-        SOURCE: getStringTableValue(specDef.nameKey, this.props.stringTable),
+        SOURCE: getStringTableValue(sourceNameKey ?? trackDef.nameKey, this.props.stringTable),
         UNLOCK_LEVEL: displayUnlockLevel.toFixed(0)
       });
     }
@@ -337,7 +343,8 @@ function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
     displayData,
     abilityStatus,
     stringTable: state.stringTable.stringTable,
-    gameDefs: state.gameDefs
+    gameDefs: state.gameDefs,
+    myClass: state.gameDefs.classesByNumericID[state.entities.self.classID]
   };
 }
 

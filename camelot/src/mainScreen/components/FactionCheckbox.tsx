@@ -23,11 +23,13 @@ const DEFAULT_SIZE_VMIN = 2.5;
 interface ReactProps extends React.HTMLAttributes<HTMLDivElement> {
   isChecked: boolean;
   labelText?: string;
+  labelClassName?: string;
   heightOverrideVmin?: number;
   factionIDOverride?: string;
   onCheckedChanged?: (newIsChecked: boolean) => void;
   disabled?: boolean;
   soundEventClicked?: SoundEvents;
+  labelOnLeft?: boolean;
 }
 
 interface InjectedProps {
@@ -51,6 +53,8 @@ class AFactionCheckbox extends React.Component<Props> {
       style,
       labelText,
       soundEventClicked,
+      labelOnLeft,
+      labelClassName,
       ...otherProps
     } = this.props;
 
@@ -73,13 +77,20 @@ class AFactionCheckbox extends React.Component<Props> {
         }
         style={this.buildRootStyle()}
       >
+        {labelOnLeft && this.renderLabel(labelText)}
         <div className={BoxRoot} style={this.buildBoxRootStyle()}>
           <img className={Background} src={factionData.checkboxBackgroundImage} />
           {isChecked && <div className={Check} style={{ backgroundColor: factionData.borderColor }} />}
         </div>
-        {(labelText?.length ?? 0) > 0 && <div className={LabelText}>{labelText}</div>}
+        {!labelOnLeft && this.renderLabel(labelText)}
       </div>
     );
+  }
+
+  private renderLabel(labelText?: string): React.ReactNode {
+    return (labelText?.length ?? 0) > 0 ? (
+      <div className={`${LabelText} ${this.props.labelClassName ?? ''}`}>{labelText}</div>
+    ) : null;
   }
 
   private getScale(): number {

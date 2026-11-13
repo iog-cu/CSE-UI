@@ -27,6 +27,7 @@ export interface GameSettingsDef {
   clientStatusRemovalRequiredTags: TagState[];
   clientStatusRemovalExcludedTags: TagState[];
   abilityProgressionRespecCostPerLevel: number;
+  poolRespecCostPerTier: number;
 }
 
 export function processGameSettings(dispatch: Dispatch, json: any, version: number): void {
@@ -53,7 +54,8 @@ export function processGameSettings(dispatch: Dispatch, json: any, version: numb
         tradeItemsReceivedTaxFrac: 0,
         clientStatusRemovalRequiredTags: <TagState[]>[],
         clientStatusRemovalExcludedTags: <TagState[]>[],
-        abilityProgressionRespecCostPerLevel: 0
+        abilityProgressionRespecCostPerLevel: 0,
+        poolRespecCostPerTier: 0
       };
       dispatch(updateSettings(gameSettingsV1));
       break;
@@ -74,7 +76,8 @@ export function processGameSettings(dispatch: Dispatch, json: any, version: numb
         tradeItemsReceivedTaxFrac: json.tradeItemsReceivedTaxFrac,
         clientStatusRemovalRequiredTags: <TagState[]>[],
         clientStatusRemovalExcludedTags: <TagState[]>[],
-        abilityProgressionRespecCostPerLevel: 0
+        abilityProgressionRespecCostPerLevel: 0,
+        poolRespecCostPerTier: 0
       };
       dispatch(updateSettings(gameSettingsV2));
       break;
@@ -95,9 +98,32 @@ export function processGameSettings(dispatch: Dispatch, json: any, version: numb
         tradeItemsReceivedTaxFrac: json.tradeItemsReceivedTaxFrac,
         clientStatusRemovalRequiredTags: json.clientStatusRemovalRequiredTags,
         clientStatusRemovalExcludedTags: json.clientStatusRemovalExcludedTags,
-        abilityProgressionRespecCostPerLevel: json.abilityProgressionRespecCostPerLevel
+        abilityProgressionRespecCostPerLevel: json.abilityProgressionRespecCostPerLevel,
+        poolRespecCostPerTier: 0
       };
       dispatch(updateSettings(gameSettingsV3));
+      break;
+    case 4:
+      const gameSettingsV4 = {
+        minCharacterNameLength: json.minCharacterNameLength,
+        maxCharacterNameLength: json.maxCharacterNameLength,
+        maxChatMessageLength: json.maxChatMessageLength,
+        startingAttributePoints: json.startingAttributePoints,
+        itemLowQualityThreshold: json.itemLowQualityThreshold,
+        abilityNameMinLength: json.abilityNameMinLength,
+        abilityNameMaxLength: json.abilityNameMaxLength,
+        abilityDescriptionMaxLength: json.abilityDescriptionMaxLength,
+        inventoryCapacityBase: json.inventoryCapacityBase,
+        accountBankCapacityBase: json.accountBankCapacityBase,
+        tradeCapacity: json.tradeCapacity,
+        tradeGoldTaxFrac: json.tradeGoldTaxFrac,
+        tradeItemsReceivedTaxFrac: json.tradeItemsReceivedTaxFrac,
+        clientStatusRemovalRequiredTags: json.clientStatusRemovalRequiredTags,
+        clientStatusRemovalExcludedTags: json.clientStatusRemovalExcludedTags,
+        abilityProgressionRespecCostPerLevel: json.abilityProgressionRespecCostPerLevel,
+        poolRespecCostPerTier: json.poolRespecCostPerTier
+      };
+      dispatch(updateSettings(gameSettingsV4));
       break;
   }
 }
@@ -163,6 +189,30 @@ function isGameSettingData(obj: any, version: number): boolean {
         console.error(`Found invalid GameSettings object`, obj);
       }
       return isCorrectV3Type;
+    case 4:
+      const isCorrectV4Type =
+        Object.keys(obj).length === 17 &&
+        'minCharacterNameLength' in obj &&
+        'maxCharacterNameLength' in obj &&
+        'maxChatMessageLength' in obj &&
+        'startingAttributePoints' in obj &&
+        'itemLowQualityThreshold' in obj &&
+        'abilityNameMinLength' in obj &&
+        'abilityNameMaxLength' in obj &&
+        'abilityDescriptionMaxLength' in obj &&
+        'inventoryCapacityBase' in obj &&
+        'accountBankCapacityBase' in obj &&
+        'tradeCapacity' in obj &&
+        'tradeGoldTaxFrac' in obj &&
+        'tradeItemsReceivedTaxFrac' in obj &&
+        'clientStatusRemovalRequiredTags' in obj &&
+        'clientStatusRemovalExcludedTags' in obj &&
+        'abilityProgressionRespecCostPerLevel' in obj &&
+        'poolRespecCostPerTier' in obj;
+      if (!isCorrectV4Type) {
+        console.error(`Found invalid GameSettings object`, obj);
+      }
+      return isCorrectV4Type;
     default:
       console.error(`Found invalid GameSettings version ${version}`);
       return false;

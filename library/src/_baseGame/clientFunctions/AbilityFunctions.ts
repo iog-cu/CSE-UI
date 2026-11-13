@@ -40,6 +40,8 @@ const renameGroupCallbackName = 'ability.RenameGroup';
 const executeAbilityCallbackName = 'ability.ExecuteAbility';
 const moveAbilityCallbackName = 'ability.MoveAbility';
 const replaceAbilityCallbackName = 'ability.ReplaceAbility';
+const setItemCallbackName = 'ability.SetItem';
+const swapSlotsCallbackName = 'ability.SwapSlots';
 const requestEditModeCallbackName = 'ability.RequestEditMode';
 const resetAbilitiesCallbackName = 'ability.ResetToDefaults';
 
@@ -71,6 +73,8 @@ export interface AbilityFunctions {
   executeAbility(groupID: number, pos: number): void;
   moveAbility(groupID: number, srcPos: number, destPos: number): void;
   setAbility(groupID: number, pos: number, abilityID: number): void;
+  setAbilityItem(groupID: number, pos: number, defID: number, stackHash: string, abilityDisplayDefID: number): void;
+  swapAbilitySlots(groupA: number, posA: number, groupB: number, posB: number): void;
 }
 
 export interface AbilityMocks {
@@ -125,6 +129,14 @@ abstract class AbilityFunctionsBase implements AbilityFunctions, AbilityMocks {
   abstract executeAbility(groupID: number, pos: number): void;
   abstract moveAbility(groupID: number, srcPos: number, destPos: number): void;
   abstract setAbility(groupID: number, pos: number, abilityID: number): void;
+  abstract setAbilityItem(
+    groupID: number,
+    pos: number,
+    defID: number,
+    stackHash: string,
+    abilityDisplayDefID: number
+  ): void;
+  abstract swapAbilitySlots(groupA: number, posA: number, groupB: number, posB: number): void;
 
   triggerAbilityActivated(abilityID: number, buttonFunction?: number): void {
     this.events.trigger(abilityActivatedEventName, abilityID, buttonFunction);
@@ -274,6 +286,12 @@ class CoherentAbilityFunctions extends AbilityFunctionsBase {
   setAbility(groupID: number, pos: number, abilityID: number): void {
     engine.trigger(replaceAbilityCallbackName, groupID, pos, abilityID);
   }
+  setAbilityItem(groupID: number, pos: number, defID: number, stackHash: string, abilityDisplayDefID: number): void {
+    engine.trigger(setItemCallbackName, groupID, pos, defID, stackHash, abilityDisplayDefID);
+  }
+  swapAbilitySlots(groupA: number, posA: number, groupB: number, posB: number): void {
+    engine.trigger(swapSlotsCallbackName, groupA, posA, groupB, posB);
+  }
 }
 
 class BrowserAbilityFunctions extends AbilityFunctionsBase {
@@ -300,6 +318,8 @@ class BrowserAbilityFunctions extends AbilityFunctionsBase {
   executeAbility(groupID: number, pos: number): void {}
   moveAbility(groupID: number, srcPos: number, destPos: number): void {}
   setAbility(groupID: number, pos: number, abilityID: number): void {}
+  setAbilityItem(groupID: number, pos: number, defID: number, stackHash: string, abilityDisplayDefID: number): void {}
+  swapAbilitySlots(groupA: number, posA: number, groupB: number, posB: number): void {}
 }
 
 export const impl: AbilityFunctions & AbilityMocks = engine.isAttached

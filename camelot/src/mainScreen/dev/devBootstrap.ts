@@ -7,7 +7,7 @@
 import { game } from '@csegames/library/dist/_baseGame';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { processManifest } from '../dataSources/manifest/manifestDefService';
-import { setGameDefsLoaded } from '../redux/loadingSlice';
+import { LoadingTopic, setGameDefsLoaded, setInitialized } from '../redux/loadingSlice';
 import { updateStringTable } from '../redux/stringTableSlice';
 import { store } from '../redux/store';
 
@@ -20,6 +20,8 @@ const MANIFEST_DIR = 'dev-manifests';
 const CREDENTIAL_KEY = 'cu.dev.accessToken';
 const CHARACTER_ID_KEY = 'cu.dev.characterID';
 const AUTO_CONNECT_KEY = 'cu.dev.autoConnect';
+const WEB_API_HOST_KEY = 'cu.dev.webAPIHost';
+const OFFLINE_KEY = 'cu.dev.offline';
 
 // Widget display names that exist only in this client. In-game these come from the stringtable
 // manifest (game data); until they are added there, the HUD Editor falls back to the raw string id.
@@ -31,12 +33,13 @@ const DEV_STRING_TABLE_ENTRIES: Record<string, string> = {
 };
 
 /**
- * Lets a browser session use real WebAPI credentials without committing any secret.
- * The values are supplied by the developer at runtime, e.g. in devtools:
- *   localStorage.setItem('cu.dev.accessToken', '<jwt from /auth/token>')
- * and are never read in-game (only the out-of-context stub game object is touched).
+ * Applies the browser session's configuration to the out-of-context stub game object: credentials,
+ * which WebAPI host (shard) to talk to, and whether to run without any network access at all.
+ *
+ * Values come from localStorage rather than environment variables because webpack bakes
+ * `process.env` in at build time — an env var would require a rebuild to change shard.
  */
-export function applyDevCredentialOverrides(): void {
+export function applyDevOverrides(): void {
   if (game.isClientAttached) {
     return;
   }
@@ -50,9 +53,31 @@ export function applyDevCredentialOverrides(): void {
     if (characterID) {
       game.characterID = characterID;
     }
+    const webAPIHost = window.localStorage.getItem(WEB_API_HOST_KEY);
+    if (webAPIHost) {
+      game.webAPIHost = webAPIHost;
+    }
+    if (window.localStorage.getItem(OFFLINE_KEY) === '1') {
+      applyOfflineMode();
+    }
   } catch (e) {
-    console.error('Failed to read development credentials', e);
+    console.error('Failed to read development configuration', e);
   }
+}
+
+/**
+ * Works from locally staged manifests only. The two WebAPI-backed init topics are marked complete
+ * with a failed result — `loadingSlice.setInitialized` counts `false` as complete (only
+ * `undefined`/`null` hold the loading screen) — and web calls are short-circuited so they do not
+ * retry against an unreachable server.
+ */
+function applyOfflineMode(): void {
+  // BrowserNetworkFunctions hardcodes isOfflineMode() to false; overriding it here keeps the whole
+  // harness in one place instead of patching library/.
+  clientAPI.isOfflineMode = () => Promise.resolve(true);
+  store.dispatch(setInitialized({ topic: LoadingTopic.ShardCharacters, result: false }));
+  store.dispatch(setInitialized({ topic: LoadingTopic.Zones, result: false }));
+  console.log('Offline development mode: WebAPI calls are disabled');
 }
 
 interface DevManifestEntry {

@@ -54,12 +54,12 @@ import { ZoneInstanceService } from './dataSources/zoneInstanceService';
 import { MailService } from './dataSources/mailService';
 import { SocialService } from './dataSources/socialService';
 import { installMockStatusData } from './dataSources/mockStatusDataService';
-import { applyDevCredentialOverrides, loadDevManifests } from './dev/devBootstrap';
+import { applyDevOverrides, loadDevManifests } from './dev/devBootstrap';
 
 initializeSentry();
 // Out-of-context (browser) sessions get no credentials or game-definition manifests from a client,
 // so inject both before the UI mounts. Both are no-ops when attached to a client.
-applyDevCredentialOverrides();
+applyDevOverrides();
 loadDevManifests().then(() => installMockStatusData());
 
 ReactDom.render(

@@ -12,6 +12,8 @@ import { EntityResource } from '@csegames/library/dist/camelotunchained/game/Gam
 const Root = 'HUD-StatusEffectAmountCell-Root';
 const Drain = 'HUD-StatusEffectAmountCell-Drain';
 const UiText = 'HUD-StatusEffectAmountCell-UiText';
+// Modifier for a uiText rendered without an Amount beside it (see the .Solo rule in the stylesheet).
+const UiTextSolo = 'Solo';
 const Amount = 'HUD-StatusEffectAmountCell-Amount';
 const Positive = 'Positive';
 const Negative = 'Negative';
@@ -44,6 +46,7 @@ export function StatusEffectAmountCell(props: Props): JSX.Element | null {
   const side = isPositive ? Positive : Negative;
 
   const amount = statusData.stats.Amount;
+  const hasAmount = amount != null && amount > 1;
   let amountTierClass = '';
   if (amount != null && amount > 1 && health) {
     switch (getStatusAmountTier(amount, health.current)) {
@@ -75,10 +78,11 @@ export function StatusEffectAmountCell(props: Props): JSX.Element | null {
         // Keyed on the status start to restart the drain animation.
         <div className={`${Drain} ${side}`} key={props.animationStart} style={drainStyle} />
       )}
-      {props.fresh && statusData.uiText ? <div className={UiText}>{statusData.uiText}</div> : null}
-      {amount != null && amount > 1 && (
-        <div className={`${Amount} ${side} ${amountTierClass}`}>{amount}</div>
-      )}
+      {props.fresh && statusData.uiText ? (
+        // With no Amount to show, the uiText is the only content and takes the amount's size.
+        <div className={hasAmount ? UiText : `${UiText} ${UiTextSolo}`}>{statusData.uiText}</div>
+      ) : null}
+      {hasAmount && <div className={`${Amount} ${side} ${amountTierClass}`}>{amount}</div>}
     </div>
   );
 }

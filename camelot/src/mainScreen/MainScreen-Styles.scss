@@ -1805,6 +1805,18 @@ $StatusEffectNeutralColor: white;
 // Baseline text shadow for the amount column: in game the UI renders over the world, where neither
 // colour nor brightness is under our control, so contrast cannot be left to the backdrop.
 $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
+// The drained area behind the amount. Desaturated and darkened from the text colours so a full bar
+// reads as a tint instead of a slab of pure hue.
+$StatusEffectPositiveBar: darken(desaturate($StatusEffectPositiveColor, 30%), 14%);
+$StatusEffectNegativeBar: darken(desaturate($StatusEffectNegativeColor, 25%), 14%);
+// Strips of the icon's border width above and below the bar, in a darker shade of the same hue, so
+// the bar lines up with the icon art instead of the icon's outer edge.
+$StatusEffectPositiveBarEdge: darken($StatusEffectPositiveBar, 14%);
+$StatusEffectNegativeBarEdge: darken($StatusEffectNegativeBar, 14%);
+// Extreme-tier amount colours. Deliberately not the bar's own hue: red-on-red and green-on-green
+// were unreadable once the bar filled the cell.
+$StatusEffectPositiveExtremeColor: #ffd24a; // golden
+$StatusEffectNegativeExtremeColor: #b98cff; // purple
 
 .HUD-StatusEffectsIcon-DurationWhiteRing {
   position: absolute;
@@ -1919,6 +1931,9 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
 .HUD-StatusEffectsColumns-Column {
   display: flex;
   flex-direction: column;
+  // Reserve the column's space unconditionally (amount cell plus icon), so the widget does not
+  // change width when the first effect of a side arrives or the last one expires.
+  width: 10.55vmin; // 7.5vmin cell + 2.75vmin icon + 2 * 0.15vmin icon border
 
   &.Positive {
     // Positive effects on the left, negative on the right, separated by a gutter. The drain fills
@@ -1951,6 +1966,16 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
     animation-fill-mode: forwards;
     // The double-size icon must overlay its neighbors while shrinking.
     z-index: 10;
+  }
+
+  // The pop grows out of the corner pointing away from the widget's centre line: hostile effects
+  // (negative column, right of their cell) anchor top-left, friendly effects anchor top-right.
+  &.Popping.Negative {
+    transform-origin: top left;
+  }
+
+  &.Popping.Positive {
+    transform-origin: top right;
   }
 
   &.Expiring {
@@ -2027,10 +2052,12 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
 .HUD-StatusEffectAmountCell-Root {
   position: relative;
   width: 7.5vmin;
-  height: 2.75vmin;
+  // Matches the icon's outer height (2.75vmin plus a 0.15vmin border on each side), so the coloured
+  // area starts and ends where the icon does. The icon used to be the taller of the two, which left
+  // the cell flush at the top with a gap at the bottom.
+  height: 3.05vmin;
   display: flex;
-  // Amounts sit on the cell's bottom edge, which in practice is near-centered (the number is
-  // nearly as tall as the cell) while leaving the top strip to the transient uiText.
+  // Amounts sit on the cell's bottom edge, leaving the top strip to the transient uiText.
   align-items: flex-end;
 
   // Positive cells sit left of their icon, negative cells right of it: content hugs the icon.
@@ -2039,6 +2066,33 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
   }
   &.Negative {
     justify-content: flex-start;
+  }
+
+  // Strips of the icon's border width above and below the drained area, in a darker shade of the
+  // bar colour, so the bar aligns with the icon art rather than the icon's outer edge.
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0.15vmin;
+    pointer-events: none;
+    z-index: 0;
+  }
+  &::before {
+    top: 0;
+  }
+  &::after {
+    bottom: 0;
+  }
+  &.Positive::before,
+  &.Positive::after {
+    background-color: $StatusEffectPositiveBarEdge;
+  }
+  &.Negative::before,
+  &.Negative::after {
+    background-color: $StatusEffectNegativeBarEdge;
   }
 }
 
@@ -2050,8 +2104,9 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
 // inline per status, keyed to its duration).
 .HUD-StatusEffectAmountCell-Drain {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  // Inset by the icon's border width, so the bar spans the icon art rather than its outer edge.
+  top: 0.15vmin;
+  bottom: 0.15vmin;
   left: 0;
   right: 0;
   pointer-events: none;
@@ -2061,12 +2116,12 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
   animation-fill-mode: forwards;
 
   &.Positive {
-    background-image: linear-gradient(to left, $StatusEffectPositiveColor 50%, transparent 50%);
+    background-image: linear-gradient(to left, $StatusEffectPositiveBar 50%, transparent 50%);
     animation-name: HUD-StatusEffectAmountCell-DrainRetreatRight;
   }
 
   &.Negative {
-    background-image: linear-gradient(to right, $StatusEffectNegativeColor 50%, transparent 50%);
+    background-image: linear-gradient(to right, $StatusEffectNegativeBar 50%, transparent 50%);
     animation-name: HUD-StatusEffectAmountCell-DrainRetreatLeft;
   }
 }
@@ -2092,12 +2147,14 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
 }
 
 // uiText shown while a status is freshly applied, above the amount without displacing it.
+// Stacked above the amount (which is z-index 1) so it stays readable when an extreme-tier number
+// grows tall enough to reach into the text strip.
 .HUD-StatusEffectAmountCell-UiText {
   position: absolute;
   top: -0.1vmin;
   left: 0;
   right: 0;
-  z-index: 2;
+  z-index: 3;
   color: white;
   font-family: Caudex;
   font-size: 0.7rem;
@@ -2108,6 +2165,15 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
   text-overflow: ellipsis;
   text-align: center;
   pointer-events: none;
+}
+
+// No Amount to show: the uiText is the only content, so it takes the amount's size instead of
+// staying a caption above nothing.
+.HUD-StatusEffectAmountCell-UiText.Solo {
+  position: static;
+  max-width: 100%;
+  font-size: 1.75rem;
+  line-height: 1.75rem;
 }
 
 // The Amount stat, formerly the icon's corner badge. Deliberately smaller than the cell: the number
@@ -2141,16 +2207,16 @@ $StatusEffectTextShadow: 0 0 0.35vmin rgba(0, 0, 0, 0.9);
   }
 
   &.TierExtreme {
-    // Above 100%: bold, larger (fills the cell), green (positive) / red (negative).
+    // Above 100%: bold, larger (fills the cell), golden (positive) / purple (negative).
     font-weight: 700;
     font-size: 2.75rem;
     line-height: 2.75rem;
 
     &.Positive {
-      color: $StatusEffectPositiveColor;
+      color: $StatusEffectPositiveExtremeColor;
     }
     &.Negative {
-      color: $StatusEffectNegativeColor;
+      color: $StatusEffectNegativeExtremeColor;
     }
   }
 }

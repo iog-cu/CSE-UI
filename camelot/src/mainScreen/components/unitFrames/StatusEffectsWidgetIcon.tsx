@@ -21,6 +21,8 @@ const StatusImage = 'HUD-StatusEffectsWidgetIcon-StatusImage';
 const StackCount = 'HUD-StatusEffectsWidgetIcon-StackCount';
 const Expiring = 'Expiring';
 const Popping = 'Popping';
+const Positive = 'Positive';
+const Negative = 'Negative';
 
 interface ReactProps {
   statusData: StatusData;
@@ -44,12 +46,15 @@ type Props = ReactProps & InjectedProps;
 
 // The square status icon of the standalone widget. Unlike the unit-frame icon it carries no
 // duration ring (the drain lives in the adjacent amount cell) and no amount badge (the Amount
-// stat lives in the cell; only the stack count stays on the icon). Pops in at double size when
-// freshly applied and blinks with increasing speed during its last second.
+// stat lives in the cell; only the stack count stays on the icon). Pops in from the side facing
+// away from the widget centre when freshly applied, and pulses during its last second.
 class AStatusEffectsWidgetIcon extends React.Component<Props> {
   render(): JSX.Element {
     const { statusData } = this.props;
     const classes = [Root];
+    // Side drives the pop-in origin (see MainScreen-Styles.scss): hostile effects grow from their
+    // top-left corner, friendly ones from their top-right.
+    classes.push(isStatusBuff(statusData) ? Positive : Negative);
     if (this.props.expiring) {
       classes.push(Expiring);
     }

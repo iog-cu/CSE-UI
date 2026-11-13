@@ -36,15 +36,15 @@ when the goal is an in-game build on a machine that already builds fine.
    Export files come from the game client — see `documentation/ExtractingManifests.md` (0.53+), or
    run the client with `manifestExportDirectory=<dir>`. The script derives each manifest's schema
    version from the processors themselves and writes `dev-manifests/index.json`.
-9. **Configure the session** in devtools before reload. All keys live under `cu.dev.*`:
-   - `localStorage.setItem('cu.dev.accessToken', '<jwt>')` — from `./get-jwt.sh`, which prints only
-     the token. Optionally `cu.dev.characterID`.
-   - `localStorage.setItem('cu.dev.webAPIHost', 'https://<shard-api-host>')` — which shard the UI
-     talks to. The stub default points at the internal test server, which most players cannot use.
-   - `localStorage.setItem('cu.dev.offline', '1')` — no WebAPI traffic at all: the WebAPI-backed init
-     topics are marked complete (a failed result still clears the loading screen) and requests are
-     short-circuited, so locally staged manifests are enough to work on the HUD.
-   - `localStorage.setItem('cu.dev.autoConnect', '1')` — skip character selection.
+9. **Configure the session** in devtools before reload — optional for HUD work. All keys are
+   `cu.dev.*`, and the **default is credential-free**: no WebAPI traffic, worked from the locally
+   staged manifests.
+   - `cu.dev.live = '1'` — opt in to live WebAPI data (needed to work on character selection). Needs
+     `cu.dev.accessToken` from `./get-jwt.sh` (which prints only the token); without a JWT-shaped
+     token the session falls back to offline with a warning.
+   - `cu.dev.webAPIHost` — which shard answers `shardCharacters` (the query takes no shard argument).
+     Defaults to `https://hawkingapi.camelotunchained.com`, which is only reachable at weekends.
+   - `cu.dev.autoConnect` — defaults to on in offline mode (no characters to select); `'0'` opts out.
 
 Environment variables are not an option for these: webpack bakes `process.env` at build time, so
 changing shard or credentials would require a rebuild.
@@ -69,10 +69,12 @@ changing shard or credentials would require a rebuild.
   `CUHUDWidgetStates` does nothing and edits are lost on reload — but HUD Editor sliders write
   through to Redux, so in-session editing works.
 - Without a valid token the GraphQL websocket is closed with 4401 and never retried, so the
-  `shardCharacters`/`zones` init topics never resolve and the loading screen stays up forever. Use
-  `cu.dev.offline = '1'` when you do not need live data.
+  `shardCharacters`/`zones` init topics never resolve and the loading screen stays up forever. That
+  is why live mode requires a token and falls back to offline without one.
 - `webAPIHost` decides which shard the `shardCharacters` query hits — the query itself takes no shard
   argument. Overriding it is therefore the only way to point a browser session at another server.
+- Offline mode is never a real client: entity state, party, chat and the ability bars all stay empty.
+  It exists to render and edit HUD widgets, not to exercise gameplay paths.
 - Headless check:
   `flatpak run org.chromium.Chromium --headless=new --no-sandbox --enable-logging=stderr --virtual-time-budget=25000 --dump-dom http://localhost:PORT/mainScreen.html`
   Look for `Init N/5:` lines in stderr and `HUD-*` classes in the DOM (`grep -o … | wc -l`; the DOM

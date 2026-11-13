@@ -82,15 +82,22 @@ Supported by design: `mainScreen/preload.ts` → `loadCamelot()` → `loadGame()
 React. Serve `camelot/dist/` with any static server and open `mainScreen.html`.
 
 A browser session normally gets neither credentials nor game definitions, because the client supplies
-both. `camelot/src/mainScreen/dev/devBootstrap.ts` fills the gap using `localStorage` keys:
+both. `camelot/src/mainScreen/dev/devBootstrap.ts` fills the gap using `localStorage` keys. **The
+default is credential-free**: no WebAPI traffic at all, worked from a locally staged manifest export,
+which is all that in-game HUD work needs. Live data is opt-in, because it additionally needs
+credentials and a reachable shard.
 
 | Key | Purpose |
 | --- | --- |
-| `cu.dev.accessToken` | JWT used as the `Authorization: Bearer` token; without it every request 401s and the GraphQL websocket is closed with 4401 (no retry), so the loading screen never clears |
+| `cu.dev.live` | `'1'` talks to the WebAPI instead of running offline. Requires `cu.dev.accessToken`; without a JWT-shaped token the session falls back to offline with a warning |
+| `cu.dev.accessToken` | JWT sent as `Authorization: Bearer`. Without one the GraphQL websocket is closed with 4401 and never retried, so the loading screen would never clear |
 | `cu.dev.characterID` | Sent as the `characterID` request header |
-| `cu.dev.autoConnect` | `'1'` enters the connected state the way the Play button does, skipping character selection |
-| `cu.dev.webAPIHost` | Overrides the WebAPI host, i.e. which shard the UI talks to |
-| `cu.dev.offline` | `'1'` skips all WebAPI traffic and clears the loading screen from cached data |
+| `cu.dev.webAPIHost` | WebAPI host, i.e. which shard answers `shardCharacters` (the query takes no shard argument). Defaults to `https://hawkingapi.camelotunchained.com` in live mode |
+| `cu.dev.autoConnect` | Enters the connected state the way the Play button does. Defaults to on in offline mode, where there are no characters to select; `'0'` opts out |
+
+In offline mode the two WebAPI-backed init topics (`shardCharacters`, `zones`) are marked complete
+with a failed result — a failed result still clears the loading screen, only `undefined` holds it —
+and web calls are short-circuited so nothing retries against an unreachable server.
 
 Obtain a JWT with `POST https://api.camelotunchained.com/auth/token` and the JSON body
 `{"email": …, "password": …}`; the response's `access_token` is the bearer token. Keep credentials

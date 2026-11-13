@@ -5,6 +5,7 @@
  */
 
 import { game } from '@csegames/library/dist/_baseGame';
+import { getAccountID } from '@csegames/library/dist/_baseGame/utils/accountUtils';
 import { clientAPI } from '@csegames/library/dist/camelotunchained/MainScreenClientAPI';
 import { processManifest } from '../dataSources/manifest/manifestDefService';
 import { LoadingTopic, setGameDefsLoaded, setInitialized } from '../redux/loadingSlice';
@@ -17,11 +18,14 @@ import { store } from '../redux/store';
 // uninitialized. Nothing here runs when attached to a client.
 
 const MANIFEST_DIR = 'dev-manifests';
+const LIVE_KEY = 'cu.dev.live';
 const CREDENTIAL_KEY = 'cu.dev.accessToken';
 const CHARACTER_ID_KEY = 'cu.dev.characterID';
 const AUTO_CONNECT_KEY = 'cu.dev.autoConnect';
 const WEB_API_HOST_KEY = 'cu.dev.webAPIHost';
-const OFFLINE_KEY = 'cu.dev.offline';
+
+// Shard most community players are on. Only reachable at weekends.
+const DEFAULT_LIVE_HOST = 'https://hawkingapi.camelotunchained.com';
 
 // Widget display names that exist only in this client. In-game these come from the stringtable
 // manifest (game data); until they are added there, the HUD Editor falls back to the raw string id.
@@ -33,8 +37,11 @@ const DEV_STRING_TABLE_ENTRIES: Record<string, string> = {
 };
 
 /**
- * Applies the browser session's configuration to the out-of-context stub game object: credentials,
- * which WebAPI host (shard) to talk to, and whether to run without any network access at all.
+ * Applies the browser session's configuration to the out-of-context stub game object.
+ *
+ * The default is credential-free: no WebAPI traffic at all, so the HUD can be worked on with just a
+ * locally staged manifest export. Live data is opt-in (`cu.dev.live`), which is what the character
+ * selection screen needs — and it needs credentials and a reachable shard on top of that.
  *
  * Values come from localStorage rather than environment variables because webpack bakes
  * `process.env` in at build time — an env var would require a rebuild to change shard.
@@ -44,7 +51,11 @@ export function applyDevOverrides(): void {
     return;
   }
 
+  let wantsLive = false;
   try {
+    wantsLive = window.localStorage.getItem(LIVE_KEY) === '1';
+    // The stub game object carries a placeholder token ('developer'), so the stored value — not
+    // game.accessToken — is what tells us whether real credentials exist.
     const accessToken = window.localStorage.getItem(CREDENTIAL_KEY);
     if (accessToken) {
       game.accessToken = accessToken;
@@ -53,17 +64,36 @@ export function applyDevOverrides(): void {
     if (characterID) {
       game.characterID = characterID;
     }
-    const webAPIHost = window.localStorage.getItem(WEB_API_HOST_KEY);
-    if (webAPIHost) {
-      game.webAPIHost = webAPIHost;
-    }
-    if (window.localStorage.getItem(OFFLINE_KEY) === '1') {
+
+    if (!wantsLive) {
       applyOfflineMode();
+      return;
     }
+    // Without a usable token the websocket is rejected (4401) and never retried, so the shard
+    // queries would hold the loading screen forever. Offline is the usable fallback.
+    if (!accessToken || getAccountID(accessToken) === null) {
+      console.warn(
+        accessToken
+          ? 'Development: cu.dev.accessToken does not look like a JWT; running offline.'
+          : 'Development: cu.dev.live is set but cu.dev.accessToken is missing; running offline.'
+      );
+      applyOfflineMode();
+      return;
+    }
+
+    // `shardCharacters` takes no shard argument: the host is what selects the shard.
+    game.webAPIHost = window.localStorage.getItem(WEB_API_HOST_KEY) || DEFAULT_LIVE_HOST;
+    console.log(`Live development mode: WebAPI host ${game.webAPIHost}`);
   } catch (e) {
     console.error('Failed to read development configuration', e);
+    if (!wantsLive) {
+      applyOfflineMode();
+    }
   }
 }
+
+// Whether this session runs without WebAPI access; drives the auto-connect default.
+let devIsOffline = false;
 
 /**
  * Works from locally staged manifests only. The two WebAPI-backed init topics are marked complete
@@ -72,6 +102,7 @@ export function applyDevOverrides(): void {
  * retry against an unreachable server.
  */
 function applyOfflineMode(): void {
+  devIsOffline = true;
   // BrowserNetworkFunctions hardcodes isOfflineMode() to false; overriding it here keeps the whole
   // harness in one place instead of patching library/.
   clientAPI.isOfflineMode = () => Promise.resolve(true);
@@ -119,17 +150,29 @@ function applyDevStringTableEntries(): void {
  * Optionally skips the character-selection screen by entering the connected state, the same way the
  * Play button does. Opt in with localStorage.setItem('cu.dev.autoConnect', '1').
  */
+/**
+ * In offline mode there are no characters to select, so entering the connected state is the default:
+ * it is what reveals the in-game HUD. Set `cu.dev.autoConnect = '0'` to opt out.
+ */
 function applyDevAutoConnect(): void {
   if (game.isClientAttached) {
     return;
   }
 
+  let enabled = devIsOffline;
   try {
-    if (window.localStorage.getItem(AUTO_CONNECT_KEY) !== '1') {
-      return;
+    const setting = window.localStorage.getItem(AUTO_CONNECT_KEY);
+    if (setting === '1') {
+      enabled = true;
+    } else if (setting === '0') {
+      enabled = false;
     }
   } catch (e) {
     console.error('Failed to read development auto-connect flag', e);
+    return;
+  }
+
+  if (!enabled) {
     return;
   }
 

@@ -9,11 +9,9 @@ import { connect } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { StatusDef } from '../../dataSources/manifest/statusManifest';
 import { StatusState } from '@csegames/library/dist/camelotunchained/game/GameClientModels/StatusState';
-import { getNewestStatusInstances, getStatusInstanceKey, isStatusBuff, StatusData } from '../../helpers/statusHelpers';
+import { getDisplayableStatuses, getStatusInstanceKey, isStatusBuff, StatusData } from '../../helpers/statusHelpers';
 import { StatusEffectsIcon } from './StatusEffectsIcon';
 import { getIsEntityNPC } from '../../helpers/characterHelpers';
-
-const HIDDEN_STATUS_TAG = 'UI.Hidden';
 
 // CSS classes
 const Root = 'HUD-StatusEffects-Root';
@@ -61,34 +59,15 @@ class StatusEffects extends React.Component<Props> {
     const buffs: StatusData[] = [];
     const debuffs: StatusData[] = [];
 
-    const statusInstances = getNewestStatusInstances(
-      Object.values(this.props.statuses),
-      this.props.statusInstanceCounts
+    getDisplayableStatuses(this.props.statuses, this.props.statusInstanceCounts, this.props.statusesByNumericID).forEach(
+      (data) => {
+        if (isStatusBuff(data)) {
+          buffs.push(data);
+        } else {
+          debuffs.push(data);
+        }
+      }
     );
-    statusInstances.forEach((state) => {
-      const def = this.props.statusesByNumericID[state.id];
-      if (!def) {
-        return;
-      }
-
-      // If this status shouldn't be shown, skip it.
-      if (!def.showInHUD && !def.showOnAdd && !def.showOnInactive && !def.showOnRemove) {
-        return;
-      }
-      if (def.statusTags.includes(HIDDEN_STATUS_TAG)) {
-        return;
-      }
-
-      const data: StatusData = { ...def, ...state };
-
-      if (data.isDisabled) return;
-
-      if (isStatusBuff(def)) {
-        buffs.push(data);
-      } else {
-        debuffs.push(data);
-      }
-    });
 
     return [buffs, debuffs];
   }

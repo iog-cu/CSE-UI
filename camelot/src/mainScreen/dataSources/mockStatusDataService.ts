@@ -94,6 +94,7 @@ const MOCK_ANIMATION_DATA: AnimationData = {
   viewY: 0,
   viewZ: 0,
   worldTime: MOCK_WORLD_TIME,
+  timeOfDay: 12,
   fps: 60,
   mapData: {
     zoneId: [],

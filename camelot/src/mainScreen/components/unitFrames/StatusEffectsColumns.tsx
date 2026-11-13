@@ -106,16 +106,29 @@ interface RowState {
   animationStart: number;
   // Negative offset that seeks the CSS drain animation to the current point in the duration.
   animationDelay: number;
-  // Remaining duration at or below 1 second: the icon blinks, accelerating until expiry.
+  // Remaining duration at or below 1 second: the icon pulses slowly until expiry (a scale pulse,
+  // not a blink - see the stylesheet).
   expiring: boolean;
+  // Formatted remaining duration drawn on the icon; null for statuses without one.
+  remainingLabel: string | null;
   // Freshly applied (see FRESH_WINDOW_SECONDS), or mounted while already in progress (dev aid,
   // see devPop in componentDidMount).
   fresh: boolean;
 }
 
+// Remaining duration as shown on the icon: whole seconds from ten upwards, one decimal below so the
+// final seconds stay legible. Floors, matching the tooltip's countdown; null when there is no
+// duration to count down (permanent statuses).
+function formatRemaining(remaining: number): string | null {
+  if (!isFinite(remaining)) {
+    return null;
+  }
+  return remaining >= 10 ? String(Math.floor(remaining)) : remaining.toFixed(1);
+}
+
 // One status effect: icon plus its amount cell, and the per-instance timing state both render
 // from. A single animation handle drives the drain seek, the tooltip's remaining-time text, the
-// blink window and the fresh window, so no separate loops are needed per child.
+// countdown on the icon, the expiry window and the fresh window, so no separate loops are needed.
 class StatusEffectRow extends React.Component<RowProps, RowState> {
   private animationHandle: ListenerHandle;
   // TODO: remove. Dev aid for out-of-context (browser) sessions: pops statuses that were already
@@ -130,7 +143,14 @@ class StatusEffectRow extends React.Component<RowProps, RowState> {
     super(props);
     // animationStart starts at -1 so a status with startTime 0 (e.g. the permanent mock status)
     // still takes the new-instance branch on its first frame.
-    this.state = { elapsed: null, animationStart: -1, animationDelay: 0, expiring: false, fresh: false };
+    this.state = {
+      elapsed: null,
+      animationStart: -1,
+      animationDelay: 0,
+      expiring: false,
+      remainingLabel: null,
+      fresh: false
+    };
   }
 
   componentDidMount(): void {
@@ -152,7 +172,6 @@ class StatusEffectRow extends React.Component<RowProps, RowState> {
         elapsed={this.state.elapsed}
         animationStart={this.state.animationStart}
         animationDelay={this.state.animationDelay}
-        fresh={this.state.fresh}
       />
     );
     const icon = (
@@ -160,6 +179,7 @@ class StatusEffectRow extends React.Component<RowProps, RowState> {
         statusData={statusData}
         entityID={this.props.entityID}
         elapsed={this.state.elapsed}
+        remainingLabel={this.state.remainingLabel}
         expiring={this.state.expiring}
         popping={this.state.fresh}
       />
@@ -180,7 +200,14 @@ class StatusEffectRow extends React.Component<RowProps, RowState> {
 
     if (elapsed < 0 || remaining < 0) {
       if (this.state.elapsed !== null) {
-        this.setState({ elapsed: null, animationStart: -1, animationDelay: 0, expiring: false, fresh: false });
+        this.setState({
+          elapsed: null,
+          animationStart: -1,
+          animationDelay: 0,
+          expiring: false,
+          remainingLabel: null,
+          fresh: false
+        });
       }
       return;
     }
@@ -193,23 +220,31 @@ class StatusEffectRow extends React.Component<RowProps, RowState> {
         animationDelay: -elapsed,
         elapsed,
         expiring: remaining <= 1,
+        remainingLabel: formatRemaining(remaining),
         fresh: elapsed <= FRESH_WINDOW_SECONDS
       });
       this.maybeStartDevPop(elapsed, remaining);
       return;
     }
 
-    // Same status still active. Re-render only when something visible changes: the fresh and
-    // blink windows (sub-second), or the tooltip's whole remaining seconds.
+    // Same status still active. Re-render only when something visible changes: the expiry and
+    // fresh windows, the countdown text (ten times a second at most, since only the sub-ten
+    // range has a decimal), or the tooltip's whole remaining seconds.
     const expiring = remaining <= 1;
+    const remainingLabel = formatRemaining(remaining);
     // The dev pop outlives the world-time test on purpose: in a browser session world time does
     // not advance, so the status is already older than FRESH_WINDOW_SECONDS and the test alone
     // would clear fresh on the very next frame.
     const fresh = this.devPopActive || elapsed <= FRESH_WINDOW_SECONDS;
     const floorChanged =
       this.state.elapsed === null || Math.floor(remaining) !== Math.floor(duration - this.state.elapsed);
-    if (expiring !== this.state.expiring || fresh !== this.state.fresh || floorChanged) {
-      this.setState({ elapsed, expiring, fresh });
+    if (
+      expiring !== this.state.expiring ||
+      remainingLabel !== this.state.remainingLabel ||
+      fresh !== this.state.fresh ||
+      floorChanged
+    ) {
+      this.setState({ elapsed, expiring, remainingLabel, fresh });
     }
   }
 

@@ -21,6 +21,7 @@ const StatusImage = 'HUD-StatusEffectsWidgetIcon-StatusImage';
 const StackCount = 'HUD-StatusEffectsWidgetIcon-StackCount';
 const Expiring = 'Expiring';
 const Popping = 'Popping';
+const Remaining = 'HUD-StatusEffectsWidgetIcon-Remaining';
 const Positive = 'Positive';
 const Negative = 'Negative';
 
@@ -29,6 +30,9 @@ interface ReactProps {
   entityID: string;
   // Timing state computed by the owning StatusEffectRow animation loop.
   elapsed: number | null;
+  // Formatted remaining duration, drawn in the corner the pop shrinks towards; null when the
+  // status has no duration.
+  remainingLabel: string | null;
   expiring: boolean;
   // Freshly applied: the icon pops in at double size and shrinks to normal over 0.5s.
   popping: boolean;
@@ -71,6 +75,7 @@ class AStatusEffectsWidgetIcon extends React.Component<Props> {
         onMouseDown={this.isRemovable() ? this.onRemoveStatusMouseDown.bind(this) : undefined}
       >
         <img className={StatusImage} src={statusData.iconURL} />
+        {this.props.remainingLabel !== null && <div className={Remaining}>{this.props.remainingLabel}</div>}
         {statusData.instanceCount > 1 && <div className={StackCount}>{statusData.instanceCount}</div>}
       </TooltipSource>
     );

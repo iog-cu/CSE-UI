@@ -33,8 +33,6 @@ interface Props {
   elapsed: number | null;
   animationStart: number;
   animationDelay: number;
-  // While true (first 0.5s of the status), the definition's uiText is shown above the amount.
-  fresh: boolean;
 }
 
 // The text/number cell beside a status icon in the standalone widget: the duration drain moved
@@ -78,8 +76,9 @@ export function StatusEffectAmountCell(props: Props): JSX.Element | null {
         // Keyed on the status start to restart the drain animation.
         <div className={`${Drain} ${side}`} key={props.animationStart} style={drainStyle} />
       )}
-      {props.fresh && statusData.uiText ? (
-        // With no Amount to show, the uiText is the only content and takes the amount's size.
+      {statusData.uiText ? (
+        // Shown for the whole effect duration, not just the fresh window. With no Amount beside it
+        // the uiText is the only content, so it takes the amount's size.
         <div className={hasAmount ? UiText : `${UiText} ${UiTextSolo}`}>{statusData.uiText}</div>
       ) : null}
       {hasAmount && <div className={`${Amount} ${side} ${amountTierClass}`}>{amount}</div>}

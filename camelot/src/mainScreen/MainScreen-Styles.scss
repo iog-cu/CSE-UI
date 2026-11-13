@@ -1754,6 +1754,12 @@ $ShieldMarkerOutlineColor: #032a30;
   }
 }
 
+// Standalone status effects widget: neutralize the frame-relative offsets of the embedded root.
+.HUD-StatusEffectsWidget-Root .HUD-StatusEffects-Root {
+  left: 0;
+  top: 0;
+}
+
 .HUD-PlayerUnitFrame-Root.simple .HUD-StatusEffects-Root {
   left: 5vmin;
   top: -7vmin;

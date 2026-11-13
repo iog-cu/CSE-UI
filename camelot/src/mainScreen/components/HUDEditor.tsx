@@ -81,6 +81,11 @@ import { WIDGET_ID_WARNING_ICONS } from './WarningIcons';
 import { WIDGET_ID_SELF } from './unitFrames/SelfUnitFrame';
 import { WIDGET_ID_FRIENDLY, WIDGET_ID_ENEMY } from './unitFrames/TargetUnitFrame';
 import {
+  WIDGET_ID_STATUS_EFFECTS_ENEMY,
+  WIDGET_ID_STATUS_EFFECTS_FRIENDLY,
+  WIDGET_ID_STATUS_EFFECTS_SELF
+} from './unitFrames/StatusEffectsWidget';
+import {
   MAX_UI_SCALE,
   MIN_UI_SCALE,
   NameplateStyle
@@ -303,7 +308,13 @@ const HUDEditorWidgetGroups: HUDEditorWidgetGroup[] = [
     key: 'health-bars-group',
     labelStringID: StringIDHUDEditorTargetPlatesGroupName,
     fallbackLabel: 'Health Bars',
-    match: (id) => [WIDGET_ID_ENEMY, WIDGET_ID_FRIENDLY, WIDGET_ID_SELF].includes(id)
+    match: (id) =>
+      [WIDGET_ID_ENEMY, WIDGET_ID_FRIENDLY, WIDGET_ID_SELF].includes(id) ||
+      [
+        WIDGET_ID_STATUS_EFFECTS_ENEMY,
+        WIDGET_ID_STATUS_EFFECTS_FRIENDLY,
+        WIDGET_ID_STATUS_EFFECTS_SELF
+      ].includes(id)
   },
   {
     key: 'abilities-group',

@@ -10,6 +10,11 @@ import { RootState } from '../../redux/store';
 import { AnyEntityStateModel } from '@csegames/library/dist/camelotunchained/game/GameClientModels/EntityState';
 import { TargetPosition } from './TargetPosition';
 import StatusEffects from './StatusEffects';
+import {
+  shouldRenderEmbeddedStatusEffects,
+  WIDGET_ID_STATUS_EFFECTS_ENEMY,
+  WIDGET_ID_STATUS_EFFECTS_FRIENDLY
+} from './StatusEffectsWidget';
 import { Faction } from '@csegames/library/dist/camelotunchained/webAPI/definitions';
 import { getStringTableValue } from '../../helpers/stringTableHelpers';
 import { StringTableEntryDef } from '../../dataSources/manifest/stringTableManifest';
@@ -50,6 +55,7 @@ interface ReactProps {
 }
 
 interface InjectedProps {
+  showStatusEffects: boolean;
   stringTable: Record<string, StringTableEntryDef>;
 }
 
@@ -100,7 +106,7 @@ class AItemUnitFrame extends React.Component<Props> {
             <TargetPosition isFriendly={this.props.isFriendly} faction={entity.faction} />
           </div>
         </div>
-        <StatusEffects entityID={entity.entityID} />
+        {this.props.showStatusEffects && <StatusEffects entityID={entity.entityID} />}
       </div>
     );
   }
@@ -120,7 +126,7 @@ class AItemUnitFrame extends React.Component<Props> {
             <TargetPosition isFriendly={this.props.isFriendly} faction={entity.faction} />
           </div>
         </div>
-        <StatusEffects entityID={entity.entityID} />
+        {this.props.showStatusEffects && <StatusEffects entityID={entity.entityID} />}
       </div>
     );
   }
@@ -129,6 +135,10 @@ class AItemUnitFrame extends React.Component<Props> {
 function mapStateToProps(state: RootState, ownProps: ReactProps): Props {
   return {
     ...ownProps,
+    showStatusEffects: shouldRenderEmbeddedStatusEffects(
+      state,
+      ownProps.isFriendly ? WIDGET_ID_STATUS_EFFECTS_FRIENDLY : WIDGET_ID_STATUS_EFFECTS_ENEMY
+    ),
     stringTable: state.stringTable.stringTable
   };
 }
